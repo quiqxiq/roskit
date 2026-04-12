@@ -91,10 +91,14 @@ func main() {
 	// Define stream specs — each spec is a separate data source.
 	// Adding new specs is as simple as creating a new file in internal/spec/.
 	defaultSpecs := []spec.StreamSpec{
-		spec.NewInterfaceStatsSpec(),  // /interface/print stats (bandwidth)
-		spec.NewSystemResourceSpec(),  // /system/resource/print stats (CPU/memory)
+		spec.NewInterfaceStatsSpec(),  // /interface/print follow (bandwidth)
+		spec.NewSystemResourceSpec(),  // /system/resource/print interval (CPU/memory)
 		spec.NewHotspotActiveSpec(),   // /ip/hotspot/active/print follow (logins)
 		spec.NewPPPActiveSpec(),       // /ppp/active/print follow (PPPoE sessions)
+		spec.NewPPPProfileSpec(),      // /ppp/profile/print follow (profile config)
+		spec.NewPPPSecretSpec(),       // /ppp/secret/print follow (user accounts)
+		spec.NewLogSpec(),             // /log/print follow (router logs)
+		spec.NewDHCPLeaseSpec(),       // /ip/dhcp-server/lease/print follow (DHCP leases)
 	}
 
 	// Register routers. In production, these would come from a config file or database.
