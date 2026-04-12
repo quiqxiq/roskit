@@ -19,10 +19,11 @@ func (l *LogEntry) ToTags() map[string]string {
 }
 
 // ToFields returns InfluxDB-style fields for this log entry.
+// Note: field named "log_time" instead of "time" because "time" is reserved in InfluxDB.
 func (l *LogEntry) ToFields() map[string]interface{} {
 	return map[string]interface{}{
-		"time":    l.Time,
-		"message": l.Message,
+		"log_time": l.Time,
+		"message":  l.Message,
 	}
 }
 
@@ -30,7 +31,7 @@ func (l *LogEntry) ToFields() map[string]interface{} {
 func (l *LogEntry) ToCacheData(ts time.Time) map[string]string {
 	return map[string]string{
 		"id":        l.ID,
-		"time":      l.Time,
+		"log_time":  l.Time,
 		"topics":    l.Topics,
 		"message":   l.Message,
 		"timestamp": ts.Format(time.RFC3339),

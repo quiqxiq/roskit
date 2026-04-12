@@ -99,6 +99,7 @@ func main() {
 		spec.NewPPPSecretSpec(),       // /ppp/secret/print follow (user accounts)
 		spec.NewLogSpec(),             // /log/print follow (router logs)
 		spec.NewDHCPLeaseSpec(),       // /ip/dhcp-server/lease/print follow (DHCP leases)
+		spec.NewQueueSimpleStatsSpec(), // /queue/simple/print stats (bandwidth per queue)
 	}
 
 	// Register routers. In production, these would come from a config file or database.
