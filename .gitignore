@@ -38,7 +38,6 @@ docker/.env
 
 # Development data (large files)
 data/
-analisis.txt
 
 # Build output
 dist/
