@@ -32,18 +32,18 @@ func (h *SystemHealth) ToCacheData(ts time.Time) map[string]string {
 
 // WirelessRegistration represents a wireless client registration entry.
 type WirelessRegistration struct {
-	ID              string    // RouterOS internal identifier.
-	Interface       string    // Wireless interface name.
-	MacAddress      string    // Client MAC address.
-	SignalStrength  string    // Signal strength (e.g., "-65").
-	TxRate          string    // Transmit rate.
-	RxRate          string    // Receive rate.
-	Uptime          string    // Client connection uptime.
-	LastActivity    string    // Time since last activity.
-	Bytes           string    // Bytes transferred (rx/tx format).
-	Packets         string    // Packets transferred.
-	TxSignalStr     string    // TX signal strength.
-	Timestamp       time.Time // When this sample was collected.
+	ID             string    // RouterOS internal identifier.
+	Interface      string    // Wireless interface name.
+	MacAddress     string    // Client MAC address.
+	SignalStrength string    // Signal strength (e.g., "-65").
+	TxRate         string    // Transmit rate.
+	RxRate         string    // Receive rate.
+	Uptime         string    // Client connection uptime.
+	LastActivity   string    // Time since last activity.
+	Bytes          string    // Bytes transferred (rx/tx format).
+	Packets        string    // Packets transferred.
+	TxSignalStr    string    // TX signal strength.
+	Timestamp      time.Time // When this sample was collected.
 }
 
 func (w *WirelessRegistration) ToTags() map[string]string {

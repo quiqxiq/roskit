@@ -30,12 +30,12 @@ func (c *CAPsMANInterface) ToTags() map[string]string {
 
 func (c *CAPsMANInterface) ToFields() map[string]interface{} {
 	return map[string]interface{}{
-		"radio_name":    c.RadioName,
-		"master_iface":  c.MasterIface,
-		"bound":         c.Bound,
-		"inactive":      c.Inactive,
-		"disabled":      c.Disabled,
-		"comment":       c.Comment,
+		"radio_name":   c.RadioName,
+		"master_iface": c.MasterIface,
+		"bound":        c.Bound,
+		"inactive":     c.Inactive,
+		"disabled":     c.Disabled,
+		"comment":      c.Comment,
 	}
 }
 
@@ -46,22 +46,22 @@ func (c *CAPsMANInterface) ToCacheData(ts time.Time) map[string]string {
 		"current_state": c.CurrentState, "bound": fmt.Sprintf("%t", c.Bound),
 		"inactive": fmt.Sprintf("%t", c.Inactive),
 		"disabled": fmt.Sprintf("%t", c.Disabled),
-		"comment": c.Comment, "timestamp": ts.Format(time.RFC3339),
+		"comment":  c.Comment, "timestamp": ts.Format(time.RFC3339),
 	}
 }
 
 // CAPsMANRegistration represents a client registration on a CAPsMAN-managed AP.
 type CAPsMANRegistration struct {
-	ID              string    // RouterOS internal identifier.
-	Interface       string    // CAPsMAN interface name.
-	MacAddress      string    // Client MAC address.
-	SignalStrength  string    // Signal strength (dBm).
-	TxRate          string    // Transmit rate.
-	RxRate          string    // Receive rate.
-	Uptime          string    // Client session uptime.
-	Bytes           string    // Total bytes (rx/tx).
-	Packets         string    // Total packets.
-	Timestamp       time.Time // When this sample was collected.
+	ID             string    // RouterOS internal identifier.
+	Interface      string    // CAPsMAN interface name.
+	MacAddress     string    // Client MAC address.
+	SignalStrength string    // Signal strength (dBm).
+	TxRate         string    // Transmit rate.
+	RxRate         string    // Receive rate.
+	Uptime         string    // Client session uptime.
+	Bytes          string    // Total bytes (rx/tx).
+	Packets        string    // Total packets.
+	Timestamp      time.Time // When this sample was collected.
 }
 
 func (r *CAPsMANRegistration) ToTags() map[string]string {
@@ -93,11 +93,11 @@ func (r *CAPsMANRegistration) ToCacheData(ts time.Time) map[string]string {
 
 // IPPoolUsed represents a used address from an IP pool.
 type IPPoolUsed struct {
-	ID      string    // RouterOS internal identifier.
-	Pool    string    // Pool name.
-	Address string    // Used IP address.
-	Owner   string    // Owner (dhcp, ppp, etc.).
-	Info    string    // Additional info (MAC, username, etc.).
+	ID        string    // RouterOS internal identifier.
+	Pool      string    // Pool name.
+	Address   string    // Used IP address.
+	Owner     string    // Owner (dhcp, ppp, etc.).
+	Info      string    // Additional info (MAC, username, etc.).
 	Timestamp time.Time // When this sample was collected.
 }
 
@@ -125,11 +125,11 @@ func (u *IPPoolUsed) ToCacheData(ts time.Time) map[string]string {
 
 // DNSCacheEntry represents a DNS cache entry.
 type DNSCacheEntry struct {
-	ID      string    // RouterOS internal identifier.
-	Name    string    // Domain name.
-	Address string    // Resolved IP address.
-	TTL     string    // Time-to-live remaining.
-	Type    string    // Record type (A, AAAA, CNAME, etc.).
+	ID        string    // RouterOS internal identifier.
+	Name      string    // Domain name.
+	Address   string    // Resolved IP address.
+	TTL       string    // Time-to-live remaining.
+	Type      string    // Record type (A, AAAA, CNAME, etc.).
 	Timestamp time.Time // When this sample was collected.
 }
 
@@ -157,15 +157,15 @@ func (d *DNSCacheEntry) ToCacheData(ts time.Time) map[string]string {
 
 // NetwatchEntry represents a Netwatch host monitoring entry.
 type NetwatchEntry struct {
-	ID       string    // RouterOS internal identifier.
-	Host     string    // Target host/IP.
-	Status   string    // Status (up, down, unknown).
-	Interval string    // Check interval.
-	Timeout  string    // Check timeout.
-	Since    string    // Time since current status.
-	Comment  string    // User comment.
-	Disabled bool      // Whether entry is disabled.
-	Type     string    // Check type (icmp, tcp-conn, http-get, etc.).
+	ID        string    // RouterOS internal identifier.
+	Host      string    // Target host/IP.
+	Status    string    // Status (up, down, unknown).
+	Interval  string    // Check interval.
+	Timeout   string    // Check timeout.
+	Since     string    // Time since current status.
+	Comment   string    // User comment.
+	Disabled  bool      // Whether entry is disabled.
+	Type      string    // Check type (icmp, tcp-conn, http-get, etc.).
 	Timestamp time.Time // When this sample was collected.
 }
 
@@ -193,18 +193,18 @@ func (n *NetwatchEntry) ToCacheData(ts time.Time) map[string]string {
 		"check_type": n.Type, "check_interval": n.Interval,
 		"timeout": n.Timeout, "since": n.Since,
 		"disabled": fmt.Sprintf("%t", n.Disabled),
-		"comment": n.Comment, "timestamp": ts.Format(time.RFC3339),
+		"comment":  n.Comment, "timestamp": ts.Format(time.RFC3339),
 	}
 }
 
 // UserActive represents an active user session on the router.
 type UserActive struct {
-	ID      string    // RouterOS internal identifier.
-	Name    string    // Username.
-	Address string    // Source IP address.
-	Via     string    // Access method (api, winbox, ssh, telnet).
-	When    string    // Login time.
-	Group   string    // User group.
+	ID        string    // RouterOS internal identifier.
+	Name      string    // Username.
+	Address   string    // Source IP address.
+	Via       string    // Access method (api, winbox, ssh, telnet).
+	When      string    // Login time.
+	Group     string    // User group.
 	Timestamp time.Time // When this sample was collected.
 }
 

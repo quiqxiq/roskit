@@ -64,19 +64,19 @@ func (p *PPPProfile) ToCacheData(ts time.Time) map[string]string {
 
 // PPPSecret represents a PPP user account (secret).
 type PPPSecret struct {
-	ID              string    // RouterOS internal identifier.
-	Name            string    // Username.
-	Service         string    // Service type: any, pppoe, pptp, l2tp, etc.
-	CallerID        string    // Allowed caller-id (MAC address filter).
-	Profile         string    // Profile assigned to this secret.
-	LocalAddress    string    // Local IP address override.
-	RemoteAddress   string    // Remote IP address override.
-	Routes          string    // Static routes pushed to the client.
-	LimitBytesIn    uint64    // Download byte limit (0 = unlimited).
-	LimitBytesOut   uint64    // Upload byte limit (0 = unlimited).
-	Disabled        bool      // Whether this secret is disabled.
-	Comment         string    // User comment.
-	Timestamp       time.Time // When this sample was collected.
+	ID            string    // RouterOS internal identifier.
+	Name          string    // Username.
+	Service       string    // Service type: any, pppoe, pptp, l2tp, etc.
+	CallerID      string    // Allowed caller-id (MAC address filter).
+	Profile       string    // Profile assigned to this secret.
+	LocalAddress  string    // Local IP address override.
+	RemoteAddress string    // Remote IP address override.
+	Routes        string    // Static routes pushed to the client.
+	LimitBytesIn  uint64    // Download byte limit (0 = unlimited).
+	LimitBytesOut uint64    // Upload byte limit (0 = unlimited).
+	Disabled      bool      // Whether this secret is disabled.
+	Comment       string    // User comment.
+	Timestamp     time.Time // When this sample was collected.
 }
 
 // ToTags returns InfluxDB-style tags for this secret.

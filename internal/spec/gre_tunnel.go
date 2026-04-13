@@ -46,9 +46,9 @@ func (s *GRETunnelSpec) Parse(routerID string, sentence *proto.Sentence) (*domai
 	tunnel := domain.TunnelInterface{
 		ID: id, Name: pairs["name"], Type: "gre",
 		RemoteAddress: pairs["remote-address"], LocalAddress: pairs["local-address"],
-		Running: mikrotik.ParseBool(pairs["running"]),
+		Running:  mikrotik.ParseBool(pairs["running"]),
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		MTU: pairs["mtu"], Comment: pairs["comment"], Timestamp: now,
+		MTU:      pairs["mtu"], Comment: pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

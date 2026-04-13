@@ -46,7 +46,7 @@ func (s *BridgeHostSpec) Parse(routerID string, sentence *proto.Sentence) (*doma
 	host := domain.BridgeHost{
 		ID: id, Bridge: pairs["bridge"], Interface: pairs["interface"],
 		MacAddr: pairs["mac-address"], VID: pairs["vid"],
-		OnLocal: mikrotik.ParseBool(pairs["local"]),
+		OnLocal:  mikrotik.ParseBool(pairs["local"]),
 		Disabled: mikrotik.ParseBool(pairs["disabled"]), Timestamp: now,
 	}
 

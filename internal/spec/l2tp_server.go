@@ -42,7 +42,7 @@ func (s *L2TPServerSpec) Parse(routerID string, sentence *proto.Sentence) (*doma
 	cacheData := map[string]string{
 		"enabled": pairs["enabled"], "authentication": pairs["authentication"],
 		"default_profile": pairs["default-profile"],
-		"timestamp": now.Format(time.RFC3339),
+		"timestamp":       now.Format(time.RFC3339),
 	}
 
 	return &domain.TelemetryEvent{

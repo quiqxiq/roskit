@@ -46,9 +46,9 @@ func (s *EoIPTunnelSpec) Parse(routerID string, sentence *proto.Sentence) (*doma
 	tunnel := domain.TunnelInterface{
 		ID: id, Name: pairs["name"], Type: "eoip",
 		RemoteAddress: pairs["remote-address"], LocalAddress: pairs["local-address"],
-		Running: mikrotik.ParseBool(pairs["running"]),
+		Running:  mikrotik.ParseBool(pairs["running"]),
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		MTU: pairs["mtu"], Comment: pairs["comment"], Timestamp: now,
+		MTU:      pairs["mtu"], Comment: pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

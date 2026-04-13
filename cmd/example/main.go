@@ -22,6 +22,7 @@ import (
 	"github.com/quiqxiq/roskit/internal/domain"
 	"github.com/quiqxiq/roskit/internal/repository"
 	"github.com/quiqxiq/roskit/internal/spec"
+	"github.com/quiqxiq/roskit/internal/tool"
 	"github.com/quiqxiq/roskit/internal/usecase"
 )
 
@@ -93,66 +94,67 @@ func main() {
 	// Total: 38 specs covering every NOC monitoring category.
 	defaultSpecs := []spec.StreamSpec{
 		// ── System Health ──
-		spec.NewSystemResourceSpec(),        // /system/resource/print interval (CPU/memory/disk)
-		spec.NewSystemHealthSpec(),          // /system/health/print interval (temperature/voltage)
-		spec.NewLogSpec(),                   // /log/print follow (router logs)
+		spec.NewSystemResourceSpec(), // /system/resource/print interval (CPU/memory/disk)
+		spec.NewSystemHealthSpec(),   // /system/health/print interval (temperature/voltage)
+		spec.NewLogSpec(),            // /log/print follow (router logs)
 
 		// ── Interface & Bandwidth ──
-		spec.NewInterfaceStatsSpec(),        // /interface/print follow (bandwidth)
-		spec.NewQueueSimpleStatsSpec(),      // /queue/simple/print stats (simple queue)
-		spec.NewQueueTreeStatsSpec(),        // /queue/tree/print stats (tree queue)
+		spec.NewInterfaceStatsSpec(),   // /interface/print follow (bandwidth)
+		spec.NewQueueSimpleStatsSpec(), // /queue/simple/print stats (simple queue)
+		spec.NewQueueTreeStatsSpec(),   // /queue/tree/print stats (tree queue)
 
 		// ── Routing Protocols ──
-		spec.NewBGPSessionSpec(),            // /routing/bgp/session/print follow (BGP peers)
-		spec.NewOSPFNeighborSpec(),          // /routing/ospf/neighbor/print follow (OSPF adjacency)
+		spec.NewBGPSessionSpec(),   // /routing/bgp/session/print follow (BGP peers)
+		spec.NewOSPFNeighborSpec(), // /routing/ospf/neighbor/print follow (OSPF adjacency)
 
 		// ── Network Layer ──
-		spec.NewIPAddressSpec(),             // /ip/address/print follow (IP assignments)
-		spec.NewIPRouteSpec(),               // /ip/route/print follow (routing table)
-		spec.NewARPTableSpec(),              // /ip/arp/print follow (ARP entries)
-		spec.NewIPNeighborSpec(),            // /ip/neighbor/print follow (LLDP/CDP/MNDP)
+		spec.NewIPAddressSpec(),  // /ip/address/print follow (IP assignments)
+		spec.NewIPRouteSpec(),    // /ip/route/print follow (routing table)
+		spec.NewARPTableSpec(),   // /ip/arp/print follow (ARP entries)
+		spec.NewIPNeighborSpec(), // /ip/neighbor/print follow (LLDP/CDP/MNDP)
 
 		// ── Firewall & Security ──
-		spec.NewFirewallFilterSpec(),        // /ip/firewall/filter/print stats (rule counters)
-		spec.NewFirewallNATSpec(),           // /ip/firewall/nat/print stats (NAT counters)
-		spec.NewFirewallMangleSpec(),        // /ip/firewall/mangle/print stats (QoS marking)
-		spec.NewFirewallAddressListSpec(),   // /ip/firewall/address-list/print follow (blacklists)
-		spec.NewFirewallConnectionSpec(),    // /ip/firewall/connection/print follow (conntrack)
+		spec.NewFirewallFilterSpec(),      // /ip/firewall/filter/print stats (rule counters)
+		spec.NewFirewallNATSpec(),         // /ip/firewall/nat/print stats (NAT counters)
+		spec.NewFirewallMangleSpec(),      // /ip/firewall/mangle/print stats (QoS marking)
+		spec.NewFirewallAddressListSpec(), // /ip/firewall/address-list/print follow (blacklists)
+		spec.NewFirewallConnectionSpec(),  // /ip/firewall/connection/print follow (conntrack)
 
 		// ── VPN / Tunnel ──
-		spec.NewIPsecActivePeersSpec(),     // /ip/ipsec/active-peers/print follow (IPsec peers)
-		spec.NewIPsecPolicySpec(),          // /ip/ipsec/policy/print follow (IPsec policies)
-		spec.NewWireguardPeersSpec(),       // /interface/wireguard/peers/print follow (WireGuard)
-		spec.NewEoIPTunnelSpec(),           // /interface/eoip/print follow (EoIP tunnels)
-		spec.NewGRETunnelSpec(),            // /interface/gre/print follow (GRE tunnels)
-		spec.NewL2TPServerSpec(),           // /interface/l2tp-server/server/print interval (L2TP)
+		spec.NewIPsecActivePeersSpec(), // /ip/ipsec/active-peers/print follow (IPsec peers)
+		spec.NewIPsecPolicySpec(),      // /ip/ipsec/policy/print follow (IPsec policies)
+		spec.NewWireguardPeersSpec(),   // /interface/wireguard/peers/print follow (WireGuard)
+		spec.NewEoIPTunnelSpec(),       // /interface/eoip/print follow (EoIP tunnels)
+		spec.NewGRETunnelSpec(),        // /interface/gre/print follow (GRE tunnels)
+		spec.NewL2TPServerSpec(),       // /interface/l2tp-server/server/print interval (L2TP)
 
 		// ── L2 / Switching ──
-		spec.NewBridgeHostSpec(),           // /interface/bridge/host/print follow (MAC table)
-		spec.NewBridgePortSpec(),           // /interface/bridge/port/print follow (STP state)
-		spec.NewVLANInterfaceSpec(),        // /interface/vlan/print follow (VLAN config)
+		spec.NewBridgeHostSpec(),    // /interface/bridge/host/print follow (MAC table)
+		spec.NewBridgePortSpec(),    // /interface/bridge/port/print follow (STP state)
+		spec.NewVLANInterfaceSpec(), // /interface/vlan/print follow (VLAN config)
 
 		// ── CAPsMAN / WiFi Enterprise ──
-		spec.NewCAPsMANInterfaceSpec(),     // /caps-man/interface/print follow (managed APs)
-		spec.NewCAPsMANRegistrationSpec(),  // /caps-man/registration-table/print follow (WiFi clients)
+		spec.NewCAPsMANInterfaceSpec(),    // /caps-man/interface/print follow (managed APs)
+		spec.NewCAPsMANRegistrationSpec(), // /caps-man/registration-table/print follow (WiFi clients)
 
 		// ── User Sessions ──
-		spec.NewHotspotActiveSpec(),         // /ip/hotspot/active/print follow (hotspot users)
-		spec.NewPPPActiveSpec(),             // /ppp/active/print follow (PPPoE sessions)
-		spec.NewPPPProfileSpec(),            // /ppp/profile/print follow (profile config)
-		spec.NewPPPSecretSpec(),             // /ppp/secret/print follow (user accounts)
-		spec.NewDHCPLeaseSpec(),             // /ip/dhcp-server/lease/print follow (DHCP leases)
-		spec.NewUserActiveSpec(),            // /user/active/print follow (router logins)
+		spec.NewHotspotActiveSpec(), // /ip/hotspot/active/print follow (hotspot users)
+		spec.NewHotspotUserSpec(),   // /ip/hotspot/user/print follow (hotspot config)
+		spec.NewPPPActiveSpec(),     // /ppp/active/print follow (PPPoE sessions)
+		spec.NewPPPProfileSpec(),    // /ppp/profile/print follow (profile config)
+		spec.NewPPPSecretSpec(),     // /ppp/secret/print follow (user accounts)
+		spec.NewDHCPLeaseSpec(),     // /ip/dhcp-server/lease/print follow (DHCP leases)
+		spec.NewUserActiveSpec(),    // /user/active/print follow (router logins)
 
 		// ── IP Services ──
-		spec.NewIPPoolUsedSpec(),            // /ip/pool/used/print follow (pool exhaustion)
-		spec.NewDNSCacheSpec(),              // /ip/dns/cache/print follow (DNS cache)
+		spec.NewIPPoolUsedSpec(), // /ip/pool/used/print follow (pool exhaustion)
+		spec.NewDNSCacheSpec(),   // /ip/dns/cache/print follow (DNS cache)
 
 		// ── Wireless ──
-		spec.NewWirelessRegistrationSpec(),  // wireless/registration-table/print follow
+		spec.NewWirelessRegistrationSpec(), // wireless/registration-table/print follow
 
 		// ── Tools / Availability ──
-		spec.NewNetwatchSpec(),              // /tool/netwatch/print follow (host availability)
+		spec.NewNetwatchSpec(), // /tool/netwatch/print follow (host availability)
 	}
 
 	// Register routers. In production, these would come from a config file or database.
@@ -187,12 +189,16 @@ func main() {
 	// 	DialTimeout:          5 * time.Second,
 	// }, defaultSpecs)
 
-	// ─── Start Engine ────────────────────────────────────────────────────────────
+	// ─── Start Tools & Engine ───────────────────────────────────────────────────
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start: pool connects all routers → health monitor starts → collectors begin streaming.
+	// 1. Start background analytics/tracker tools
+	inactiveTracker := tool.NewInactiveTracker(redisRepo.Client(), logger)
+	go inactiveTracker.Start(ctx)
+
+	// 2. Start engine: pool connects all routers → health monitor starts → collectors begin streaming.
 	engine.Start(ctx)
 
 	logger.Info("roskit telemetry engine started",
@@ -207,7 +213,6 @@ func main() {
 			"state", state.String(),
 		)
 	}
-
 
 	// ─── AI Agent Pattern: Read from Redis Cache ─────────────────────────────────
 	// Demonstrate reading cached data directly from Redis without hitting the router.

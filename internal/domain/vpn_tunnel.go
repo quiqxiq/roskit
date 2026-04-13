@@ -7,19 +7,19 @@ import (
 
 // IPsecActivePeer represents an active IPsec peer connection.
 type IPsecActivePeer struct {
-	ID             string    // RouterOS internal identifier.
-	RemoteAddress  string    // Remote peer IP address.
-	LocalAddress   string    // Local IP address.
-	State          string    // Peer state (established, connecting).
-	Side           string    // Initiator or responder.
-	Uptime         string    // Session uptime.
-	RxBytes        string    // Received bytes.
-	TxBytes        string    // Transmitted bytes.
-	RxPackets      string    // Received packets.
-	TxPackets      string    // Transmitted packets.
-	DynAddr        string    // Dynamic address (if mode-config).
-	Responder      bool      // Whether peer is responder.
-	Timestamp      time.Time // When this sample was collected.
+	ID            string    // RouterOS internal identifier.
+	RemoteAddress string    // Remote peer IP address.
+	LocalAddress  string    // Local IP address.
+	State         string    // Peer state (established, connecting).
+	Side          string    // Initiator or responder.
+	Uptime        string    // Session uptime.
+	RxBytes       string    // Received bytes.
+	TxBytes       string    // Transmitted bytes.
+	RxPackets     string    // Received packets.
+	TxPackets     string    // Transmitted packets.
+	DynAddr       string    // Dynamic address (if mode-config).
+	Responder     bool      // Whether peer is responder.
+	Timestamp     time.Time // When this sample was collected.
 }
 
 func (p *IPsecActivePeer) ToTags() map[string]string {
@@ -54,16 +54,16 @@ func (p *IPsecActivePeer) ToCacheData(ts time.Time) map[string]string {
 
 // IPsecPolicy represents an IPsec security policy.
 type IPsecPolicy struct {
-	ID         string    // RouterOS internal identifier.
-	Peer       string    // Associated peer name.
-	SrcAddr    string    // Source address.
-	DstAddr    string    // Destination address.
-	Protocol   string    // Protocol filter (all, tcp, udp).
-	Action     string    // Action (encrypt, discard, none).
-	Level      string    // IPsec level (require, unique, use).
-	Disabled   bool      // Whether policy is disabled.
-	Comment    string    // User comment.
-	Timestamp  time.Time // When this sample was collected.
+	ID        string    // RouterOS internal identifier.
+	Peer      string    // Associated peer name.
+	SrcAddr   string    // Source address.
+	DstAddr   string    // Destination address.
+	Protocol  string    // Protocol filter (all, tcp, udp).
+	Action    string    // Action (encrypt, discard, none).
+	Level     string    // IPsec level (require, unique, use).
+	Disabled  bool      // Whether policy is disabled.
+	Comment   string    // User comment.
+	Timestamp time.Time // When this sample was collected.
 }
 
 func (p *IPsecPolicy) ToTags() map[string]string {
@@ -95,18 +95,18 @@ func (p *IPsecPolicy) ToCacheData(ts time.Time) map[string]string {
 
 // WireguardPeer represents a WireGuard peer entry.
 type WireguardPeer struct {
-	ID               string    // RouterOS internal identifier.
-	Interface        string    // WireGuard interface name.
-	PublicKey        string    // Peer public key.
-	EndpointAddr     string    // Endpoint address.
-	EndpointPort     string    // Endpoint port.
-	AllowedAddress   string    // Allowed addresses.
-	LastHandshake    string    // Time since last handshake.
-	Rx               string    // Received bytes.
-	Tx               string    // Transmitted bytes.
-	Disabled         bool      // Whether peer is disabled.
-	Comment          string    // User comment.
-	Timestamp        time.Time // When this sample was collected.
+	ID             string    // RouterOS internal identifier.
+	Interface      string    // WireGuard interface name.
+	PublicKey      string    // Peer public key.
+	EndpointAddr   string    // Endpoint address.
+	EndpointPort   string    // Endpoint port.
+	AllowedAddress string    // Allowed addresses.
+	LastHandshake  string    // Time since last handshake.
+	Rx             string    // Received bytes.
+	Tx             string    // Transmitted bytes.
+	Disabled       bool      // Whether peer is disabled.
+	Comment        string    // User comment.
+	Timestamp      time.Time // When this sample was collected.
 }
 
 func (w *WireguardPeer) ToTags() map[string]string {

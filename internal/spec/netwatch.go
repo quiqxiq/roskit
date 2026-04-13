@@ -49,7 +49,7 @@ func (s *NetwatchSpec) Parse(routerID string, sentence *proto.Sentence) (*domain
 		Interval: pairs["interval"], Timeout: pairs["timeout"],
 		Since: pairs["since"], Comment: pairs["comment"],
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Type: pairs["type"], Timestamp: now,
+		Type:     pairs["type"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

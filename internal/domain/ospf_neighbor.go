@@ -4,16 +4,16 @@ import "time"
 
 // OSPFNeighbor represents an OSPF neighbor adjacency.
 type OSPFNeighbor struct {
-	ID            string    // RouterOS internal identifier.
-	Instance      string    // OSPF instance name.
-	RouterID      string    // Neighbor's router ID.
-	Address       string    // Neighbor's IP address.
-	Interface     string    // Interface where neighbor was discovered.
-	Priority      string    // Neighbor priority.
-	State         string    // Adjacency state (full, 2way, init, down, etc.).
-	StateChanges  string    // Number of state changes.
-	Adjacency     string    // Adjacency duration.
-	Timestamp     time.Time // When this sample was collected.
+	ID           string    // RouterOS internal identifier.
+	Instance     string    // OSPF instance name.
+	RouterID     string    // Neighbor's router ID.
+	Address      string    // Neighbor's IP address.
+	Interface    string    // Interface where neighbor was discovered.
+	Priority     string    // Neighbor priority.
+	State        string    // Adjacency state (full, 2way, init, down, etc.).
+	StateChanges string    // Number of state changes.
+	Adjacency    string    // Adjacency duration.
+	Timestamp    time.Time // When this sample was collected.
 }
 
 func (o *OSPFNeighbor) ToTags() map[string]string {

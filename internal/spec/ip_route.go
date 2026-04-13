@@ -49,8 +49,8 @@ func (s *IPRouteSpec) Parse(routerID string, sentence *proto.Sentence) (*domain.
 		Distance: pairs["distance"], RoutingTable: pairs["routing-table"],
 		PrefSrc: pairs["pref-src"], Scope: pairs["scope"],
 		TargetScope: pairs["target-scope"],
-		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Disabled:    mikrotik.ParseBool(pairs["disabled"]),
+		Comment:     pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

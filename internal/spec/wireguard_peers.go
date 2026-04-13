@@ -49,7 +49,7 @@ func (s *WireguardPeersSpec) Parse(routerID string, sentence *proto.Sentence) (*
 		AllowedAddress: pairs["allowed-address"], LastHandshake: pairs["last-handshake"],
 		Rx: pairs["rx"], Tx: pairs["tx"],
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Comment:  pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

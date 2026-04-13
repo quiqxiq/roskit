@@ -47,10 +47,10 @@ func (s *CAPsMANInterfaceSpec) Parse(routerID string, sentence *proto.Sentence) 
 		ID: id, Name: pairs["name"], RadioName: pairs["radio-name"],
 		RadioMAC: pairs["radio-mac"], MasterIface: pairs["master-interface"],
 		CurrentState: pairs["current-state"],
-		Bound: mikrotik.ParseBool(pairs["bound"]),
-		Inactive: mikrotik.ParseBool(pairs["inactive"]),
-		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Bound:        mikrotik.ParseBool(pairs["bound"]),
+		Inactive:     mikrotik.ParseBool(pairs["inactive"]),
+		Disabled:     mikrotik.ParseBool(pairs["disabled"]),
+		Comment:      pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

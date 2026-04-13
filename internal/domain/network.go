@@ -64,11 +64,11 @@ func (r *IPRoute) ToTags() map[string]string {
 
 func (r *IPRoute) ToFields() map[string]interface{} {
 	return map[string]interface{}{
-		"distance":  r.Distance,
-		"pref_src":  r.PrefSrc,
-		"scope":     r.Scope,
-		"disabled":  r.Disabled,
-		"comment":   r.Comment,
+		"distance": r.Distance,
+		"pref_src": r.PrefSrc,
+		"scope":    r.Scope,
+		"disabled": r.Disabled,
+		"comment":  r.Comment,
 	}
 }
 
@@ -121,16 +121,16 @@ func (a *ARPEntry) ToCacheData(ts time.Time) map[string]string {
 
 // IPNeighborEntry represents an IP neighbor discovered via LLDP/CDP/MNDP.
 type IPNeighborEntry struct {
-	ID          string    // RouterOS internal identifier.
-	Interface   string    // Interface where neighbor was discovered.
-	Address     string    // Neighbor's IP address.
-	MacAddress  string    // Neighbor's MAC address.
-	Identity    string    // Neighbor's system identity.
-	Platform    string    // Neighbor's platform/hardware.
-	Board       string    // Neighbor's board name.
-	Version     string    // Neighbor's software version.
-	InterfName  string    // Neighbor's interface name.
-	Timestamp   time.Time // When this sample was collected.
+	ID         string    // RouterOS internal identifier.
+	Interface  string    // Interface where neighbor was discovered.
+	Address    string    // Neighbor's IP address.
+	MacAddress string    // Neighbor's MAC address.
+	Identity   string    // Neighbor's system identity.
+	Platform   string    // Neighbor's platform/hardware.
+	Board      string    // Neighbor's board name.
+	Version    string    // Neighbor's software version.
+	InterfName string    // Neighbor's interface name.
+	Timestamp  time.Time // When this sample was collected.
 }
 
 func (n *IPNeighborEntry) ToTags() map[string]string {

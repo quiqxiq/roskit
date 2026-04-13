@@ -58,16 +58,16 @@ func (f *FirewallRule) ToCacheData(ts time.Time) map[string]string {
 
 // FirewallConnection represents an active connection in the connection tracker.
 type FirewallConnection struct {
-	ID           string    // RouterOS internal identifier.
-	Protocol     string    // Protocol (tcp, udp, icmp).
-	SrcAddress   string    // Source address:port.
-	DstAddress   string    // Destination address:port.
-	ReplySrc     string    // Reply source address.
-	ReplyDst     string    // Reply destination address.
-	TCPState     string    // TCP state (established, time-wait, etc.).
-	Timeout      string    // Connection timeout remaining.
-	Assured      bool      // Whether connection is assured.
-	Timestamp    time.Time // When this sample was collected.
+	ID         string    // RouterOS internal identifier.
+	Protocol   string    // Protocol (tcp, udp, icmp).
+	SrcAddress string    // Source address:port.
+	DstAddress string    // Destination address:port.
+	ReplySrc   string    // Reply source address.
+	ReplyDst   string    // Reply destination address.
+	TCPState   string    // TCP state (established, time-wait, etc.).
+	Timeout    string    // Connection timeout remaining.
+	Assured    bool      // Whether connection is assured.
+	Timestamp  time.Time // When this sample was collected.
 }
 
 func (c *FirewallConnection) ToTags() map[string]string {

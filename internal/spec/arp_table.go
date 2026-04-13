@@ -48,7 +48,7 @@ func (s *ARPTableSpec) Parse(routerID string, sentence *proto.Sentence) (*domain
 		ID: id, Address: pairs["address"], MacAddress: pairs["mac-address"],
 		Interface: pairs["interface"], Published: mikrotik.ParseBool(pairs["published"]),
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Comment:  pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

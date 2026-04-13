@@ -7,21 +7,21 @@ import (
 
 // QueueSimpleStats represents real-time statistics for a simple queue rule.
 type QueueSimpleStats struct {
-	Name              string    // Queue rule name (e.g., "TRAFIK").
-	Target            string    // Target addresses (e.g., "192.168.230.0/24").
-	Rate              string    // Current rate (e.g., "506.7kbps/20.0Mbps" upload/download).
-	PacketRate        string    // Current packet rate (e.g., "956/1756").
-	QueuedBytes       string    // Bytes currently in queue (e.g., "0/7200").
-	QueuedPackets     string    // Packets currently in queue (e.g., "0/5").
-	Bytes             string    // Total bytes passed (e.g., "2350082705/35903967571").
-	Packets           string    // Total packets passed (e.g., "17349117/28163524").
-	Dropped           string    // Total dropped packets (e.g., "6935/3063380").
-	TotalRate         string    // Aggregated rate including children.
-	TotalBytes        string    // Aggregated bytes including children.
-	TotalPackets      string    // Aggregated packets including children.
-	TotalDropped      string    // Aggregated dropped including children.
-	TotalQueuedBytes  string    // Aggregated queued bytes including children.
-	Timestamp         time.Time // When this sample was collected.
+	Name             string    // Queue rule name (e.g., "TRAFIK").
+	Target           string    // Target addresses (e.g., "192.168.230.0/24").
+	Rate             string    // Current rate (e.g., "506.7kbps/20.0Mbps" upload/download).
+	PacketRate       string    // Current packet rate (e.g., "956/1756").
+	QueuedBytes      string    // Bytes currently in queue (e.g., "0/7200").
+	QueuedPackets    string    // Packets currently in queue (e.g., "0/5").
+	Bytes            string    // Total bytes passed (e.g., "2350082705/35903967571").
+	Packets          string    // Total packets passed (e.g., "17349117/28163524").
+	Dropped          string    // Total dropped packets (e.g., "6935/3063380").
+	TotalRate        string    // Aggregated rate including children.
+	TotalBytes       string    // Aggregated bytes including children.
+	TotalPackets     string    // Aggregated packets including children.
+	TotalDropped     string    // Aggregated dropped including children.
+	TotalQueuedBytes string    // Aggregated queued bytes including children.
+	Timestamp        time.Time // When this sample was collected.
 }
 
 // ToTags returns InfluxDB-style tags for this queue.

@@ -49,7 +49,7 @@ func (s *BridgePortSpec) Parse(routerID string, sentence *proto.Sentence) (*doma
 		PortNum: pairs["port-number"], Priority: pairs["priority"],
 		Edge: pairs["edge"], Learning: mikrotik.ParseBool(pairs["learn"]),
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Comment:  pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

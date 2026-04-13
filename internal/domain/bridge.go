@@ -37,8 +37,8 @@ func (b *BridgeHost) ToCacheData(ts time.Time) map[string]string {
 	return map[string]string{
 		"id": b.ID, "bridge": b.Bridge, "interface": b.Interface,
 		"mac_address": b.MacAddr, "vid": b.VID,
-		"on_local": fmt.Sprintf("%t", b.OnLocal),
-		"disabled": fmt.Sprintf("%t", b.Disabled),
+		"on_local":  fmt.Sprintf("%t", b.OnLocal),
+		"disabled":  fmt.Sprintf("%t", b.Disabled),
 		"timestamp": ts.Format(time.RFC3339),
 	}
 }
@@ -86,7 +86,7 @@ func (p *BridgePort) ToCacheData(ts time.Time) map[string]string {
 		"priority": p.Priority, "edge": p.Edge,
 		"learning": fmt.Sprintf("%t", p.Learning),
 		"disabled": fmt.Sprintf("%t", p.Disabled),
-		"comment": p.Comment, "timestamp": ts.Format(time.RFC3339),
+		"comment":  p.Comment, "timestamp": ts.Format(time.RFC3339),
 	}
 }
 
@@ -124,8 +124,8 @@ func (v *VLANInterface) ToCacheData(ts time.Time) map[string]string {
 	return map[string]string{
 		"id": v.ID, "name": v.Name, "vlan_id": v.VLANID,
 		"interface": v.Interface, "mtu": v.MTU,
-		"running": fmt.Sprintf("%t", v.Running),
+		"running":  fmt.Sprintf("%t", v.Running),
 		"disabled": fmt.Sprintf("%t", v.Disabled),
-		"comment": v.Comment, "timestamp": ts.Format(time.RFC3339),
+		"comment":  v.Comment, "timestamp": ts.Format(time.RFC3339),
 	}
 }

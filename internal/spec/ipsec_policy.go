@@ -48,7 +48,7 @@ func (s *IPsecPolicySpec) Parse(routerID string, sentence *proto.Sentence) (*dom
 		DstAddr: pairs["dst-address"], Protocol: pairs["protocol"],
 		Action: pairs["action"], Level: pairs["level"],
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Comment:  pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{

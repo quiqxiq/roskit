@@ -46,9 +46,9 @@ func (s *VLANInterfaceSpec) Parse(routerID string, sentence *proto.Sentence) (*d
 	vlan := domain.VLANInterface{
 		ID: id, Name: pairs["name"], VLANID: pairs["vlan-id"],
 		Interface: pairs["interface"], MTU: pairs["mtu"],
-		Running: mikrotik.ParseBool(pairs["running"]),
+		Running:  mikrotik.ParseBool(pairs["running"]),
 		Disabled: mikrotik.ParseBool(pairs["disabled"]),
-		Comment: pairs["comment"], Timestamp: now,
+		Comment:  pairs["comment"], Timestamp: now,
 	}
 
 	return &domain.TelemetryEvent{
