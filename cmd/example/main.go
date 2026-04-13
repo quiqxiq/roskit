@@ -22,7 +22,6 @@ import (
 	"github.com/quiqxiq/roskit/internal/domain"
 	"github.com/quiqxiq/roskit/internal/repository"
 	"github.com/quiqxiq/roskit/internal/spec"
-	"github.com/quiqxiq/roskit/internal/tool"
 	"github.com/quiqxiq/roskit/internal/usecase"
 )
 
@@ -138,13 +137,13 @@ func main() {
 		spec.NewCAPsMANRegistrationSpec(), // /caps-man/registration-table/print follow (WiFi clients)
 
 		// ── User Sessions ──
-		spec.NewHotspotActiveSpec(), // /ip/hotspot/active/print follow (hotspot users)
-		spec.NewHotspotUserSpec(),   // /ip/hotspot/user/print follow (hotspot config)
-		spec.NewPPPActiveSpec(),     // /ppp/active/print follow (PPPoE sessions)
-		spec.NewPPPProfileSpec(),    // /ppp/profile/print follow (profile config)
-		spec.NewPPPSecretSpec(),     // /ppp/secret/print follow (user accounts)
-		spec.NewDHCPLeaseSpec(),     // /ip/dhcp-server/lease/print follow (DHCP leases)
-		spec.NewUserActiveSpec(),    // /user/active/print follow (router logins)
+		spec.NewHotspotActiveSpec(),         // /ip/hotspot/active/print follow (hotspot users)
+		spec.NewHotspotUserSpec(),           // /ip/hotspot/user/print follow (configured hotspot users)
+		spec.NewPPPActiveSpec(),             // /ppp/active/print follow (PPPoE sessions)
+		spec.NewPPPProfileSpec(),            // /ppp/profile/print follow (profile config)
+		spec.NewPPPSecretSpec(),             // /ppp/secret/print follow (user accounts)
+		spec.NewDHCPLeaseSpec(),             // /ip/dhcp-server/lease/print follow (DHCP leases)
+		spec.NewUserActiveSpec(),            // /user/active/print follow (router logins)
 
 		// ── IP Services ──
 		spec.NewIPPoolUsedSpec(), // /ip/pool/used/print follow (pool exhaustion)
@@ -189,16 +188,12 @@ func main() {
 	// 	DialTimeout:          5 * time.Second,
 	// }, defaultSpecs)
 
-	// ─── Start Tools & Engine ───────────────────────────────────────────────────
+	// ─── Start Engine ────────────────────────────────────────────────────────────
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 1. Start background analytics/tracker tools
-	inactiveTracker := tool.NewInactiveTracker(redisRepo.Client(), logger)
-	go inactiveTracker.Start(ctx)
-
-	// 2. Start engine: pool connects all routers → health monitor starts → collectors begin streaming.
+	// Start: pool connects all routers → health monitor starts → collectors begin streaming.
 	engine.Start(ctx)
 
 	logger.Info("roskit telemetry engine started",

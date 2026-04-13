@@ -201,6 +201,20 @@ func (rc *RouterConn) IsAlive(ctx context.Context) bool {
 	return true
 }
 
+// ExecuteContext runs an arbitrary command on the router using the persistent connection.
+// This relies on the routeros Client being able to handle concurrent Run/Listen
+// thanks to background multiplexing when in Async mode.
+func (rc *RouterConn) ExecuteContext(ctx context.Context, sentence ...string) (*routeros.Reply, error) {
+	rc.mu.RLock()
+	defer rc.mu.RUnlock()
+
+	if rc.state != ConnStateConnected || rc.client == nil {
+		return nil, fmt.Errorf("router %s: not connected", rc.config.ID)
+	}
+
+	return rc.client.RunContext(ctx, sentence...)
+}
+
 // State returns the current connection state.
 func (rc *RouterConn) State() ConnState {
 	rc.mu.RLock()

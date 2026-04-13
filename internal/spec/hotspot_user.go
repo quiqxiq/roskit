@@ -8,7 +8,8 @@ import (
 	"github.com/quiqxiq/roskit/pkg/mikrotik"
 )
 
-// HotspotUserSpec streams configured hotspot users.
+// HotspotUserSpec streams all configured hotspot users.
+// This is used for calculating inactive hotspot users.
 type HotspotUserSpec struct{}
 
 func NewHotspotUserSpec() *HotspotUserSpec { return &HotspotUserSpec{} }
@@ -17,7 +18,7 @@ func (s *HotspotUserSpec) Command() []string {
 	return []string{
 		"/ip/hotspot/user/print",
 		"=follow",
-		"=.proplist=.id,server,name,profile,mac-address,uptime,bytes-in,bytes-out,disabled,comment",
+		"=.proplist=.id,server,name,profile,mac-address,limit-uptime,limit-bytes-total,disabled,comment",
 	}
 }
 
@@ -37,36 +38,37 @@ func (s *HotspotUserSpec) Parse(routerID string, sentence *proto.Sentence) (*dom
 
 	if mikrotik.IsDead(pairs) {
 		return &domain.TelemetryEvent{
-			RouterID:    routerID,
-			Measurement: s.Measurement(),
-			Type:        domain.EventDead,
-			Timestamp:   now,
-			CacheKey:    mikrotik.FormatCacheKey(routerID, s.Measurement(), id),
+			RouterID: routerID, Measurement: s.Measurement(),
+			Type: domain.EventDead, Timestamp: now,
+			CacheKey: mikrotik.FormatCacheKey(routerID, s.Measurement(), id),
 		}, nil
 	}
 
-	user := domain.HotspotUser{
-		ID:        id,
-		Server:    pairs["server"],
-		Name:      pairs["name"],
-		Profile:   pairs["profile"],
-		MacAddr:   pairs["mac-address"],
-		Uptime:    pairs["uptime"],
-		BytesIn:   pairs["bytes-in"],
-		BytesOut:  pairs["bytes-out"],
-		Disabled:  mikrotik.ParseBool(pairs["disabled"]),
-		Comment:   pairs["comment"],
-		Timestamp: now,
+	tags := map[string]string{
+		"server": pairs["server"],
+		"name":   pairs["name"],
+	}
+	fields := map[string]interface{}{
+		"profile":           pairs["profile"],
+		"mac_address":       pairs["mac-address"],
+		"limit_uptime":      pairs["limit-uptime"],
+		"limit_bytes_total": pairs["limit-bytes-total"],
+		"disabled":          mikrotik.ParseBool(pairs["disabled"]),
+		"comment":           pairs["comment"],
+	}
+	cacheData := map[string]string{
+		"id": id, "server": pairs["server"], "name": pairs["name"],
+		"profile": pairs["profile"], "mac_address": pairs["mac-address"],
+		"limit_uptime": pairs["limit-uptime"], "limit_bytes_total": pairs["limit-bytes-total"],
+		"disabled": pairs["disabled"], "comment": pairs["comment"],
+		"timestamp": now.Format(time.RFC3339),
 	}
 
 	return &domain.TelemetryEvent{
-		RouterID:    routerID,
-		Measurement: s.Measurement(),
-		Tags:        user.ToTags(),
-		Fields:      user.ToFields(),
-		Timestamp:   now,
-		Type:        domain.EventUpdate,
-		CacheKey:    mikrotik.FormatCacheKey(routerID, s.Measurement(), id),
-		CacheData:   user.ToCacheData(now),
+		RouterID: routerID, Measurement: s.Measurement(),
+		Tags: tags, Fields: fields,
+		Timestamp: now, Type: domain.EventUpdate,
+		CacheKey:  mikrotik.FormatCacheKey(routerID, s.Measurement(), id),
+		CacheData: cacheData,
 	}, nil
 }

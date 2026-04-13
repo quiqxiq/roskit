@@ -22,10 +22,11 @@ import (
 //   - Real-time events are published via Redis Pub/Sub
 //   - Dead entities are removed from the cache
 type TelemetryUseCase struct {
-	tsWriter  repository.TimeSeriesWriter
-	cache     repository.CacheRepository
-	publisher repository.PubSubPublisher
-	logger    *slog.Logger
+	tsWriter   repository.TimeSeriesWriter
+	cache      repository.CacheRepository
+	publisher  repository.PubSubPublisher
+	aggregator *InactiveAggregator
+	logger     *slog.Logger
 }
 
 // NewTelemetryUseCase creates a new TelemetryUseCase with the given dependencies.
@@ -38,10 +39,11 @@ func NewTelemetryUseCase(
 	logger *slog.Logger,
 ) *TelemetryUseCase {
 	return &TelemetryUseCase{
-		tsWriter:  tsWriter,
-		cache:     cache,
-		publisher: publisher,
-		logger:    logger,
+		tsWriter:   tsWriter,
+		cache:      cache,
+		publisher:  publisher,
+		aggregator: NewInactiveAggregator(cache, logger),
+		logger:     logger,
 	}
 }
 
@@ -52,6 +54,9 @@ func (uc *TelemetryUseCase) ProcessEvent(ctx context.Context, event *domain.Tele
 	if event == nil {
 		return nil
 	}
+
+	// Feed event to aggregator for calculating inactive lists dynamically
+	uc.aggregator.Update(ctx, event)
 
 	switch event.Type {
 	case domain.EventUpdate:

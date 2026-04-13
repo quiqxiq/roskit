@@ -2,9 +2,11 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 
+	"github.com/go-routeros/routeros/v3"
 	"github.com/quiqxiq/roskit/internal/domain"
 	"github.com/quiqxiq/roskit/internal/spec"
 	"github.com/quiqxiq/roskit/internal/usecase"
@@ -160,4 +162,13 @@ func (e *Engine) RouterIDs() []string {
 // Useful for dashboards and health endpoints.
 func (e *Engine) Status() map[string]ConnState {
 	return e.pool.Status()
+}
+
+// ExecuteCommand executes an arbitrary command on the specified router.
+func (e *Engine) ExecuteCommand(ctx context.Context, routerID string, sentence ...string) (*routeros.Reply, error) {
+	conn := e.pool.Get(routerID)
+	if conn == nil {
+		return nil, fmt.Errorf("router %s not found", routerID)
+	}
+	return conn.ExecuteContext(ctx, sentence...)
 }
