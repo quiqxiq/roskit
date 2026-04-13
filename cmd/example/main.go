@@ -91,15 +91,40 @@ func main() {
 	// Define stream specs — each spec is a separate data source.
 	// Adding new specs is as simple as creating a new file in internal/spec/.
 	defaultSpecs := []spec.StreamSpec{
-		spec.NewInterfaceStatsSpec(),  // /interface/print follow (bandwidth)
-		spec.NewSystemResourceSpec(),  // /system/resource/print interval (CPU/memory)
-		spec.NewHotspotActiveSpec(),   // /ip/hotspot/active/print follow (logins)
-		spec.NewPPPActiveSpec(),       // /ppp/active/print follow (PPPoE sessions)
-		spec.NewPPPProfileSpec(),      // /ppp/profile/print follow (profile config)
-		spec.NewPPPSecretSpec(),       // /ppp/secret/print follow (user accounts)
-		spec.NewLogSpec(),             // /log/print follow (router logs)
-		spec.NewDHCPLeaseSpec(),       // /ip/dhcp-server/lease/print follow (DHCP leases)
-		spec.NewQueueSimpleStatsSpec(), // /queue/simple/print stats (bandwidth per queue)
+		// ── System Health ──
+		spec.NewSystemResourceSpec(),       // /system/resource/print interval (CPU/memory/disk)
+		spec.NewSystemHealthSpec(),         // /system/health/print interval (temperature/voltage)
+		spec.NewLogSpec(),                  // /log/print follow (router logs)
+
+		// ── Interface & Bandwidth ──
+		spec.NewInterfaceStatsSpec(),       // /interface/print follow (bandwidth)
+		spec.NewQueueSimpleStatsSpec(),     // /queue/simple/print stats (simple queue)
+		spec.NewQueueTreeStatsSpec(),       // /queue/tree/print stats (tree queue)
+
+		// ── Routing Protocols ──
+		spec.NewBGPSessionSpec(),           // /routing/bgp/session/print follow (BGP peers)
+		spec.NewOSPFNeighborSpec(),         // /routing/ospf/neighbor/print follow (OSPF adjacency)
+
+		// ── Network Layer ──
+		spec.NewIPAddressSpec(),            // /ip/address/print follow (IP assignments)
+		spec.NewIPRouteSpec(),              // /ip/route/print follow (routing table)
+		spec.NewARPTableSpec(),             // /ip/arp/print follow (ARP entries)
+		spec.NewIPNeighborSpec(),           // /ip/neighbor/print follow (LLDP/CDP/MNDP)
+
+		// ── Firewall & Security ──
+		spec.NewFirewallFilterSpec(),       // /ip/firewall/filter/print stats (rule counters)
+		spec.NewFirewallNATSpec(),          // /ip/firewall/nat/print stats (NAT counters)
+		spec.NewFirewallConnectionSpec(),   // /ip/firewall/connection/print follow (conntrack)
+
+		// ── User Sessions ──
+		spec.NewHotspotActiveSpec(),        // /ip/hotspot/active/print follow (hotspot users)
+		spec.NewPPPActiveSpec(),            // /ppp/active/print follow (PPPoE sessions)
+		spec.NewPPPProfileSpec(),           // /ppp/profile/print follow (profile config)
+		spec.NewPPPSecretSpec(),            // /ppp/secret/print follow (user accounts)
+		spec.NewDHCPLeaseSpec(),            // /ip/dhcp-server/lease/print follow (DHCP leases)
+
+		// ── Wireless ──
+		spec.NewWirelessRegistrationSpec(), // /interface/wireless/registration-table/print follow
 	}
 
 	// Register routers. In production, these would come from a config file or database.
