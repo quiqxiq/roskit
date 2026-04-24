@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-mikhmon}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mikhmon}
+      POSTGRES_DB: ${DB_NAME:-mikhmon}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-mikhmon}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      sh -c '[ -n "$$REDIS_PASSWORD" ] && redis-server --requirepass "$$REDIS_PASSWORD" || redis-server'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  influxdb:
+    image: influxdb:3-core
+    command: influxdb3 serve --node-id prod-node --object-store file --data-dir /var/lib/influxdb3
+    profiles: ["metrics"]
+    ports:
+      - "8181:8181"
+    environment:
+      INFLUXDB3_AUTH_TOKEN: ${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+    volumes:
+      - influxdata:/var/lib/influxdb3
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -H \"Authorization: Bearer ${INFLUXDB_TOKEN:-my-super-secret-auth-token}\" http://localhost:8181/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: mikhmon-api:latest
+    ports:
+      - "${PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ../../mikhmon-ui
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:${PORT:-8080}
+
+volumes:
+  pgdata:
+  redisdata:
+  influxdata:

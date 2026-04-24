@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod *)",
+      "Bash(go build *)",
+      "Bash(docker compose *)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist /FI \"PID eq 6248\")",
+      "Bash(tasklist /FI \"PID eq 13680\")",
+      "Bash(cmd *)",
+      "Bash(docker exec *)",
+      "Bash(curl *)"
+    ]
+  }
+}
