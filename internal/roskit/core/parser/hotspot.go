@@ -98,7 +98,7 @@ func init() {
 	RegisterStreamParser("ip_binding", parseIPBinding)
 	RegisterStreamParser("walled_garden", parseWalledGarden)
 
-	RegisterPollParser("system_resource", parseSystemResource)
+	RegisterStreamParser("system_resource", parseSystemResourceStream)
 }
 
 func parseHotspotUser(_ string, pairs map[string]string) *ParseResult {
@@ -194,6 +194,16 @@ func parseSystemResource(_ string, rows []map[string]string) []*ParseResult {
 		EntityID:  "singleton",
 		CacheData: r.ToCacheData(time.Now()),
 	}}
+}
+
+// parseSystemResourceStream handles system/resource/print =interval=1s.
+// RouterOS sends a flat sentence without .id — use "singleton" as entity ID.
+func parseSystemResourceStream(_ string, pairs map[string]string) *ParseResult {
+	r := model.NewSystemResourceFromReply(pairs)
+	return &ParseResult{
+		EntityID:  "singleton",
+		CacheData: r.ToCacheData(time.Now()),
+	}
 }
 
 func parseWalledGarden(_ string, pairs map[string]string) *ParseResult {

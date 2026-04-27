@@ -20,9 +20,11 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/timeseries"
 )
 
+
 type Engine struct {
 	mu sync.RWMutex
 
+	cfg       Config
 	appCtx    context.Context // set by Start; used by AddRouter to launch workers
 	pool      *execution.Pool
 	streams   *bstream.Manager
@@ -38,6 +40,9 @@ type Config struct {
 	Cache      cache.Repository
 	TimeSeries timeseries.Writer
 	PubSub     pubsub.Publisher
+	// DisableStreams suppresses stream workers in startRouterWorkers.
+	// Set to true in cmd/worker so only poll connections are established.
+	DisableStreams bool
 }
 
 func New(cfg Config) *Engine {
@@ -70,6 +75,7 @@ func New(cfg Config) *Engine {
 	)
 
 	return &Engine{
+		cfg:       cfg,
 		pool:      pool,
 		streams:   streamMgr,
 		polls:     pollSched,
@@ -109,7 +115,10 @@ func (e *Engine) AddRouter(_ context.Context, cfg execution.ConnConfig) error {
 func (e *Engine) RemoveRouter(routerID string) {
 	e.streams.StopAll(routerID)
 	e.polls.StopAll(routerID)
-	e.pool.Unregister(routerID)
+	// Unregister runs async: Close() can block if a poll/health goroutine holds
+	// the connection read lock during a network operation. Cancelling the workers
+	// above is sufficient to stop activity; the TCP teardown can happen in the bg.
+	go e.pool.Unregister(routerID)
 }
 
 func (e *Engine) Start(ctx context.Context) {
@@ -158,15 +167,21 @@ func (e *Engine) ExecuteCommand(ctx context.Context, routerID string, sentence .
 }
 
 func (e *Engine) startRouterWorkers(ctx context.Context, routerID string) {
-	for _, meta := range command.ByType(command.CommandTypeStream) {
-		e.streams.Start(ctx, routerID, meta)
+	if !e.cfg.DisableStreams {
+		for _, meta := range command.ByType(command.CommandTypeStream) {
+			e.streams.Start(ctx, routerID, meta)
+		}
 	}
-
-	for _, meta := range command.ByType(command.CommandTypePoll) {
-		e.polls.Start(ctx, routerID, meta)
-	}
+	// Polls are driven by cmd/worker's ConcurrentRunner every 30 s.
+	// The engine no longer starts per-command poll workers.
 
 	e.logger.Info("engine: workers started", "router_id", routerID,
 		"streams", e.streams.ActiveCount(),
 	)
+}
+
+// NewConcurrentPollRunner returns a runner that executes all registered poll
+// commands concurrently for a given router using the engine's pool and processor.
+func (e *Engine) NewConcurrentPollRunner() *poll.ConcurrentRunner {
+	return poll.NewConcurrentRunner(e.pool, e.processor, e.logger)
 }

@@ -8,7 +8,7 @@ import (
 
 type Router struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
-	SessionName string         `gorm:"uniqueIndex;size:100;not null" json:"session_name"`
+	SessionName string         `gorm:"size:100;not null" json:"session_name"`
 	IP          string         `gorm:"size:45;not null" json:"ip"`
 	Username    string         `gorm:"size:100;not null" json:"username"`
 	PasswordEnc string         `gorm:"column:password;size:500;not null" json:"-"`

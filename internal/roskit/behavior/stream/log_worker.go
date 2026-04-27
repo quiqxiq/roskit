@@ -81,7 +81,7 @@ func (w *LogWorker) pollLogs(ctx context.Context, routerID, filter string) ([]ma
 	}
 	defer w.pool.Return(routerID, conn)
 
-	meta := command.Lookup("system/log/print")
+	meta := command.Lookup("log/print")
 	if meta == nil {
 		return nil, nil
 	}

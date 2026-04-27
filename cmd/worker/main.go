@@ -13,6 +13,7 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	roskitcache "github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
+	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/quiqxiq/roskit/internal/worker"
 	"github.com/quiqxiq/roskit/pkg/database"
 	appredis "github.com/quiqxiq/roskit/pkg/redis"
@@ -51,9 +52,14 @@ func main() {
 	}
 
 	engine := orchestrator.New(orchestrator.Config{
-		Logger: logger,
-		Cache:  roskitCache,
+		Logger:        logger,
+		Cache:         roskitCache,
+		DisableStreams: true, // worker only polls; streams run in cmd/api
 	})
+
+	routerRepo := repository.NewRouterRepo(db)
+	routerSvc := services.NewRouterService(routerRepo, engine, cache, cfg.AESEncKey)
+	routerSvc.SeedEngineFromDB(context.Background())
 
 	bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitCache)
 
@@ -63,7 +69,10 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
+	engine.Start(ctx)
+
+	pollRunner := engine.NewConcurrentPollRunner()
+	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg, pollRunner)
 	backgroundWorker.Start(ctx)
 
 	log.Println("worker started, waiting for events...")

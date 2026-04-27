@@ -16,8 +16,18 @@ func registerSystem() {
 	// JSON confirms: NONE of these have "follow" arg → CommandTypePoll
 	// They support "interval" → used for ticker-based polling in behavior/poll/
 	// -------------------------------------------------------------------------
-	systemResource := command.PollDef("system/resource/print", 60*time.Second)
-	systemResource.WriteTimeSeries = true
+	// system/resource/print supports =interval=Xs (not =follow).
+	// Run as stream with interval=1s so fields are included in pub-sub messages.
+	systemResource := command.CommandMeta{
+		Path:             "system/resource/print",
+		Type:             command.CommandTypeStream,
+		SupportsFollow:   false,
+		SupportsInterval: true,
+		CacheTTL:         10 * time.Second,
+		Measurement:      "system_resource",
+		Category:         "system",
+		WriteTimeSeries:  true,
+	}
 	command.Register(systemResource)
 	command.Register(command.PollDef("system/identity/print", 5*time.Minute))
 	command.Register(command.PollDef("system/clock/print", 60*time.Second))
@@ -52,6 +62,8 @@ func registerSystem() {
 	command.Register(command.MutationDef("system/scheduler/add"))
 	command.Register(command.MutationDef("system/scheduler/set"))
 	command.Register(command.MutationDef("system/scheduler/remove"))
+	command.Register(command.MutationDef("system/scheduler/enable"))
+	command.Register(command.MutationDef("system/scheduler/disable"))
 	command.Register(command.MutationDef("system/script/add"))
 	command.Register(command.MutationDef("system/script/set"))
 	command.Register(command.MutationDef("system/script/remove"))
@@ -59,13 +71,12 @@ func registerSystem() {
 	command.Register(command.MutationDef("system/shutdown"))
 	command.Register(command.MutationDef("system/reboot"))
 
-	// system/log/print — NOT in 7.20.8 JSON (may be legacy path)
-	// Treat as a direct-query action (no cache, no stream).
+	// log/print — correct RouterOS path (not system/log/print)
 	command.Register(command.CommandMeta{
-		Path:        "system/log/print",
+		Path:        "log/print",
 		Type:        command.CommandTypeQuery,
-		Measurement: "system_log",
-		Category:    "system",
+		Measurement: "log",
+		Category:    "log",
 	})
 
 	// -------------------------------------------------------------------------

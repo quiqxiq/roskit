@@ -62,6 +62,41 @@ func (b *Bridge) ListPPPProfiles(ctx context.Context, routerID string) ([]map[st
 	return b.Query(ctx, routerID, "ppp/profile/print")
 }
 
+func (b *Bridge) GetPPPProfile(ctx context.Context, routerID, idOrName string) (map[string]string, error) {
+	if len(idOrName) > 0 && idOrName[:1] == "*" {
+		return b.QueryOne(ctx, routerID, "ppp/profile/print", "?.id="+idOrName)
+	}
+	return b.QueryOne(ctx, routerID, "ppp/profile/print", "?name="+idOrName)
+}
+
+func (b *Bridge) AddPPPProfile(ctx context.Context, routerID string, params map[string]string) (string, error) {
+	return b.mutateAdd(ctx, routerID, "ppp/profile/add", params)
+}
+
+func (b *Bridge) SetPPPProfile(ctx context.Context, routerID, id string, params map[string]string) error {
+	args := []string{"=.id=" + id}
+	for k, v := range params {
+		args = append(args, "="+k+"="+v)
+	}
+	_, err := b.Mutate(ctx, routerID, "ppp/profile/set", args...)
+	return err
+}
+
+func (b *Bridge) RemovePPPProfile(ctx context.Context, routerID, id string) error {
+	_, err := b.Mutate(ctx, routerID, "ppp/profile/remove", "=.id="+id)
+	return err
+}
+
+func (b *Bridge) EnablePPPProfile(ctx context.Context, routerID, id string) error {
+	_, err := b.Mutate(ctx, routerID, "ppp/profile/enable", "=numbers="+id)
+	return err
+}
+
+func (b *Bridge) DisablePPPProfile(ctx context.Context, routerID, id string) error {
+	_, err := b.Mutate(ctx, routerID, "ppp/profile/disable", "=numbers="+id)
+	return err
+}
+
 func (b *Bridge) ListInactivePPPSecrets(ctx context.Context, routerID string) ([]map[string]string, error) {
 	if b.cache != nil {
 		key := fmt.Sprintf("roskit:%s:ppp_inactive", routerID)

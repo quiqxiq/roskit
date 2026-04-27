@@ -58,6 +58,15 @@ func NewRouter(
 	logSSEH := sse.NewLogSSEHandler(subscriber, bridge)
 	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber)
 
+	// Serve the frontend website from the same origin as the API
+	engine.Static("/css", "./website/css")
+	engine.Static("/js", "./website/js")
+	engine.StaticFile("/", "./website/index.html")
+	engine.StaticFile("/app.html", "./website/app.html")
+	engine.NoRoute(func(c *gin.Context) {
+		c.File("./website/index.html")
+	})
+
 	api := engine.Group("/api/v1")
 	{
 		auth := api.Group("/auth")

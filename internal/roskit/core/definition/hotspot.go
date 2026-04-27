@@ -106,6 +106,11 @@ func registerHotspot() {
 	command.Register(command.MutationDef("ip/hotspot/active/login"))
 
 	// -------------------------------------------------------------------------
+	// MUTATIONS — /ip/hotspot/host
+	// -------------------------------------------------------------------------
+	command.Register(command.MutationDef("ip/hotspot/host/remove"))
+
+	// -------------------------------------------------------------------------
 	// MUTATIONS — /ip/hotspot/cookie
 	// -------------------------------------------------------------------------
 	command.Register(command.MutationDef("ip/hotspot/cookie/remove"))

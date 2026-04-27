@@ -14,16 +14,23 @@ import (
 
 func AuthMiddleware(authSvc *services.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if header == "" {
-			c.AbortWithStatusJSON(401, gin.H{"data": nil, "error": "missing authorization header"})
-			return
-		}
+		var tokenStr string
 
-		tokenStr, ok := strings.CutPrefix(header, "Bearer ")
-		if !ok {
-			c.AbortWithStatusJSON(401, gin.H{"data": nil, "error": "invalid authorization format"})
-			return
+		// EventSource cannot set headers, so SSE endpoints pass the token as ?token=
+		if qp := c.Query("token"); qp != "" {
+			tokenStr = qp
+		} else {
+			header := c.GetHeader("Authorization")
+			if header == "" {
+				c.AbortWithStatusJSON(401, gin.H{"data": nil, "error": "missing authorization header"})
+				return
+			}
+			var ok bool
+			tokenStr, ok = strings.CutPrefix(header, "Bearer ")
+			if !ok {
+				c.AbortWithStatusJSON(401, gin.H{"data": nil, "error": "invalid authorization format"})
+				return
+			}
 		}
 
 		claims, err := authSvc.ValidateToken(c.Request.Context(), tokenStr)

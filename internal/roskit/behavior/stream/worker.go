@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -73,10 +74,11 @@ func (w *Worker) acquireAndStream(ctx context.Context, routerID string, meta *co
 
 	streamErr := w.runStream(ctx, routerID, meta, client)
 
-	// On error the shared async conn may be broken — invalidate so the next
-	// BorrowAsync re-dials. On clean ctx cancellation streamErr is nil, so
-	// the healthy conn is preserved for other workers.
-	if streamErr != nil {
+	// Only invalidate the shared async conn on network/connection errors.
+	// RouterOS-level errors (!trap / DeviceError) are command failures, not
+	// connection failures — invalidating would disconnect all other stream
+	// workers sharing this connection.
+	if streamErr != nil && !isDeviceError(streamErr) {
 		w.pool.InvalidateAsync(routerID)
 	}
 
@@ -141,3 +143,8 @@ func (w *Worker) runStream(ctx context.Context, routerID string, meta *command.C
 }
 
 var _ behavior.StreamHandler = (*Worker)(nil)
+
+func isDeviceError(err error) bool {
+	var de *routeros.DeviceError
+	return errors.As(err, &de)
+}

@@ -24,9 +24,9 @@ func (b *Bridge) GetRouterboard(ctx context.Context, routerID string) (map[strin
 
 func (b *Bridge) GetSystemLog(ctx context.Context, routerID string, topics string) ([]map[string]string, error) {
 	if topics != "" {
-		return b.Query(ctx, routerID, "system/log/print", "?topics="+topics)
+		return b.Query(ctx, routerID, "log/print", "?topics="+topics)
 	}
-	return b.Query(ctx, routerID, "system/log/print")
+	return b.Query(ctx, routerID, "log/print")
 }
 
 func (b *Bridge) ListSchedulers(ctx context.Context, routerID string) ([]map[string]string, error) {
@@ -44,6 +44,16 @@ func (b *Bridge) Reboot(ctx context.Context, routerID string) error {
 
 func (b *Bridge) Shutdown(ctx context.Context, routerID string) error {
 	_, err := b.Mutate(ctx, routerID, "system/shutdown")
+	return err
+}
+
+func (b *Bridge) EnableScheduler(ctx context.Context, routerID, id string) error {
+	_, err := b.Mutate(ctx, routerID, "system/scheduler/enable", "=numbers="+id)
+	return err
+}
+
+func (b *Bridge) DisableScheduler(ctx context.Context, routerID, id string) error {
+	_, err := b.Mutate(ctx, routerID, "system/scheduler/disable", "=numbers="+id)
 	return err
 }
 

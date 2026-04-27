@@ -11,6 +11,8 @@ import (
 	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
+	"github.com/quiqxiq/roskit/internal/roskit/behavior/poll"
+	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/pkg/redis"
 	"gorm.io/gorm"
 )
@@ -23,6 +25,7 @@ type Worker struct {
 	profileRepo repository.ProfilePriceMappingRepository
 	cfg         *config.Config
 	routerRepo  *repository.RouterRepo
+	pollRunner  *poll.ConcurrentRunner // nil disables batch poll refresh
 }
 
 func New(
@@ -32,6 +35,7 @@ func New(
 	saleRepo repository.SaleRepository,
 	profileRepo repository.ProfilePriceMappingRepository,
 	cfg *config.Config,
+	pollRunner *poll.ConcurrentRunner,
 ) *Worker {
 	return &Worker{
 		db:          db,
@@ -41,11 +45,16 @@ func New(
 		profileRepo: profileRepo,
 		cfg:         cfg,
 		routerRepo:  repository.NewRouterRepo(db),
+		pollRunner:  pollRunner,
 	}
 }
 
 func (w *Worker) Start(ctx context.Context) {
 	slog.Info("Starting background worker routines")
+
+	if w.pollRunner != nil {
+		go w.pollRefreshLoop(ctx)
+	}
 
 	go w.salesCacheWarmup(ctx)
 
@@ -178,5 +187,38 @@ func (w *Worker) voucherSessionCleanup(ctx context.Context) {
 		}
 
 		slog.Info("Active voucher sessions", "router", router.ID, "count", count)
+	}
+}
+
+func (w *Worker) pollRefreshLoop(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	w.runPollRefresh(ctx)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.runPollRefresh(ctx)
+		}
+	}
+}
+
+func (w *Worker) runPollRefresh(ctx context.Context) {
+	routers, err := w.routerRepo.List(ctx)
+	if err != nil {
+		slog.Error("PollRefresh failed to list routers", "error", err)
+		return
+	}
+
+	poolStatus := w.bridge.PoolStatus()
+	metas := command.ByType(command.CommandTypePoll)
+
+	for _, router := range routers {
+		rID := fmt.Sprintf("%d", router.ID)
+		if poolStatus != nil && !poolStatus[rID] {
+			continue
+		}
+		go w.pollRunner.RunAll(ctx, rID, metas)
 	}
 }

@@ -68,13 +68,12 @@ func (s ConnState) String() string {
 // It holds the underlying go-routeros client and manages its lifecycle.
 //
 // Two connections are maintained per router:
-//   - client: sync conn used by poll/query/mutation workers (serialized via cmdMu)
+//   - client: async-mode conn used by poll/query/mutation workers (tag-multiplexed)
 //   - async:  shared async conn used by ALL stream workers via tag-multiplexing
 type RouterConn struct {
-	mu    sync.RWMutex
-	cmdMu sync.Mutex // serializes concurrent RouterOS wire commands on the sync conn
-	cfg   ConnConfig
-	client *routeros.Client // sync conn: poll / query / mutation
+	mu     sync.RWMutex
+	cfg    ConnConfig
+	client *routeros.Client // async conn: poll / query / mutation via tag-multiplexing
 	async  *routeros.Client // async conn: all stream workers share this one
 	state  ConnState
 	logger *slog.Logger
@@ -106,9 +105,12 @@ func (rc *RouterConn) Connect(ctx context.Context) error {
 		return fmt.Errorf("dial %s: %w", rc.cfg.Address, err)
 	}
 
+	errCh := client.Async()
 	rc.client = client
 	rc.state = ConnStateConnected
 	rc.logger.Info("connected", "address", rc.cfg.Address)
+
+	go rc.watchClientAsync(errCh)
 	return nil
 }
 
@@ -142,7 +144,7 @@ func (rc *RouterConn) ConnectWithBackoff(ctx context.Context) error {
 	}
 }
 
-// Close closes both the sync and async connections. Idempotent.
+// Close closes both the client and async connections. Idempotent.
 func (rc *RouterConn) Close() {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
@@ -155,6 +157,23 @@ func (rc *RouterConn) Close() {
 		rc.client = nil
 	}
 	rc.state = ConnStateDisconnected
+}
+
+// watchClientAsync monitors the async-mode error channel on the client connection.
+// If the async loop ends with an error, the connection is marked disconnected so
+// the health loop will reconnect it.
+func (rc *RouterConn) watchClientAsync(errCh <-chan error) {
+	if err := <-errCh; err != nil {
+		rc.logger.Warn("client async loop ended, marking disconnected",
+			"router_id", rc.cfg.RouterID, "err", err)
+		rc.mu.Lock()
+		if rc.client != nil {
+			rc.client.Close()
+			rc.client = nil
+		}
+		rc.state = ConnStateDisconnected
+		rc.mu.Unlock()
+	}
 }
 
 // BorrowAsync returns the shared async connection for stream workers.
@@ -194,21 +213,18 @@ func (rc *RouterConn) IsAlive(ctx context.Context) bool {
 	if rc.state != ConnStateConnected || rc.client == nil {
 		return false
 	}
-	rc.cmdMu.Lock()
-	defer rc.cmdMu.Unlock()
 	_, err := rc.client.RunContext(ctx, "/system/identity/print")
 	return err == nil
 }
 
-// RunContext executes a synchronous command. Caller must hold pool borrow.
+// RunContext executes a command. Safe for concurrent use — the client is in async
+// mode so go-routeros handles tag-based multiplexing internally.
 func (rc *RouterConn) RunContext(ctx context.Context, sentence ...string) (*routeros.Reply, error) {
 	rc.mu.RLock()
 	defer rc.mu.RUnlock()
 	if rc.state != ConnStateConnected || rc.client == nil {
 		return nil, fmt.Errorf("not connected to %s", rc.cfg.RouterID)
 	}
-	rc.cmdMu.Lock()
-	defer rc.cmdMu.Unlock()
 	return rc.client.RunContext(ctx, sentence...)
 }
 
