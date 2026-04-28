@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-routeros/routeros/v3"
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/core/parser"
@@ -130,25 +129,20 @@ func (m *InterfaceMonitorManager) runMonitor(ctx context.Context, routerID, ifac
 }
 
 func (m *InterfaceMonitorManager) acquireAndStream(ctx context.Context, routerID, ifaceName string, meta *command.CommandMeta) error {
-	client, err := m.pool.BorrowAsync(ctx, routerID)
+	streamConn, err := m.pool.BorrowAsync(ctx, routerID)
 	if err != nil {
-		return fmt.Errorf("borrow async: %w", err)
+		return fmt.Errorf("borrow stream: %w", err)
 	}
 
-	streamErr := m.runStream(ctx, routerID, ifaceName, meta, client)
-
-	if streamErr != nil {
-		m.pool.InvalidateAsync(routerID)
-	}
-	return streamErr
+	return m.runStream(ctx, routerID, ifaceName, meta, streamConn)
 }
 
-func (m *InterfaceMonitorManager) runStream(ctx context.Context, routerID, ifaceName string, meta *command.CommandMeta, client *routeros.Client) error {
+func (m *InterfaceMonitorManager) runStream(ctx context.Context, routerID, ifaceName string, meta *command.CommandMeta, streamConn *execution.PersistentConn) error {
 	sentence := command.BuildMonitorSentence(meta, map[string]string{
 		"interface": ifaceName,
 	})
 
-	reply, err := client.ListenArgsQueueContext(ctx, sentence, 100)
+	reply, err := streamConn.ListenArgsQueueContext(ctx, sentence, 100)
 	if err != nil {
 		return fmt.Errorf("listen interface_traffic/%s: %w", ifaceName, err)
 	}

@@ -133,7 +133,7 @@ func main() {
 	saleRepo := repository.NewSaleRepo(db)
 	profileRepo := repository.NewProfilePriceMappingRepo(db)
 
-	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg, nil)
+	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
 	go backgroundWorker.Start(ctx)
 
 	router := api.NewRouter(cfg, db, cache, bridge, routerSvc, tsReader, roskitSubscriber)

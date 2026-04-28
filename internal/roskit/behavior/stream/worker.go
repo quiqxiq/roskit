@@ -2,12 +2,10 @@ package stream
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/go-routeros/routeros/v3"
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/core/parser"
@@ -62,32 +60,22 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 }
 
 func (w *Worker) acquireAndStream(ctx context.Context, routerID string, meta *command.CommandMeta) error {
-	client, err := w.pool.BorrowAsync(ctx, routerID)
+	streamConn, err := w.pool.BorrowAsync(ctx, routerID)
 	if err != nil {
-		return fmt.Errorf("borrow async: %w", err)
+		return fmt.Errorf("borrow stream: %w", err)
 	}
 
-	w.logger.Info("stream worker acquired async conn",
+	w.logger.Info("stream worker acquired persistent conn",
 		"router_id", routerID,
 		"measurement", meta.Measurement,
 	)
 
-	streamErr := w.runStream(ctx, routerID, meta, client)
-
-	// Only invalidate the shared async conn on network/connection errors.
-	// RouterOS-level errors (!trap / DeviceError) are command failures, not
-	// connection failures — invalidating would disconnect all other stream
-	// workers sharing this connection.
-	if streamErr != nil && !isDeviceError(streamErr) {
-		w.pool.InvalidateAsync(routerID)
-	}
-
-	return streamErr
+	return w.runStream(ctx, routerID, meta, streamConn)
 }
 
-func (w *Worker) runStream(ctx context.Context, routerID string, meta *command.CommandMeta, client *routeros.Client) error {
+func (w *Worker) runStream(ctx context.Context, routerID string, meta *command.CommandMeta, streamConn *execution.PersistentConn) error {
 	sentence := command.BuildStreamSentence(meta)
-	reply, err := client.ListenArgsQueueContext(ctx, sentence, defaultQueueSize)
+	reply, err := streamConn.ListenArgsQueueContext(ctx, sentence, defaultQueueSize)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", meta.Measurement, err)
 	}
@@ -143,8 +131,3 @@ func (w *Worker) runStream(ctx context.Context, routerID string, meta *command.C
 }
 
 var _ behavior.StreamHandler = (*Worker)(nil)
-
-func isDeviceError(err error) bool {
-	var de *routeros.DeviceError
-	return errors.As(err, &de)
-}

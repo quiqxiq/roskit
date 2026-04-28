@@ -12,6 +12,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /api     ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /migrate ./cmd/migrate
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /worker  ./cmd/worker
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /seed    ./cmd/seed
 
 FROM alpine:3.19
 
@@ -21,6 +22,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /api     /api
 COPY --from=builder /migrate /migrate
 COPY --from=builder /worker  /worker
+COPY --from=builder /seed    /seed
 
 EXPOSE 8080
 

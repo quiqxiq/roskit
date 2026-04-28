@@ -24,13 +24,14 @@ import (
 type Engine struct {
 	mu sync.RWMutex
 
-	cfg       Config
-	appCtx    context.Context // set by Start; used by AddRouter to launch workers
-	pool      *execution.Pool
-	streams   *bstream.Manager
-	polls     *poll.Scheduler
-	processor *event.Processor
-	dispatch  *Dispatcher
+	cfg         Config
+	appCtx      context.Context // set by Start; used by AddRouter to launch workers
+	pool        *execution.Pool
+	streams     *bstream.Manager
+	polls       *poll.Scheduler
+	pollCancels map[string]context.CancelFunc
+	processor   *event.Processor
+	dispatch    *Dispatcher
 
 	logger *slog.Logger
 }
@@ -40,9 +41,6 @@ type Config struct {
 	Cache      cache.Repository
 	TimeSeries timeseries.Writer
 	PubSub     pubsub.Publisher
-	// DisableStreams suppresses stream workers in startRouterWorkers.
-	// Set to true in cmd/worker so only poll connections are established.
-	DisableStreams bool
 }
 
 func New(cfg Config) *Engine {
@@ -75,13 +73,14 @@ func New(cfg Config) *Engine {
 	)
 
 	return &Engine{
-		cfg:       cfg,
-		pool:      pool,
-		streams:   streamMgr,
-		polls:     pollSched,
-		processor: processor,
-		dispatch:  dispatcher,
-		logger:    cfg.Logger,
+		cfg:         cfg,
+		pool:        pool,
+		streams:     streamMgr,
+		polls:       pollSched,
+		pollCancels: make(map[string]context.CancelFunc),
+		processor:   processor,
+		dispatch:    dispatcher,
+		logger:      cfg.Logger,
 	}
 }
 
@@ -115,6 +114,12 @@ func (e *Engine) AddRouter(_ context.Context, cfg execution.ConnConfig) error {
 func (e *Engine) RemoveRouter(routerID string) {
 	e.streams.StopAll(routerID)
 	e.polls.StopAll(routerID)
+	e.mu.Lock()
+	if cancel, ok := e.pollCancels[routerID]; ok {
+		cancel()
+		delete(e.pollCancels, routerID)
+	}
+	e.mu.Unlock()
 	// Unregister runs async: Close() can block if a poll/health goroutine holds
 	// the connection read lock during a network operation. Cancelling the workers
 	// above is sufficient to stop activity; the TCP teardown can happen in the bg.
@@ -167,21 +172,38 @@ func (e *Engine) ExecuteCommand(ctx context.Context, routerID string, sentence .
 }
 
 func (e *Engine) startRouterWorkers(ctx context.Context, routerID string) {
-	if !e.cfg.DisableStreams {
-		for _, meta := range command.ByType(command.CommandTypeStream) {
-			e.streams.Start(ctx, routerID, meta)
-		}
+	for _, meta := range command.ByType(command.CommandTypeStream) {
+		e.streams.Start(ctx, routerID, meta)
 	}
-	// Polls are driven by cmd/worker's ConcurrentRunner every 30 s.
-	// The engine no longer starts per-command poll workers.
+
+	pollCtx, pollCancel := context.WithCancel(ctx)
+	e.mu.Lock()
+	if old, ok := e.pollCancels[routerID]; ok {
+		old()
+	}
+	e.pollCancels[routerID] = pollCancel
+	e.mu.Unlock()
+	go e.runPollLoop(pollCtx, routerID)
 
 	e.logger.Info("engine: workers started", "router_id", routerID,
 		"streams", e.streams.ActiveCount(),
 	)
 }
 
-// NewConcurrentPollRunner returns a runner that executes all registered poll
-// commands concurrently for a given router using the engine's pool and processor.
-func (e *Engine) NewConcurrentPollRunner() *poll.ConcurrentRunner {
-	return poll.NewConcurrentRunner(e.pool, e.processor, e.logger)
+func (e *Engine) runPollLoop(ctx context.Context, routerID string) {
+	runner := poll.NewConcurrentRunner(e.pool, e.processor, e.logger)
+	metas := command.ByType(command.CommandTypePoll)
+
+	runner.RunAll(ctx, routerID, metas)
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			runner.RunAll(ctx, routerID, metas)
+		}
+	}
 }

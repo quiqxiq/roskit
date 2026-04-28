@@ -1,3 +1,4 @@
+// Deprecated: polling is now handled by cmd/api's engine. This binary is no longer needed.
 package main
 
 import (
@@ -52,9 +53,8 @@ func main() {
 	}
 
 	engine := orchestrator.New(orchestrator.Config{
-		Logger:        logger,
-		Cache:         roskitCache,
-		DisableStreams: true, // worker only polls; streams run in cmd/api
+		Logger: logger,
+		Cache:  roskitCache,
 	})
 
 	routerRepo := repository.NewRouterRepo(db)
@@ -71,8 +71,7 @@ func main() {
 
 	engine.Start(ctx)
 
-	pollRunner := engine.NewConcurrentPollRunner()
-	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg, pollRunner)
+	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
 	backgroundWorker.Start(ctx)
 
 	log.Println("worker started, waiting for events...")

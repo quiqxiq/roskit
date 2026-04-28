@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math"
 	"sync"
 	"time"
 
@@ -44,201 +43,108 @@ func (c ConnConfig) withDefaults() ConnConfig {
 	return c
 }
 
-// ConnState represents the lifecycle state of a router connection.
-type ConnState uint8
-
-const (
-	ConnStateDisconnected ConnState = iota
-	ConnStateConnecting
-	ConnStateConnected
-)
-
-func (s ConnState) String() string {
-	switch s {
-	case ConnStateConnected:
-		return "connected"
-	case ConnStateConnecting:
-		return "connecting"
-	default:
-		return "disconnected"
-	}
-}
-
 // RouterConn is a managed connection to one MikroTik router.
-// It holds the underlying go-routeros client and manages its lifecycle.
+// It holds TWO persistent connections, each with its own TCP socket,
+// async mode (tag-multiplexing), watchAsync goroutine, and auto-reconnect:
 //
-// Two connections are maintained per router:
-//   - client: async-mode conn used by poll/query/mutation workers (tag-multiplexed)
-//   - async:  shared async conn used by ALL stream workers via tag-multiplexing
+//   - client: persistent conn for poll / query / mutation (tag-multiplexed)
+//   - stream: persistent conn for ALL stream workers (tag-multiplexed)
+//
+// Both connections remain open for the lifetime of the application.
+// Commands never create new TCP connections — they reuse the existing one
+// via getConn(). When a connection drops, the watchAsync goroutine detects
+// it and triggers auto-reconnect with exponential backoff.
 type RouterConn struct {
 	mu     sync.RWMutex
 	cfg    ConnConfig
-	client *routeros.Client // async conn: poll / query / mutation via tag-multiplexing
-	async  *routeros.Client // async conn: all stream workers share this one
-	state  ConnState
+	client *PersistentConn
+	stream *PersistentConn
 	logger *slog.Logger
 }
 
 func newRouterConn(cfg ConnConfig, logger *slog.Logger) *RouterConn {
+	resolved := cfg.withDefaults()
 	return &RouterConn{
-		cfg:    cfg.withDefaults(),
-		state:  ConnStateDisconnected,
+		cfg:    resolved,
+		client: newPersistentConn(resolved, RoleClient, logger),
+		stream: newPersistentConn(resolved, RoleStream, logger),
 		logger: logger.With("router_id", cfg.RouterID),
 	}
 }
 
-// Connect dials and authenticates. Idempotent — noop if already connected.
+// Connect dials and authenticates both persistent connections.
+// Idempotent — noop for connections already established.
 func (rc *RouterConn) Connect(ctx context.Context) error {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-
-	if rc.state == ConnStateConnected {
-		return nil
+	if err := rc.client.Connect(ctx); err != nil {
+		return fmt.Errorf("client conn: %w", err)
 	}
-
-	rc.state = ConnStateConnecting
-	rc.logger.Info("connecting", "address", rc.cfg.Address)
-
-	client, err := routeros.DialContext(ctx, rc.cfg.Address, rc.cfg.Username, rc.cfg.Password)
-	if err != nil {
-		rc.state = ConnStateDisconnected
-		return fmt.Errorf("dial %s: %w", rc.cfg.Address, err)
+	if err := rc.stream.Connect(ctx); err != nil {
+		return fmt.Errorf("stream conn: %w", err)
 	}
-
-	errCh := client.Async()
-	rc.client = client
-	rc.state = ConnStateConnected
-	rc.logger.Info("connected", "address", rc.cfg.Address)
-
-	go rc.watchClientAsync(errCh)
 	return nil
 }
 
 // ConnectWithBackoff retries connection with exponential backoff until ctx is cancelled.
 func (rc *RouterConn) ConnectWithBackoff(ctx context.Context) error {
-	const base = 2 * time.Second
-	const maxDelay = 60 * time.Second
-
-	for attempt := 0; ; attempt++ {
-		err := rc.Connect(ctx)
-		if err == nil {
-			return nil
-		}
-
-		delay := time.Duration(float64(base) * math.Pow(2, float64(attempt)))
-		if delay > maxDelay {
-			delay = maxDelay
-		}
-
-		rc.logger.Warn("connect failed, retrying",
-			"attempt", attempt+1,
-			"delay", delay,
-			"err", err,
-		)
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(delay):
-		}
+	if err := rc.client.ConnectWithBackoff(ctx); err != nil {
+		return fmt.Errorf("client conn: %w", err)
 	}
+	if err := rc.stream.ConnectWithBackoff(ctx); err != nil {
+		return fmt.Errorf("stream conn: %w", err)
+	}
+	return nil
 }
 
-// Close closes both the client and async connections. Idempotent.
+// Close closes both persistent connections. Idempotent.
 func (rc *RouterConn) Close() {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-	if rc.async != nil {
-		rc.async.Close()
-		rc.async = nil
-	}
-	if rc.client != nil {
-		rc.client.Close()
-		rc.client = nil
-	}
-	rc.state = ConnStateDisconnected
+	rc.stream.Close()
+	rc.client.Close()
 }
 
-// watchClientAsync monitors the async-mode error channel on the client connection.
-// If the async loop ends with an error, the connection is marked disconnected so
-// the health loop will reconnect it.
-func (rc *RouterConn) watchClientAsync(errCh <-chan error) {
-	if err := <-errCh; err != nil {
-		rc.logger.Warn("client async loop ended, marking disconnected",
-			"router_id", rc.cfg.RouterID, "err", err)
-		rc.mu.Lock()
-		if rc.client != nil {
-			rc.client.Close()
-			rc.client = nil
-		}
-		rc.state = ConnStateDisconnected
-		rc.mu.Unlock()
+// BorrowStream returns the persistent stream connection's underlying client.
+// All stream workers share this single connection via tag-multiplexing.
+// Callers must NOT close the returned client.
+func (rc *RouterConn) BorrowStream() (*PersistentConn, error) {
+	if rc.stream.State() != ConnStateConnected {
+		return nil, fmt.Errorf("stream conn not connected for %s", rc.cfg.RouterID)
 	}
+	return rc.stream, nil
 }
 
-// BorrowAsync returns the shared async connection for stream workers.
-// Creates and enables tag-multiplexing on first call; subsequent calls reuse it.
-// Callers must NOT close the returned client — only Close() or InvalidateAsync() may do so.
-func (rc *RouterConn) BorrowAsync(ctx context.Context) (*routeros.Client, error) {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-	if rc.async != nil {
-		return rc.async, nil
-	}
-	client, err := routeros.DialContext(ctx, rc.cfg.Address, rc.cfg.Username, rc.cfg.Password)
-	if err != nil {
-		return nil, fmt.Errorf("async dial %s: %w", rc.cfg.Address, err)
-	}
-	client.Async()
-	rc.async = client
-	return client, nil
-}
-
-// InvalidateAsync closes and clears the cached async connection.
-// Call this when a stream worker detects the async conn is broken,
-// so that the next BorrowAsync re-dials a fresh connection.
-func (rc *RouterConn) InvalidateAsync() {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-	if rc.async != nil {
-		rc.async.Close()
-		rc.async = nil
-	}
-}
-
-// IsAlive sends a lightweight command to check connection health.
-func (rc *RouterConn) IsAlive(ctx context.Context) bool {
-	rc.mu.RLock()
-	defer rc.mu.RUnlock()
-	if rc.state != ConnStateConnected || rc.client == nil {
-		return false
-	}
-	_, err := rc.client.RunContext(ctx, "/system/identity/print")
-	return err == nil
-}
-
-// RunContext executes a command. Safe for concurrent use — the client is in async
-// mode so go-routeros handles tag-based multiplexing internally.
+// RunContext executes a command on the client connection.
+// Safe for concurrent use — the client is in async mode so go-routeros
+// handles tag-based multiplexing internally.
 func (rc *RouterConn) RunContext(ctx context.Context, sentence ...string) (*routeros.Reply, error) {
-	rc.mu.RLock()
-	defer rc.mu.RUnlock()
-	if rc.state != ConnStateConnected || rc.client == nil {
-		return nil, fmt.Errorf("not connected to %s", rc.cfg.RouterID)
-	}
 	return rc.client.RunContext(ctx, sentence...)
 }
 
-func (rc *RouterConn) Client() *routeros.Client {
-	rc.mu.RLock()
-	defer rc.mu.RUnlock()
+func (rc *RouterConn) Client() *PersistentConn {
 	return rc.client
 }
 
-// State returns the current connection state (safe for concurrent access).
+func (rc *RouterConn) Stream() *PersistentConn {
+	return rc.stream
+}
+
+// IsAlive checks health of the client connection.
+func (rc *RouterConn) IsAlive(ctx context.Context) bool {
+	return rc.client.IsAlive(ctx)
+}
+
+// State returns the worst state between client and stream connections.
 func (rc *RouterConn) State() ConnState {
-	rc.mu.RLock()
-	defer rc.mu.RUnlock()
-	return rc.state
+	cs := rc.client.State()
+	ss := rc.stream.State()
+	if cs == ConnStateConnected && ss == ConnStateConnected {
+		return ConnStateConnected
+	}
+	if cs == ConnStateAuthFailed || ss == ConnStateAuthFailed {
+		return ConnStateAuthFailed
+	}
+	if cs == ConnStateConnecting || ss == ConnStateConnecting {
+		return ConnStateConnecting
+	}
+	return ConnStateDisconnected
 }
 
 // =============================================================================
@@ -246,24 +152,16 @@ func (rc *RouterConn) State() ConnState {
 // =============================================================================
 
 // Pool manages connections to multiple routers.
-// Stream workers and poll workers borrow connections from the pool.
-//
-// Design decision: each RouterConn wraps a SINGLE go-routeros client.
-// The RouterOS API protocol allows concurrent commands on one TCP connection
-// via tag-multiplexing, but streaming (=follow) commands block that connection's
-// tag slot. Therefore:
-//   - Poll/query commands: share the main connection via RunContext
-//   - Stream commands: get a DEDICATED connection via BorrowAsync
-//
-// TODO: for production scale (many concurrent streams), implement a
-// secondary connection per RouterConn for streaming.
+// Each router gets two persistent connections (client + stream) that remain
+// open for the application lifetime. Commands reuse existing connections
+// via tag-multiplexing — no new TCP connections are created per command.
 type Pool struct {
 	mu      sync.RWMutex
 	conns   map[string]*RouterConn
 	logger  *slog.Logger
 
-	appCtx       context.Context    // set by Start; used by LaunchOne
-	healthCtx    context.Context    // child of appCtx for health loops
+	appCtx       context.Context
+	healthCtx    context.Context
 	healthCancel context.CancelFunc
 }
 
@@ -341,10 +239,6 @@ func (p *Pool) Stop() {
 // Borrow returns a connected RouterConn for the given routerID.
 // Returns an error if the router is not registered or not connected.
 // The caller MUST call Return when done.
-//
-// Note: current implementation returns the shared conn. For streaming,
-// this means stream workers will block the sync command channel.
-// A production improvement would be a separate async conn per worker.
 func (p *Pool) Borrow(ctx context.Context, routerID string) (*RouterConn, error) {
 	p.mu.RLock()
 	conn, ok := p.conns[routerID]
@@ -353,17 +247,16 @@ func (p *Pool) Borrow(ctx context.Context, routerID string) (*RouterConn, error)
 	if !ok {
 		return nil, fmt.Errorf("pool: router %q not registered", routerID)
 	}
-	if conn.State() != ConnStateConnected {
-		return nil, fmt.Errorf("pool: router %q is %s", routerID, conn.State())
+	if conn.client.State() != ConnStateConnected {
+		return nil, fmt.Errorf("pool: router %q client is %s", routerID, conn.client.State())
 	}
 	return conn, nil
 }
 
 // Return releases a borrowed connection back to the pool.
-// In the current single-conn model this is a noop — but kept for API stability
-// when we switch to a multi-conn pool per router.
+// Noop — connections are persistent and never released.
 func (p *Pool) Return(routerID string, conn *RouterConn) {
-	// noop for now
+	// noop — persistent connections
 }
 
 // Status returns connection states for all routers.
@@ -377,28 +270,19 @@ func (p *Pool) Status() map[string]ConnState {
 	return out
 }
 
-// BorrowAsync returns the shared async client for the given router.
+// BorrowAsync returns the persistent stream connection for the given router.
 // All stream workers share this single connection via tag-multiplexing.
+// Unlike the old implementation, this NEVER creates a new TCP connection —
+// it returns the existing persistent stream conn.
 // Callers must NOT close the returned client.
-func (p *Pool) BorrowAsync(ctx context.Context, routerID string) (*routeros.Client, error) {
+func (p *Pool) BorrowAsync(ctx context.Context, routerID string) (*PersistentConn, error) {
 	p.mu.RLock()
 	conn, ok := p.conns[routerID]
 	p.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("pool: router %q not registered", routerID)
 	}
-	return conn.BorrowAsync(ctx)
-}
-
-// InvalidateAsync clears the cached async connection for a router so that the
-// next BorrowAsync call re-dials a fresh one. Called by stream workers on error.
-func (p *Pool) InvalidateAsync(routerID string) {
-	p.mu.RLock()
-	conn, ok := p.conns[routerID]
-	p.mu.RUnlock()
-	if ok {
-		conn.InvalidateAsync()
-	}
+	return conn.BorrowStream()
 }
 
 // LaunchOne starts the connect-with-backoff loop and health loop for a router
@@ -437,6 +321,9 @@ func (p *Pool) WaitConnected(ctx context.Context, routerID string) error {
 }
 
 // healthLoop periodically checks a connection and reconnects if needed.
+// This is a secondary safety net — PersistentConn already handles reconnect
+// via its watchAsync goroutine. The health loop catches edge cases where
+// the watchAsync goroutine might not have detected a problem.
 func (p *Pool) healthLoop(ctx context.Context, conn *RouterConn) {
 	ticker := time.NewTicker(conn.cfg.HealthInterval)
 	defer ticker.Stop()
@@ -446,12 +333,15 @@ func (p *Pool) healthLoop(ctx context.Context, conn *RouterConn) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if !conn.IsAlive(ctx) {
-				p.logger.Warn("health check failed, reconnecting",
+			if conn.State() == ConnStateAuthFailed {
+				continue
+			}
+			if conn.client.State() == ConnStateConnected && !conn.client.IsAlive(ctx) {
+				p.logger.Warn("health check failed on client conn, triggering reconnect",
 					"router_id", conn.cfg.RouterID,
 				)
-				conn.Close()
-				go conn.ConnectWithBackoff(ctx) //nolint:errcheck
+				conn.client.Close()
+				go conn.client.ConnectWithBackoff(ctx) //nolint:errcheck
 			}
 		}
 	}

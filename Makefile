@@ -2,15 +2,16 @@ BINARY_DIR := bin
 API_BIN     := $(BINARY_DIR)/api
 MIGRATE_BIN := $(BINARY_DIR)/migrate
 WORKER_BIN  := $(BINARY_DIR)/worker
+SEED_BIN    := $(BINARY_DIR)/seed
 
 COMPOSE     := docker compose -f docker/docker-compose.dev.yml
 COMPOSE_PRD := docker compose -f docker/docker-compose.yml
 
 API_URL     := http://localhost:8080
 
-.PHONY: all build build-api build-migrate build-worker \
+.PHONY: all build build-api build-migrate build-worker build-seed \
         run docker-up docker-down docker-logs docker-build docker-clean \
-        migrate-up migrate-import sync-profiles \
+        migrate-up migrate-import sync-profiles seed seed-docker \
         test clean env \
         curl-health curl-setup curl-login
 
@@ -31,6 +32,10 @@ build-migrate:
 build-worker:
 	@mkdir -p $(BINARY_DIR)
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(WORKER_BIN) ./cmd/worker
+
+build-seed:
+	@mkdir -p $(BINARY_DIR)
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(SEED_BIN) ./cmd/seed
 
 clean:
 	rm -rf $(BINARY_DIR)
@@ -76,6 +81,12 @@ migrate-import: build-migrate
 
 sync-profiles: build-migrate
 	./$(MIGRATE_BIN) sync-profiles
+
+seed: build-seed
+	./$(SEED_BIN)
+
+seed-docker:
+	$(COMPOSE) exec api /seed
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
