@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,14 +15,6 @@ type HotspotHandler struct {
 
 func NewHotspotHandler(svc *services.HotspotService) *HotspotHandler {
 	return &HotspotHandler{svc: svc}
-}
-
-func parseRouterID(c *gin.Context) (uint, error) {
-	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid router id")
-	}
-	return uint(id), nil
 }
 
 func (h *HotspotHandler) ListUsers(c *gin.Context) {
@@ -140,6 +131,20 @@ func (h *HotspotHandler) RemoveUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "user removed"}, "error": nil})
+}
+
+func (h *HotspotHandler) ResetUserCounters(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	id := c.Param("id")
+	if err := h.svc.ResetUserCounters(c.Request.Context(), routerID, id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to reset counters"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "counters reset"}, "error": nil})
 }
 
 func (h *HotspotHandler) ListProfiles(c *gin.Context) {
@@ -491,6 +496,120 @@ func (h *HotspotHandler) DisableIPBinding(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "IP binding disabled"}, "error": nil})
+}
+
+func (h *HotspotHandler) ListWalledGarden(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	result, err := h.svc.ListWalledGarden(c.Request.Context(), routerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list walled garden"})
+		return
+	}
+
+	if result == nil {
+		result = []map[string]string{}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
+}
+
+func (h *HotspotHandler) AddWalledGarden(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	var params map[string]string
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+
+	result, err := h.svc.AddWalledGarden(c.Request.Context(), routerID, params)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"data": result, "error": nil})
+}
+
+func (h *HotspotHandler) RemoveWalledGarden(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	id := c.Param("wid")
+	if err := h.svc.RemoveWalledGarden(c.Request.Context(), routerID, id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "walled garden entry removed"}, "error": nil})
+}
+
+func (h *HotspotHandler) ListWalledGardenIP(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	result, err := h.svc.ListWalledGardenIP(c.Request.Context(), routerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list walled garden IP"})
+		return
+	}
+
+	if result == nil {
+		result = []map[string]string{}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
+}
+
+func (h *HotspotHandler) AddWalledGardenIP(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	var params map[string]string
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+
+	result, err := h.svc.AddWalledGardenIP(c.Request.Context(), routerID, params)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"data": result, "error": nil})
+}
+
+func (h *HotspotHandler) RemoveWalledGardenIP(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	id := c.Param("wid")
+	if err := h.svc.RemoveWalledGardenIP(c.Request.Context(), routerID, id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "walled garden IP entry removed"}, "error": nil})
 }
 
 func (h *HotspotHandler) ExportUsers(c *gin.Context) {

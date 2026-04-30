@@ -6,21 +6,27 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/timeseries"
+	appcache "github.com/quiqxiq/roskit/pkg/redis"
 )
 
 type SystemService struct {
-	bridge   *roskitservice.Bridge
-	tsReader timeseries.Reader
-	logger   *slog.Logger
+	bridge     *roskitservice.Bridge
+	tsReader   timeseries.Reader
+	routerRepo *repository.RouterRepo
+	cache      *appcache.Cache
+	logger     *slog.Logger
 }
 
-func NewSystemService(bridge *roskitservice.Bridge, tsReader timeseries.Reader) *SystemService {
+func NewSystemService(bridge *roskitservice.Bridge, tsReader timeseries.Reader, routerRepo *repository.RouterRepo, cache *appcache.Cache) *SystemService {
 	return &SystemService{
-		bridge:   bridge,
-		tsReader: tsReader,
-		logger:   slog.Default().With("component", "system-svc"),
+		bridge:     bridge,
+		tsReader:   tsReader,
+		routerRepo: routerRepo,
+		cache:      cache,
+		logger:     slog.Default().With("component", "system-svc"),
 	}
 }
 
@@ -90,6 +96,35 @@ func (s *SystemService) ListSchedulers(ctx context.Context, routerID uint) ([]ma
 	return s.bridge.ListSchedulers(ctx, fmt.Sprintf("%d", routerID))
 }
 
+func (s *SystemService) AddScheduler(ctx context.Context, routerID uint, params map[string]string) (map[string]string, error) {
+	rID := fmt.Sprintf("%d", routerID)
+	_, err := s.bridge.AddScheduler(ctx, rID, params)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"message": "scheduler created"}, nil
+}
+
+func (s *SystemService) UpdateScheduler(ctx context.Context, routerID uint, schedulerID string, params map[string]string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.SetScheduler(ctx, rID, schedulerID, params)
+}
+
+func (s *SystemService) DeleteScheduler(ctx context.Context, routerID uint, schedulerID string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.RemoveScheduler(ctx, rID, schedulerID)
+}
+
+func (s *SystemService) EnableSchedulerByID(ctx context.Context, routerID uint, schedulerID string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.EnableScheduler(ctx, rID, schedulerID)
+}
+
+func (s *SystemService) DisableSchedulerByID(ctx context.Context, routerID uint, schedulerID string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.DisableScheduler(ctx, rID, schedulerID)
+}
+
 func (s *SystemService) GetDashboard(ctx context.Context, routerID uint) (map[string]interface{}, error) {
 	rID := fmt.Sprintf("%d", routerID)
 
@@ -113,12 +148,67 @@ func (s *SystemService) GetDashboard(ctx context.Context, routerID uint) (map[st
 		s.logger.Warn("failed to get active session count", "error", err)
 	}
 
-	return map[string]interface{}{
-		"resource":       resource,
-		"identity":       identity,
-		"hotspot_users":  userCount,
+	result := map[string]interface{}{
+		"resource":        resource,
+		"identity":        identity,
+		"hotspot_users":   userCount,
 		"active_sessions": activeCount,
-	}, nil
+	}
+
+	health, err := s.bridge.GetSystemHealth(ctx, rID)
+	if err == nil {
+		result["system_health"] = health
+	}
+
+	var summary DashboardSummary
+	found, err := s.cache.GetJSON(ctx, appcache.DashboardKey(routerID), &summary)
+	if err == nil && found {
+		result["income"] = summary
+	}
+
+	logs, err := s.bridge.GetSystemLog(ctx, rID, "hotspot")
+	if err == nil && len(logs) > 0 {
+		if len(logs) > 5 {
+			logs = logs[len(logs)-5:]
+		}
+		result["recent_logs"] = logs
+	}
+
+	return result, nil
+}
+
+func (s *SystemService) ListScripts(ctx context.Context, routerID uint) ([]map[string]string, error) {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.ListScripts(ctx, rID)
+}
+
+func (s *SystemService) AddScript(ctx context.Context, routerID uint, params map[string]string) (map[string]string, error) {
+	rID := fmt.Sprintf("%d", routerID)
+	_, err := s.bridge.AddScript(ctx, rID, params)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"message": "script created"}, nil
+}
+
+func (s *SystemService) UpdateScript(ctx context.Context, routerID uint, scriptID string, params map[string]string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.SetScript(ctx, rID, scriptID, params)
+}
+
+func (s *SystemService) DeleteScript(ctx context.Context, routerID uint, scriptID string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.RemoveScript(ctx, rID, scriptID)
+}
+
+func (s *SystemService) RunScript(ctx context.Context, routerID uint, scriptID string) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.RunScript(ctx, rID, scriptID)
+}
+
+func (s *SystemService) SetupLogging(ctx context.Context, routerID uint) error {
+	rID := fmt.Sprintf("%d", routerID)
+	return s.bridge.SetupLogging(ctx, rID)
 }
 
 func (s *SystemService) GetSystemResourceHistory(ctx context.Context, routerID uint, rangeStr, step string) ([]map[string]interface{}, error) {

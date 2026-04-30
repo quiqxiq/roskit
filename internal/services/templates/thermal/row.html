@@ -1,0 +1,64 @@
+<table class="voucher" style=" width: 180px;">
+	<tbody>
+		<tr>
+			<td style="text-align: center; font-size: 14px; font-weight:bold;">{{.HotspotName}}</td>
+		</tr>
+		<tr>
+			<td style="text-align: center; font-size: 14px; border-bottom: 1px black solid;">
+				<img src="{{.Logo}}" alt="logo" style="height:30px;border:0;"><br>
+				<span>{{.TimeStamp}}</span>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<table style=" text-align: center; width: 170px; font-size: 12px;">
+					<tbody>
+						<tr>
+							<td>
+								<table style="width:100%;">
+									<tr class="vc">
+										<td font-size: 12px;>Kode Voucher</td>
+									</tr>
+									<tr  class="vc">
+										<td style="width:100%; border: 1px solid black; font-weight:bold; font-size:16px;">{{.Username}}</td>
+									</tr>
+									<tr class="up">
+										<td style="width: 50%">Username</td>
+										<td >Password</td>
+									</tr>
+									<tr style="font-size: 14px;" class="up">
+										<td style="border: 1px solid black; font-weight:bold;">{{.Username}}</td>
+										<td style="border: 1px solid black; font-weight:bold;">{{.Password}}</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+
+						<tr>
+							<td colspan="2" style="border-top: 1px solid black;font-weight:bold; font-size:14px"><span class="validity">{{.Validity}}</span> <span class="timelimit">{{.TimeLimit}}</span> <span>{{.DataLimit}}</span></td>
+						</tr>
+						<tr>
+							<td><span class="price">{{.Price}}</span></td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								<div >{{.QRCode}} </div>
+								{{.Comment}}
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" style="font-weight:bold; font-size:12px">Login: http://{{.DNSName}}</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<script>
+	if("{{.Username}}" == "{{.Password}}"){
+		$(".vc").show()
+	}else if("{{.Username}}" != "{{.Password}}"){
+		$(".up").show()
+	}
+</script>

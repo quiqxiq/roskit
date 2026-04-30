@@ -67,6 +67,10 @@ func VoucherSessionKey(routerID uint, gencode string) string {
 	return fmt.Sprintf("mikhmon:vsession:%d:%s", routerID, gencode)
 }
 
+func HotspotUsersKey(routerID uint) string {
+	return fmt.Sprintf("mikhmon:hotspot_users:%d", routerID)
+}
+
 func (c *Cache) Get(ctx context.Context, key string) (string, bool, error) {
 	val, err := c.client.Get(ctx, key).Result()
 	if err == goredis.Nil {

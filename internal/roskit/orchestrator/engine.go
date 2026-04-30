@@ -37,10 +37,11 @@ type Engine struct {
 }
 
 type Config struct {
-	Logger     *slog.Logger
-	Cache      cache.Repository
-	TimeSeries timeseries.Writer
-	PubSub     pubsub.Publisher
+	Logger          *slog.Logger
+	Cache           cache.Repository
+	TimeSeries      timeseries.Writer
+	PubSub          pubsub.Publisher
+	OnRouterConnect func(ctx context.Context, routerID string)
 }
 
 func New(cfg Config) *Engine {
@@ -188,6 +189,10 @@ func (e *Engine) startRouterWorkers(ctx context.Context, routerID string) {
 	e.logger.Info("engine: workers started", "router_id", routerID,
 		"streams", e.streams.ActiveCount(),
 	)
+
+	if e.cfg.OnRouterConnect != nil {
+		go e.cfg.OnRouterConnect(ctx, routerID)
+	}
 }
 
 func (e *Engine) runPollLoop(ctx context.Context, routerID string) {

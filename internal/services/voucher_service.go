@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/quiqxiq/roskit/internal/models"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
+	"github.com/quiqxiq/roskit/pkg/mikrotik"
 	appcache "github.com/quiqxiq/roskit/pkg/redis"
 )
 
@@ -29,10 +29,10 @@ type VoucherGenerateParams struct {
 }
 
 type VoucherGenerateResult struct {
-	Count    int                                `json:"count"`
-	Gencode  string                             `json:"gencode"`
-	Profile  string                             `json:"profile"`
-	Vouchers []roskitservice.GeneratedVoucher   `json:"vouchers"`
+	Count    int                              `json:"count"`
+	Gencode  string                           `json:"gencode"`
+	Profile  string                           `json:"profile"`
+	Vouchers []roskitservice.GeneratedVoucher `json:"vouchers"`
 }
 
 type RecordSaleParams struct {
@@ -52,22 +52,106 @@ type ImportResult struct {
 	Errors   int `json:"errors"`
 }
 
-type VoucherService struct {
-	bridge     *roskitservice.Bridge
-	saleRepo   SaleRepository
-	routerRepo RouterRepository
-	cache      *appcache.Cache
-	logger     *slog.Logger
+type ProfilePriceMappingRepository interface {
+	FindByRouterAndProfile(ctx context.Context, routerID uint, profileName string) (*models.ProfilePriceMapping, error)
 }
 
-func NewVoucherService(bridge *roskitservice.Bridge, saleRepo SaleRepository, routerRepo RouterRepository, cache *appcache.Cache) *VoucherService {
+type ResolvedVoucher struct {
+	Username  string
+	Password  string
+	Profile   string
+	Comment   string
+	TimeLimit string
+	DataLimit string
+	UserMode  string // "vc" or "up"
+	Price     string // SellingPrice as string
+	Validity  string
+}
+
+type VoucherService struct {
+	bridge      *roskitservice.Bridge
+	saleRepo    SaleRepository
+	routerRepo  RouterRepository
+	profileRepo ProfilePriceMappingRepository
+	cache       *appcache.Cache
+	logger      *slog.Logger
+}
+
+func NewVoucherService(bridge *roskitservice.Bridge, saleRepo SaleRepository, routerRepo RouterRepository, profileRepo ProfilePriceMappingRepository, cache *appcache.Cache) *VoucherService {
 	return &VoucherService{
-		bridge:     bridge,
-		saleRepo:   saleRepo,
-		routerRepo: routerRepo,
-		cache:      cache,
-		logger:     slog.Default().With("component", "voucher-svc"),
+		bridge:      bridge,
+		saleRepo:    saleRepo,
+		routerRepo:  routerRepo,
+		profileRepo: profileRepo,
+		cache:       cache,
+		logger:      slog.Default().With("component", "voucher-svc"),
 	}
+}
+
+func (s *VoucherService) resolveProfilePrice(ctx context.Context, routerID uint, profileName string) (price, sellingPrice int64, validity string) {
+	if profileName != "" {
+		if m, err := s.profileRepo.FindByRouterAndProfile(ctx, routerID, profileName); err == nil && m != nil {
+			return m.Price, m.SellingPrice, m.Validity
+		}
+	}
+	profiles, err := s.bridge.Query(ctx, fmt.Sprintf("%d", routerID), "ip/hotspot/user/profile/print", "?name="+profileName)
+	if err != nil || len(profiles) == 0 {
+		return 0, 0, ""
+	}
+	meta := roskitservice.ParseOnLoginPut(profiles[0]["on-login"])
+	if meta == nil {
+		return 0, 0, ""
+	}
+	p, _ := strconv.ParseInt(meta.Price, 10, 64)
+	sp, _ := strconv.ParseInt(meta.SellingPrice, 10, 64)
+	return p, sp, meta.Validity
+}
+
+func (s *VoucherService) ResolveVoucherPrintData(
+	ctx context.Context,
+	routerID uint,
+	allUsers []map[string]string,
+	usernames []string,
+	comment string,
+) ([]ResolvedVoucher, error) {
+	wanted := make(map[string]bool, len(usernames))
+	for _, u := range usernames {
+		wanted[u] = true
+	}
+
+	var result []ResolvedVoucher
+	for _, u := range allUsers {
+		name := u["name"]
+		uComment := u["comment"]
+
+		if len(wanted) > 0 {
+			if !wanted[name] {
+				continue
+			}
+		} else if !strings.HasPrefix(uComment, comment) {
+			continue
+		}
+
+		userMode := "vc"
+		if strings.HasPrefix(uComment, "up-") {
+			userMode = "up"
+		}
+
+		_, sp, validity := s.resolveProfilePrice(ctx, routerID, u["profile"])
+
+		result = append(result, ResolvedVoucher{
+			Username:  name,
+			Password:  u["password"],
+			Profile:   u["profile"],
+			Comment:   uComment,
+			TimeLimit: u["limit-uptime"],
+			DataLimit: u["limit-bytes-total"],
+			UserMode:  userMode,
+			Price:     fmt.Sprintf("%d", sp),
+			Validity:  validity,
+		})
+	}
+	return result, nil
 }
 
 func (s *VoucherService) GenerateVoucher(ctx context.Context, routerID uint, params VoucherGenerateParams) (*VoucherGenerateResult, error) {
@@ -85,8 +169,11 @@ func (s *VoucherService) GenerateVoucher(ctx context.Context, routerID uint, par
 	if params.UserType == "" {
 		params.UserType = "vc"
 	}
+	if params.Gencode == "" {
+		params.Gencode = fmt.Sprintf("%d", time.Now().UnixMilli())
+	}
 
-	comment := roskitservice.GenerateVoucherComment(params.UserType, params.Gencode, "", params.Comment)
+	comment := roskitservice.GenerateVoucherComment(params.UserType, params.Gencode, time.Now().Format("01.02.06"), params.Comment)
 
 	rosParams := roskitservice.VoucherParams{
 		Qty:        params.Qty,
@@ -107,25 +194,21 @@ func (s *VoucherService) GenerateVoucher(ctx context.Context, routerID uint, par
 		return nil, fmt.Errorf("generate vouchers: %w", err)
 	}
 
+	result := &VoucherGenerateResult{
+		Count:    len(vouchers),
+		Gencode:  params.Gencode,
+		Profile:  params.Profile,
+		Vouchers: vouchers,
+	}
+
 	if s.cache != nil {
 		key := appcache.VoucherSessionKey(routerID, params.Gencode)
-		result := &VoucherGenerateResult{
-			Count:    len(vouchers),
-			Gencode:  params.Gencode,
-			Profile:  params.Profile,
-			Vouchers: vouchers,
-		}
 		if err := s.cache.SetJSON(ctx, key, result, appcache.TTLVoucherSession); err != nil {
 			s.logger.Warn("failed to cache voucher session", "error", err)
 		}
 	}
 
-	return &VoucherGenerateResult{
-		Count:    len(vouchers),
-		Gencode:  params.Gencode,
-		Profile:  params.Profile,
-		Vouchers: vouchers,
-	}, nil
+	return result, nil
 }
 
 func (s *VoucherService) GetCachedVouchers(ctx context.Context, routerID uint, gencode string) (*VoucherGenerateResult, error) {
@@ -146,7 +229,7 @@ func (s *VoucherService) GetCachedVouchers(ctx context.Context, routerID uint, g
 }
 
 func (s *VoucherService) RecordSale(ctx context.Context, routerID uint, params RecordSaleParams) error {
-	key := idempotencyKey(routerID, params.Username, params.SoldAt)
+	key := mikrotik.MakeSaleIdempotencyKey(routerID, params.Username, params.SoldAt)
 	exists, err := s.saleRepo.ExistsByIdempotencyKey(ctx, key)
 	if err != nil {
 		return fmt.Errorf("check idempotency: %w", err)
@@ -181,6 +264,8 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
 
+	loc := mikrotik.ResolveLocation(router.Timezone)
+
 	records, err := s.bridge.ImportSalesFromRouterOS(ctx, fmt.Sprintf("%d", routerID), "")
 	if err != nil {
 		return nil, fmt.Errorf("fetch sales from router: %w", err)
@@ -192,8 +277,12 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 
 	var newSales []*models.VoucherSale
 	for _, rec := range records {
-		idKey := fmt.Sprintf("%s|%s|%s|%s", router.SessionName, rec.Username, rec.Date, rec.Time)
-		key := sha256Sum(idKey)
+		soldAt, _ := mikrotik.Parse(rec.Date, rec.Time, loc)
+		if soldAt.IsZero() {
+			soldAt = now
+		}
+
+		key := mikrotik.MakeSaleIdempotencyKey(routerID, rec.Username, soldAt)
 
 		exists, err := s.saleRepo.ExistsByIdempotencyKey(ctx, key)
 		if err != nil {
@@ -206,10 +295,6 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 		}
 
 		price, _ := strconv.ParseInt(rec.Price, 10, 64)
-		soldAt, _ := parseMikroTikDateTime(rec.Date, rec.Time)
-		if soldAt.IsZero() {
-			soldAt = now
-		}
 
 		sale := &models.VoucherSale{
 			RouterID:       routerID,
@@ -261,47 +346,3 @@ func (s *VoucherService) GetRouterInfo(ctx context.Context, routerID uint) (*mod
 	return s.routerRepo.GetByID(ctx, routerID)
 }
 
-func idempotencyKey(routerID uint, username string, soldAt time.Time) string {
-	input := fmt.Sprintf("%d|%s|%s", routerID, username, soldAt.Format("2006-01-02 15:04:05"))
-	return sha256Sum(input)
-}
-
-func sha256Sum(s string) string {
-	h := sha256.Sum256([]byte(s))
-	return fmt.Sprintf("%x", h)
-}
-
-func parseMikroTikDateTime(date, timeStr string) (time.Time, error) {
-	if date == "" || timeStr == "" {
-		return time.Time{}, fmt.Errorf("empty date or time")
-	}
-
-	parts := strings.SplitN(timeStr, ":", 3)
-	if len(parts) != 3 {
-		return time.Time{}, fmt.Errorf("invalid time format: %s", timeStr)
-	}
-	hour, _ := strconv.Atoi(parts[0])
-	minute, _ := strconv.Atoi(parts[1])
-	second, _ := strconv.Atoi(parts[2])
-
-	dateParts := strings.SplitN(date, "/", 3)
-	if len(dateParts) != 3 {
-		return time.Time{}, fmt.Errorf("invalid date format: %s", date)
-	}
-
-	months := map[string]time.Month{
-		"jan": time.January, "feb": time.February, "mar": time.March,
-		"apr": time.April, "may": time.May, "jun": time.June,
-		"jul": time.July, "aug": time.August, "sep": time.September,
-		"oct": time.October, "nov": time.November, "dec": time.December,
-	}
-	mon := months[strings.ToLower(dateParts[0])]
-	day, _ := strconv.Atoi(dateParts[1])
-	year, _ := strconv.Atoi(dateParts[2])
-
-	return time.Date(year, mon, day, hour, minute, second, 0, time.Local), nil
-}
-
-func ParseMikroTikDateTime(date, timeStr string) (time.Time, error) {
-	return parseMikroTikDateTime(date, timeStr)
-}

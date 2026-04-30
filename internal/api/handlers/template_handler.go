@@ -110,6 +110,21 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "template deleted"}, "error": nil})
 }
 
+func (h *TemplateHandler) SeedDefaults(c *gin.Context) {
+	_, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	if err := h.svc.SeedDefaults(c.Request.Context()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"data": gin.H{"message": "default templates seeded"}, "error": nil})
+}
+
 type renderRequest struct {
 	Gencode      string `json:"gencode" binding:"required"`
 	TemplateType string `json:"template_type" binding:"required"`

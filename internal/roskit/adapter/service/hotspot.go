@@ -318,3 +318,34 @@ func (b *Bridge) SetIPBinding(ctx context.Context, routerID, id string, params m
 func (b *Bridge) ListWalledGarden(ctx context.Context, routerID string) ([]map[string]string, error) {
 	return b.Query(ctx, routerID, "ip/hotspot/walled-garden/print")
 }
+
+func (b *Bridge) AddWalledGarden(ctx context.Context, routerID string, params map[string]string) (string, error) {
+	return b.mutateAdd(ctx, routerID, "ip/hotspot/walled-garden/add", params)
+}
+
+func (b *Bridge) SetWalledGarden(ctx context.Context, routerID string, id string, params map[string]string) error {
+	args := []string{"=.id=" + id}
+	for k, v := range params {
+		args = append(args, "="+k+"="+v)
+	}
+	_, err := b.Mutate(ctx, routerID, "ip/hotspot/walled-garden/set", args...)
+	return err
+}
+
+func (b *Bridge) RemoveWalledGarden(ctx context.Context, routerID string, id string) error {
+	_, err := b.Mutate(ctx, routerID, "ip/hotspot/walled-garden/remove", "=.id="+id)
+	return err
+}
+
+func (b *Bridge) ListWalledGardenIP(ctx context.Context, routerID string) ([]map[string]string, error) {
+	return b.Query(ctx, routerID, "ip/hotspot/walled-garden/ip/print")
+}
+
+func (b *Bridge) AddWalledGardenIP(ctx context.Context, routerID string, params map[string]string) (string, error) {
+	return b.mutateAdd(ctx, routerID, "ip/hotspot/walled-garden/ip/add", params)
+}
+
+func (b *Bridge) RemoveWalledGardenIP(ctx context.Context, routerID string, id string) error {
+	_, err := b.Mutate(ctx, routerID, "ip/hotspot/walled-garden/ip/remove", "=.id="+id)
+	return err
+}

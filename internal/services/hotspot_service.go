@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
+	appcache "github.com/quiqxiq/roskit/pkg/redis"
 )
 
 type ProfileParams struct {
@@ -69,12 +70,14 @@ func enrichProfile(data map[string]string, meta *roskitservice.OnLoginMetadata) 
 
 type HotspotService struct {
 	bridge *roskitservice.Bridge
+	cache  *appcache.Cache
 	logger *slog.Logger
 }
 
-func NewHotspotService(bridge *roskitservice.Bridge) *HotspotService {
+func NewHotspotService(bridge *roskitservice.Bridge, cache *appcache.Cache) *HotspotService {
 	return &HotspotService{
 		bridge: bridge,
+		cache:  cache,
 		logger: slog.Default().With("component", "hotspot-svc"),
 	}
 }
@@ -84,6 +87,20 @@ func routerIDStr(routerID uint) string {
 }
 
 func (s *HotspotService) ListUsers(ctx context.Context, routerID uint, profile string) ([]map[string]string, error) {
+	if s.cache != nil && profile == "" {
+		key := appcache.HotspotUsersKey(routerID)
+		var cached []map[string]string
+		found, _ := s.cache.GetJSON(ctx, key, &cached)
+		if found {
+			return cached, nil
+		}
+		users, err := s.bridge.ListHotspotUsers(ctx, routerIDStr(routerID), "")
+		if err != nil {
+			return nil, err
+		}
+		_ = s.cache.SetJSON(ctx, key, users, appcache.TTL30s)
+		return users, nil
+	}
 	return s.bridge.ListHotspotUsers(ctx, routerIDStr(routerID), profile)
 }
 
@@ -340,6 +357,60 @@ func (s *HotspotService) EnableIPBinding(ctx context.Context, routerID uint, id 
 
 func (s *HotspotService) DisableIPBinding(ctx context.Context, routerID uint, id string) error {
 	return s.bridge.DisableIPBinding(ctx, routerIDStr(routerID), id)
+}
+
+func (s *HotspotService) ListWalledGarden(ctx context.Context, routerID uint) ([]map[string]string, error) {
+	return s.bridge.ListWalledGarden(ctx, routerIDStr(routerID))
+}
+
+func (s *HotspotService) AddWalledGarden(ctx context.Context, routerID uint, params map[string]string) (map[string]string, error) {
+	newID, err := s.bridge.AddWalledGarden(ctx, routerIDStr(routerID), params)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.bridge.ListWalledGarden(ctx, routerIDStr(routerID))
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		if item[".id"] == newID {
+			return item, nil
+		}
+	}
+	return map[string]string{".id": newID}, nil
+}
+
+func (s *HotspotService) RemoveWalledGarden(ctx context.Context, routerID uint, id string) error {
+	return s.bridge.RemoveWalledGarden(ctx, routerIDStr(routerID), id)
+}
+
+func (s *HotspotService) ListWalledGardenIP(ctx context.Context, routerID uint) ([]map[string]string, error) {
+	return s.bridge.ListWalledGardenIP(ctx, routerIDStr(routerID))
+}
+
+func (s *HotspotService) AddWalledGardenIP(ctx context.Context, routerID uint, params map[string]string) (map[string]string, error) {
+	newID, err := s.bridge.AddWalledGardenIP(ctx, routerIDStr(routerID), params)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.bridge.ListWalledGardenIP(ctx, routerIDStr(routerID))
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		if item[".id"] == newID {
+			return item, nil
+		}
+	}
+	return map[string]string{".id": newID}, nil
+}
+
+func (s *HotspotService) RemoveWalledGardenIP(ctx context.Context, routerID uint, id string) error {
+	return s.bridge.RemoveWalledGardenIP(ctx, routerIDStr(routerID), id)
+}
+
+func (s *HotspotService) ResetUserCounters(ctx context.Context, routerID uint, userID string) error {
+	return s.bridge.ResetUserCounters(ctx, fmt.Sprintf("%d", routerID), userID)
 }
 
 func (s *HotspotService) ExportUsers(ctx context.Context, routerID uint, profile, format string) (string, error) {

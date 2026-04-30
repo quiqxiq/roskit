@@ -116,6 +116,29 @@ func NewRouterService(repo RouterRepository, engine *orchestrator.Engine, cache 
 	}
 }
 
+func (s *RouterService) UploadLogo(ctx context.Context, routerID uint, fileData []byte, filename string) error {
+	dir := "uploads/logos"
+	_ = os.MkdirAll(dir, 0755)
+
+	path := fmt.Sprintf("%s/%d.png", dir, routerID)
+	if err := os.WriteFile(path, fileData, 0644); err != nil {
+		return err
+	}
+
+	return s.repo.Update(ctx, &models.Router{ID: routerID, LogoPath: path})
+}
+
+func (s *RouterService) GetLogoPath(ctx context.Context, routerID uint) (string, error) {
+	router, err := s.repo.GetByID(ctx, routerID)
+	if err != nil {
+		return "", err
+	}
+	if router.LogoPath == "" {
+		return "", fmt.Errorf("logo not found")
+	}
+	return router.LogoPath, nil
+}
+
 func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
 	routers, err := s.repo.List(ctx)
 	if err != nil {

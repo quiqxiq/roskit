@@ -1,0 +1,30 @@
+<table class="voucher" style=" width: 140px;">
+	<thead>
+		<tr>
+			<th colspan="2" style="width:100%;text-align: left; font-size: 12px; font-weight:bold; border-bottom: 1px black solid;">{{.HotspotName}}<span class="num">{{.Num}}</span></th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr style="color: black; font-size: 10px; text-align: center;">
+			<td class="vc" style="display:none; width: 160px;">Voucher &nbsp;</td>
+			<td class="up" style="display:none; width: 80px;">Username</td>
+			<td class="up" style="display:none; width: 80px;">Password</td>
+		</tr>
+		<tr style="color: black; font-size: 12px; text-align: center;">
+			<td style="border: 1px solid black; font-weight:bold;">{{.Username}}</td>
+			<td class="up" style="border: 1px solid black; font-weight:bold;display:none;">{{.Password}}</td>
+		</tr>
+	</tbody>
+	<tfoot>
+		<tr style="color: black; font-size: 10px; text-align: center;">
+			<th colspan="2" ><span class="validity">{{.Validity}}</span> <span class="timelimit">{{.TimeLimit}}</span> <span>{{.DataLimit}}</span> <span class="price">{{.Price}}</span></th>
+		</tr>
+	</tfoot>
+</table>
+<script>
+	if("{{.Username}}" == "{{.Password}}"){
+		$(".vc").show()
+	}else if("{{.Username}}" != "{{.Password}}"){
+		$(".up").show()
+	}
+</script>

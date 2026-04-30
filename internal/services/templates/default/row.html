@@ -1,0 +1,34 @@
+<table class="voucher" style="width: 230px;">
+	<tbody>
+		<tr>
+			<td style="font-weight: bold; border-right: 2px  dashed black;" class="rotate" rowspan="4"><div><span class="price">{{.Price}}</span></div></td>
+			<td style="font-weight: bold" colspan="2">{{.HotspotName}}</td>
+			<td rowspan="3"><div >{{.QRCode}} </div></td>
+		</tr>
+		<tr>
+			<td class="vc">{{.Username}}</td>
+			<td class="up">
+				User: {{.Username}}
+				<br>
+				Pass: {{.Password}}
+			</td>
+		</tr>
+		<tr>
+			<td style="font-size: 10px;">
+				<span class="validity">{{.Validity}}</span>
+				<span class="timelimit">{{.TimeLimit}}</span>
+				<span>{{.DataLimit}}</span>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="font-size: 10px;">Login: http://{{.DNSName}} <span class="num"> [{{.Num}}]</span></td>
+		</tr>
+	</tbody>
+</table>
+<script>
+	if("{{.Username}}" == "{{.Password}}"){
+		$(".vc").show()
+	}else if("{{.Username}}" != "{{.Password}}"){
+		$(".up").show()
+	}
+</script>

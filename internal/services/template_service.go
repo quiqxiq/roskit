@@ -3,10 +3,13 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"log/slog"
-	"net/url"
+	"time"
+
+	"github.com/skip2/go-qrcode"
 
 	"github.com/quiqxiq/roskit/internal/models"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
@@ -39,6 +42,7 @@ type VoucherTemplateVars struct {
 	UserMode    string       // "vc" (username=password) or "up" (separate username & password)
 	QR          string       // "yes" or "no"
 	QRCode      template.HTML // rendered <img> tag for QR code
+	TimeStamp   string
 }
 
 // RenderedVoucher is the rendered HTML for a single voucher.
@@ -138,6 +142,10 @@ func (s *TemplateService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func (s *TemplateService) SeedDefaults(ctx context.Context) error {
+	return SeedGlobalDefaults(ctx, s.repo)
+}
+
 // Render renders a named template type for the given vouchers.
 // Templates are split into header/row/footer parts; each voucher gets header+row+footer assembled.
 func (s *TemplateService) Render(
@@ -196,8 +204,10 @@ func buildVars(num int, v roskitservice.GeneratedVoucher, p RenderParams) Vouche
 	if p.DNSName != "" {
 		qr = "yes"
 		loginURL := "http://" + p.DNSName
-		qrURL := "https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=" + url.QueryEscape(loginURL)
-		qrCode = template.HTML(`<img src="` + qrURL + `" class="qrcode" alt="QR">`)
+		b64, err := generateQRBase64(loginURL, 80)
+		if err == nil {
+			qrCode = template.HTML(`<img src="` + b64 + `" class="qrcode" alt="QR">`)
+		}
 	}
 
 	return VoucherTemplateVars{
@@ -216,7 +226,97 @@ func buildVars(num int, v roskitservice.GeneratedVoucher, p RenderParams) Vouche
 		UserMode:    userMode,
 		QR:          qr,
 		QRCode:      qrCode,
+		TimeStamp:   time.Now().Format("02-Jan-2006 15:04:05"),
 	}
+}
+
+func generateQRBase64(s string, size int) (string, error) {
+	png, err := qrcode.Encode(s, qrcode.Medium, size)
+	if err != nil {
+		return "", err
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png), nil
+}
+
+type RouterVoucherParams struct {
+	HotspotName string
+	DNSName     string
+	Logo        string
+	Currency    string
+}
+
+func buildVarsFromResolved(num int, v ResolvedVoucher, router RouterVoucherParams) VoucherTemplateVars {
+	userMode := v.UserMode
+	if userMode == "" {
+		userMode = "vc"
+	}
+	qr := "no"
+	var qrCode template.HTML
+	if router.DNSName != "" {
+		qr = "yes"
+		b64, err := generateQRBase64("http://"+router.DNSName, 80)
+		if err == nil {
+			qrCode = template.HTML(`<img src="` + b64 + `" class="qrcode" alt="QR">`)
+		}
+	}
+	return VoucherTemplateVars{
+		Num:         num,
+		Username:    v.Username,
+		Password:    v.Password,
+		Validity:    v.Validity,
+		TimeLimit:   v.TimeLimit,
+		DataLimit:   v.DataLimit,
+		Price:       v.Price,
+		Profile:     v.Profile,
+		Comment:     v.Comment,
+		HotspotName: router.HotspotName,
+		DNSName:     router.DNSName,
+		Logo:        router.Logo,
+		UserMode:    userMode,
+		QR:          qr,
+		QRCode:      qrCode,
+		TimeStamp:   time.Now().Format("02-Jan-2006 15:04:05"),
+	}
+}
+
+func (s *TemplateService) RenderFromUsers(
+	ctx context.Context,
+	routerID uint,
+	templateType string,
+	vouchers []ResolvedVoucher,
+	router RouterVoucherParams,
+) ([]RenderedVoucher, error) {
+	parts, err := s.repo.GetByRouterAndType(ctx, routerID, templateType)
+	if err != nil {
+		return nil, err
+	}
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
+	}
+	byPart := map[string]string{}
+	for _, p := range parts {
+		byPart[p.Part] = p.Content
+	}
+	results := make([]RenderedVoucher, 0, len(vouchers))
+	for i, v := range vouchers {
+		vars := buildVarsFromResolved(i+1, v, router)
+		var buf bytes.Buffer
+		for _, partName := range []string{"header", "row", "footer"} {
+			content, ok := byPart[partName]
+			if !ok {
+				continue
+			}
+			rendered, err := renderPart(content, vars)
+			if err != nil {
+				s.logger.Warn("template render error", "part", partName, "voucher", v.Username, "error", err)
+				buf.WriteString(content)
+			} else {
+				buf.WriteString(rendered)
+			}
+		}
+		results = append(results, RenderedVoucher{Num: i + 1, HTML: buf.String()})
+	}
+	return results, nil
 }
 
 func renderPart(content string, vars VoucherTemplateVars) (string, error) {

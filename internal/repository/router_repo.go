@@ -14,6 +14,7 @@ type RouterRepository interface {
 	List(ctx context.Context) ([]*models.Router, error)
 	Update(ctx context.Context, router *models.Router) error
 	Delete(ctx context.Context, id uint) error
+	UpdateTimezone(ctx context.Context, routerID string, tz string) error
 }
 
 type RouterRepo struct {
@@ -60,4 +61,10 @@ func (r *RouterRepo) Update(ctx context.Context, router *models.Router) error {
 
 func (r *RouterRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&models.Router{}, id).Error
+}
+
+func (r *RouterRepo) UpdateTimezone(ctx context.Context, routerID string, tz string) error {
+	return r.db.WithContext(ctx).Model(&models.Router{}).
+		Where("id = ?", routerID).
+		Update("timezone", tz).Error
 }

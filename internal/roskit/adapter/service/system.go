@@ -57,6 +57,47 @@ func (b *Bridge) DisableScheduler(ctx context.Context, routerID, id string) erro
 	return err
 }
 
+func (b *Bridge) AddScheduler(ctx context.Context, routerID string, params map[string]string) (string, error) {
+	return b.mutateAdd(ctx, routerID, "system/scheduler/add", params)
+}
+
+func (b *Bridge) SetScheduler(ctx context.Context, routerID string, id string, params map[string]string) error {
+	args := []string{"=.id=" + id}
+	for k, v := range params {
+		args = append(args, "="+k+"="+v)
+	}
+	_, err := b.Mutate(ctx, routerID, "system/scheduler/set", args...)
+	return err
+}
+
+func (b *Bridge) RemoveScheduler(ctx context.Context, routerID string, id string) error {
+	_, err := b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+id)
+	return err
+}
+
+func (b *Bridge) AddScript(ctx context.Context, routerID string, params map[string]string) (string, error) {
+	return b.mutateAdd(ctx, routerID, "system/script/add", params)
+}
+
+func (b *Bridge) SetScript(ctx context.Context, routerID string, id string, params map[string]string) error {
+	args := []string{"=.id=" + id}
+	for k, v := range params {
+		args = append(args, "="+k+"="+v)
+	}
+	_, err := b.Mutate(ctx, routerID, "system/script/set", args...)
+	return err
+}
+
+func (b *Bridge) RemoveScript(ctx context.Context, routerID string, id string) error {
+	_, err := b.Mutate(ctx, routerID, "system/script/remove", "=.id="+id)
+	return err
+}
+
+func (b *Bridge) RunScript(ctx context.Context, routerID string, id string) error {
+	_, err := b.Mutate(ctx, routerID, "system/script/run", "=.id="+id)
+	return err
+}
+
 func (b *Bridge) SetupLogging(ctx context.Context, routerID string) error {
 	existing, err := b.Query(ctx, routerID, "system/logging/print", "?prefix=->")
 	if err != nil {

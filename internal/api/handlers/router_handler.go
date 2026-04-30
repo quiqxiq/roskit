@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +14,14 @@ import (
 
 func isNotFound(err error) bool {
 	return strings.Contains(err.Error(), "record not found") || strings.Contains(err.Error(), "not found")
+}
+
+func parseRouterID(c *gin.Context) (uint, error) {
+	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid router id")
+	}
+	return uint(id), nil
 }
 
 type RouterHandler struct {
@@ -129,6 +139,57 @@ func (h *RouterHandler) TestConnection(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
+}
+
+func (h *RouterHandler) UploadLogo(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	file, err := c.FormFile("logo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "logo file required"})
+		return
+	}
+	if file.Size > 1<<20 {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "file too large, max 1MB"})
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".png") {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "only PNG files allowed"})
+		return
+	}
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to read file"})
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to read file"})
+		return
+	}
+	if err := h.svc.UploadLogo(c.Request.Context(), routerID, data, file.Filename); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to upload logo"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logo uploaded"}, "error": nil})
+}
+
+func (h *RouterHandler) GetLogo(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	path, err := h.svc.GetLogoPath(c.Request.Context(), routerID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "logo not found"})
+		return
+	}
+	c.File(path)
 }
 
 type migrateRequest struct {

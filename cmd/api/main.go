@@ -112,16 +112,48 @@ func main() {
 		roskitSubscriber = subscriber
 	}
 
+	var setupLoggingFn func(ctx context.Context, routerID string)
+	var syncTimezoneFn func(ctx context.Context, routerID string)
+
 	engine := orchestrator.New(orchestrator.Config{
-		Logger:     logger,
-		Cache:      roskitCache,
-		TimeSeries: tsWriter,
-		PubSub:     roskitPubSub,
+		Logger:          logger,
+		Cache:           roskitCache,
+		TimeSeries:      tsWriter,
+		PubSub:          roskitPubSub,
+		OnRouterConnect: func(ctx context.Context, routerID string) {
+			if setupLoggingFn != nil {
+				setupLoggingFn(ctx, routerID)
+			}
+			if syncTimezoneFn != nil {
+				syncTimezoneFn(ctx, routerID)
+			}
+		},
 	})
 
 	bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitCache)
 
+	setupLoggingFn = func(ctx context.Context, routerID string) {
+		if err := bridge.SetupLogging(ctx, routerID); err != nil {
+			logger.Warn("auto setup logging failed", "router_id", routerID, "error", err)
+		}
+	}
+
 	routerRepo := repository.NewRouterRepo(db)
+
+	syncTimezoneFn = func(ctx context.Context, routerID string) {
+		clock, err := bridge.GetSystemClock(ctx, routerID)
+		if err != nil {
+			logger.Warn("failed to query system clock for timezone", "router_id", routerID, "error", err)
+			return
+		}
+		tz := clock["time-zone-name"]
+		if tz == "" {
+			return
+		}
+		if err := routerRepo.UpdateTimezone(ctx, routerID, tz); err != nil {
+			logger.Warn("failed to save router timezone", "router_id", routerID, "error", err)
+		}
+	}
 	routerSvc := services.NewRouterService(routerRepo, engine, cache, cfg.AESEncKey)
 	routerSvc.SeedEngineFromDB(context.Background())
 
@@ -136,7 +168,7 @@ func main() {
 	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
 	go backgroundWorker.Start(ctx)
 
-	router := api.NewRouter(cfg, db, cache, bridge, routerSvc, tsReader, roskitSubscriber)
+	router := api.NewRouter(cfg, db, cache, bridge, routerSvc, tsReader, roskitSubscriber, profileRepo)
 
 	srv := &http.Server{
 		Addr:        fmt.Sprintf(":%d", cfg.Port),

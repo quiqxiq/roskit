@@ -175,9 +175,10 @@ func registerHotspot() {
 		command.Register(command.MutationDef("ip/hotspot/profile/" + verb))
 	}
 
-	// -------------------------------------------------------------------------
-	// MUTATIONS — /ip/hotspot/walled-garden/ip
-	// -------------------------------------------------------------------------
+	for _, verb := range []string{"add", "set", "remove"} {
+		command.Register(command.MutationDef("ip/hotspot/walled-garden/" + verb))
+	}
+
 	command.Register(command.MutationDef("ip/hotspot/walled-garden/ip/add"))
 	command.Register(command.MutationDef("ip/hotspot/walled-garden/ip/remove"))
 }

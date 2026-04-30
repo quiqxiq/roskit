@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/quiqxiq/roskit/internal/api/handlers"
 	sse "github.com/quiqxiq/roskit/internal/api/handlers/sse"
@@ -23,6 +26,7 @@ func NewRouter(
 	routerSvc *services.RouterService,
 	tsReader timeseries.Reader,
 	subscriber pubsub.Subscriber,
+	profileRepo repository.ProfilePriceMappingRepository,
 ) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Recovery(), middleware.LoggerMiddleware(), middleware.CORSMiddleware())
@@ -38,18 +42,21 @@ func NewRouter(
 	refreshSecret := []byte(cfg.JWTRefreshSecret)
 	authSvc := services.NewAuthService(userRepo, cache, jwtSecret, refreshSecret)
 
-	systemSvc := services.NewSystemService(bridge, tsReader)
-	hotspotSvc := services.NewHotspotService(bridge)
-	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, cache)
+	systemSvc := services.NewSystemService(bridge, tsReader, routerRepo, cache)
+	hotspotSvc := services.NewHotspotService(bridge, cache)
+	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, cache)
 	reportSvc := services.NewReportService(saleRepo, cache)
 	templateSvc := services.NewTemplateService(templateRepo)
+	if err := templateSvc.SeedDefaults(context.Background()); err != nil {
+		slog.Default().Warn("template seed defaults failed", "error", err)
+	}
 
 	routerH := handlers.NewRouterHandler(routerSvc)
 	hotspotH := handlers.NewHotspotHandler(hotspotSvc)
-	voucherH := handlers.NewVoucherHandler(voucherSvc)
+	voucherH := handlers.NewVoucherHandler(voucherSvc, templateSvc, hotspotSvc)
 	reportH := handlers.NewReportHandler(reportSvc)
 	authH := handlers.NewAuthHandler(authSvc)
-	eventH := handlers.NewEventHandler(routerRepo, saleRepo, cache)
+	eventH := handlers.NewEventHandler(routerRepo, saleRepo, profileRepo, bridge, cache)
 	systemH := handlers.NewSystemHandler(systemSvc)
 	pppH := handlers.NewPPPHandler(bridge)
 	networkH := handlers.NewNetworkHandler(bridge)
@@ -57,6 +64,8 @@ func NewRouter(
 	templateH := handlers.NewTemplateHandler(templateSvc, voucherSvc)
 	logSSEH := sse.NewLogSSEHandler(subscriber, bridge)
 	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber)
+	statusSvc := services.NewStatusService(routerRepo, bridge)
+	statusH := handlers.NewStatusHandler(statusSvc)
 
 	// Serve the frontend website from the same origin as the API
 	engine.Static("/css", "./website/css")
@@ -90,8 +99,10 @@ func NewRouter(
 				routers.POST("", routerH.Create)
 				routers.PUT("/:routerId", routerH.Update)
 				routers.DELETE("/:routerId", routerH.Delete)
-				routers.POST("/:routerId/test", routerH.TestConnection)
-				routers.POST("/migrate", routerH.MigrateConfig)
+			routers.POST("/:routerId/test", routerH.TestConnection)
+			routers.POST("/:routerId/logo", routerH.UploadLogo)
+			routers.GET("/:routerId/logo", routerH.GetLogo)
+			routers.POST("/migrate", routerH.MigrateConfig)
 			}
 
 			hotspots := protected.Group("/routers/:routerId/hotspot")
@@ -103,6 +114,7 @@ func NewRouter(
 				hotspots.POST("/users", hotspotH.AddUser)
 				hotspots.PUT("/users/:id", hotspotH.UpdateUser)
 				hotspots.DELETE("/users/:id", hotspotH.RemoveUser)
+				hotspots.POST("/users/:id/reset-counters", hotspotH.ResetUserCounters)
 
 				hotspots.GET("/profiles", hotspotH.ListProfiles)
 				hotspots.GET("/profiles/:id", hotspotH.GetProfile)
@@ -128,6 +140,13 @@ func NewRouter(
 				hotspots.DELETE("/bindings/:id", hotspotH.RemoveIPBinding)
 				hotspots.POST("/bindings/:id/enable", hotspotH.EnableIPBinding)
 				hotspots.POST("/bindings/:id/disable", hotspotH.DisableIPBinding)
+
+				hotspots.GET("/walled-garden", hotspotH.ListWalledGarden)
+				hotspots.POST("/walled-garden", hotspotH.AddWalledGarden)
+				hotspots.DELETE("/walled-garden/:wid", hotspotH.RemoveWalledGarden)
+				hotspots.GET("/walled-garden-ip", hotspotH.ListWalledGardenIP)
+				hotspots.POST("/walled-garden-ip", hotspotH.AddWalledGardenIP)
+				hotspots.DELETE("/walled-garden-ip/:wid", hotspotH.RemoveWalledGardenIP)
 			}
 
 			vouchers := protected.Group("/routers/:routerId/vouchers")
@@ -137,6 +156,7 @@ func NewRouter(
 				vouchers.GET("/print-data", voucherH.PrintData)
 				vouchers.POST("/sales", voucherH.RecordSale)
 				vouchers.POST("/import", voucherH.ImportSales)
+			vouchers.POST("/print", voucherH.PrintVouchers)
 			}
 
 			reports := protected.Group("/routers/:routerId/reports")
@@ -163,6 +183,17 @@ func NewRouter(
 				system.POST("/expire-monitor/deploy", systemH.DeployExpireMonitor)
 				system.POST("/expire-monitor/remove", systemH.RemoveExpireMonitor)
 				system.GET("/schedulers", systemH.ListSchedulers)
+				system.POST("/schedulers", systemH.CreateScheduler)
+				system.PUT("/schedulers/:schedulerId", systemH.UpdateScheduler)
+				system.DELETE("/schedulers/:schedulerId", systemH.DeleteScheduler)
+				system.POST("/schedulers/:schedulerId/enable", systemH.EnableSchedulerByID)
+				system.POST("/schedulers/:schedulerId/disable", systemH.DisableSchedulerByID)
+			system.GET("/scripts", systemH.ListScripts)
+			system.POST("/scripts", systemH.CreateScript)
+			system.PUT("/scripts/:scriptId", systemH.UpdateScript)
+			system.DELETE("/scripts/:scriptId", systemH.DeleteScript)
+			system.POST("/scripts/:scriptId/run", systemH.RunScriptByID)
+			system.POST("/setup-logging", systemH.SetupLogging)
 				system.GET("/dashboard", systemH.GetDashboard)
 			}
 
@@ -226,8 +257,11 @@ func NewRouter(
 				templates.PUT("/:templateId", templateH.Update)
 				templates.DELETE("/:templateId", templateH.Delete)
 				templates.POST("/render", templateH.Render)
+				templates.POST("/seed-defaults", templateH.SeedDefaults)
 			}
 		}
+
+		api.GET("/status", statusH.GetUserStatus)
 
 		events := api.Group("/events")
 		{

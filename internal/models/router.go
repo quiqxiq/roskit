@@ -21,6 +21,8 @@ type Router struct {
 	IdleTimeout string         `gorm:"size:10;default:30" json:"idle_timeout"`
 	ReportMode  string         `gorm:"size:20;default:disable" json:"report_mode"`
 	Token       string         `gorm:"size:255" json:"-"`
+	Timezone    string         `gorm:"size:50;default:''" json:"timezone"`
+	LogoPath    string         `gorm:"size:500;default:''" json:"logo_path"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`

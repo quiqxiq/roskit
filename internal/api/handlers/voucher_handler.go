@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -9,11 +10,13 @@ import (
 )
 
 type VoucherHandler struct {
-	svc *services.VoucherService
+	svc         *services.VoucherService
+	templateSvc *services.TemplateService
+	hotspotSvc  *services.HotspotService
 }
 
-func NewVoucherHandler(svc *services.VoucherService) *VoucherHandler {
-	return &VoucherHandler{svc: svc}
+func NewVoucherHandler(svc *services.VoucherService, templateSvc *services.TemplateService, hotspotSvc *services.HotspotService) *VoucherHandler {
+	return &VoucherHandler{svc: svc, templateSvc: templateSvc, hotspotSvc: hotspotSvc}
 }
 
 func (h *VoucherHandler) Generate(c *gin.Context) {
@@ -140,4 +143,76 @@ func (h *VoucherHandler) PrintData(c *gin.Context) {
 		},
 		"error": nil,
 	})
+}
+
+type printVouchersRequest struct {
+	Usernames    []string `json:"usernames"`
+	Comment      string   `json:"comment"`
+	TemplateType string   `json:"template_type"`
+}
+
+func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	var req printVouchersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body: " + err.Error()})
+		return
+	}
+	if len(req.Usernames) == 0 && req.Comment == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "usernames or comment is required"})
+		return
+	}
+
+	templateType := req.TemplateType
+	if templateType == "" {
+		templateType = "default"
+	}
+
+	ctx := c.Request.Context()
+
+	router, err := h.svc.GetRouterInfo(ctx, routerID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
+		return
+	}
+
+	allUsers, err := h.hotspotSvc.ListUsers(ctx, routerID, "")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to fetch hotspot users"})
+		return
+	}
+
+	resolved, err := h.svc.ResolveVoucherPrintData(ctx, routerID, allUsers, req.Usernames, req.Comment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	if len(resolved) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "no matching vouchers found"})
+		return
+	}
+
+	routerParams := services.RouterVoucherParams{
+		HotspotName: router.HotspotName,
+		DNSName:     router.DNSName,
+		Logo:        router.LogoPath,
+		Currency:    router.Currency,
+	}
+
+	rendered, err := h.templateSvc.RenderFromUsers(ctx, routerID, templateType, resolved, routerParams)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	var sb strings.Builder
+	for _, r := range rendered {
+		sb.WriteString(r.HTML)
+	}
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(services.WrapPrintHTML(sb.String())))
 }

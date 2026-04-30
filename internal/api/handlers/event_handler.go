@@ -1,34 +1,39 @@
 package handlers
 
 import (
-	"crypto/sha256"
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/repository"
+	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
+	"github.com/quiqxiq/roskit/pkg/mikrotik"
 	appcache "github.com/quiqxiq/roskit/pkg/redis"
 )
 
 type EventHandler struct {
-	routerRepo repository.RouterRepository
-	saleRepo   repository.SaleRepository
-	cache      *appcache.Cache
-	logger     *slog.Logger
+	routerRepo   repository.RouterRepository
+	saleRepo     repository.SaleRepository
+	profileRepo  repository.ProfilePriceMappingRepository
+	bridge       *roskitservice.Bridge
+	cache        *appcache.Cache
+	logger       *slog.Logger
 }
 
-func NewEventHandler(routerRepo repository.RouterRepository, saleRepo repository.SaleRepository, cache *appcache.Cache) *EventHandler {
+func NewEventHandler(routerRepo repository.RouterRepository, saleRepo repository.SaleRepository, profileRepo repository.ProfilePriceMappingRepository, bridge *roskitservice.Bridge, cache *appcache.Cache) *EventHandler {
 	return &EventHandler{
-		routerRepo: routerRepo,
-		saleRepo:   saleRepo,
-		cache:      cache,
-		logger:     slog.Default().With("component", "event-handler"),
+		routerRepo:  routerRepo,
+		saleRepo:    saleRepo,
+		profileRepo: profileRepo,
+		bridge:      bridge,
+		cache:       cache,
+		logger:      slog.Default().With("component", "event-handler"),
 	}
 }
 
@@ -79,9 +84,12 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		}
 	}
 
-	idKey := fmt.Sprintf("%d|%s|%s|%s", router.ID, payload.Username, payload.Date, payload.Time)
-	hash := sha256.Sum256([]byte(idKey))
-	idempotencyKey := fmt.Sprintf("%x", hash)
+	soldAt, _ := parseMikroTikDateTime(payload.Date, payload.Time, router.Timezone)
+	if soldAt.IsZero() {
+		soldAt = time.Now()
+	}
+
+	idempotencyKey := mikrotik.MakeSaleIdempotencyKey(router.ID, payload.Username, soldAt)
 
 	exists, err := h.saleRepo.ExistsByIdempotencyKey(c.Request.Context(), idempotencyKey)
 	if err != nil {
@@ -94,16 +102,19 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
-	soldAt, _ := parseMikroTikDateTime(payload.Date, payload.Time)
-	if soldAt.IsZero() {
-		soldAt = time.Now()
+	if router.ReportMode == "disable" {
+		c.Status(http.StatusOK)
+		return
 	}
 
-	price := int64(0)
+	var price, sellingPrice int64
+	var validity string
 	if payload.Profile != "" {
-		profiles, err := h.fetchProfilePrice(c.Request.Context(), router.ID, payload.Profile)
-		if err == nil && profiles != nil {
-			price = profiles.Price
+		pp, err := h.fetchProfilePrice(c.Request.Context(), router.ID, payload.Profile)
+		if err == nil && pp != nil {
+			price = pp.Price
+			sellingPrice = pp.SellingPrice
+			validity = pp.Validity
 		}
 	}
 
@@ -113,9 +124,11 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		Username:       payload.Username,
 		ProfileName:    payload.Profile,
 		Price:          price,
+		SellingPrice:   sellingPrice,
 		Server:         payload.Server,
 		IPAddress:      payload.IP,
 		MACAddress:     payload.MAC,
+		Validity:       validity,
 		IdempotencyKey: idempotencyKey,
 	}
 
@@ -138,35 +151,8 @@ func (h *EventHandler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func parseMikroTikDateTime(date, timeStr string) (time.Time, error) {
-	if date == "" || timeStr == "" {
-		return time.Time{}, fmt.Errorf("empty date or time")
-	}
-
-	parts := strings.SplitN(timeStr, ":", 3)
-	if len(parts) != 3 {
-		return time.Time{}, fmt.Errorf("invalid time format: %s", timeStr)
-	}
-	hour, _ := strconv.Atoi(parts[0])
-	minute, _ := strconv.Atoi(parts[1])
-	second, _ := strconv.Atoi(parts[2])
-
-	dateParts := strings.SplitN(date, "/", 3)
-	if len(dateParts) != 3 {
-		return time.Time{}, fmt.Errorf("invalid date format: %s", date)
-	}
-
-	months := map[string]time.Month{
-		"jan": time.January, "feb": time.February, "mar": time.March,
-		"apr": time.April, "may": time.May, "jun": time.June,
-		"jul": time.July, "aug": time.August, "sep": time.September,
-		"oct": time.October, "nov": time.November, "dec": time.December,
-	}
-	mon := months[strings.ToLower(dateParts[0])]
-	day, _ := strconv.Atoi(dateParts[1])
-	year, _ := strconv.Atoi(dateParts[2])
-
-	return time.Date(year, mon, day, hour, minute, second, 0, time.Local), nil
+func parseMikroTikDateTime(date, timeStr, tz string) (time.Time, error) {
+	return mikrotik.Parse(date, timeStr, mikrotik.ResolveLocation(tz))
 }
 
 type profilePrice struct {
@@ -175,6 +161,30 @@ type profilePrice struct {
 	Validity     string
 }
 
-func (h *EventHandler) fetchProfilePrice(ctx interface{ Value(any) any }, routerID uint, profileName string) (*profilePrice, error) {
-	return &profilePrice{Price: 0}, nil
+func (h *EventHandler) fetchProfilePrice(ctx context.Context, routerID uint, profileName string) (*profilePrice, error) {
+	mapping, err := h.profileRepo.FindByRouterAndProfile(ctx, routerID, profileName)
+	if err == nil && mapping != nil {
+		return &profilePrice{
+			Price:        mapping.Price,
+			SellingPrice: mapping.SellingPrice,
+			Validity:     mapping.Validity,
+		}, nil
+	}
+
+	rID := fmt.Sprintf("%d", routerID)
+	profiles, err := h.bridge.Query(ctx, rID, "ip/hotspot/user/profile/print", "?name="+profileName)
+	if err != nil || len(profiles) == 0 {
+		return &profilePrice{Price: 0}, nil
+	}
+	onLogin := profiles[0]["on-login"]
+	if onLogin == "" {
+		return &profilePrice{Price: 0}, nil
+	}
+	meta := roskitservice.ParseOnLoginPut(onLogin)
+	if meta == nil {
+		return &profilePrice{Price: 0}, nil
+	}
+	price, _ := strconv.ParseInt(meta.Price, 10, 64)
+	sprice, _ := strconv.ParseInt(meta.SellingPrice, 10, 64)
+	return &profilePrice{Price: price, SellingPrice: sprice, Validity: meta.Validity}, nil
 }

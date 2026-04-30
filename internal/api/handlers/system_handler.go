@@ -190,18 +190,197 @@ func (h *SystemHandler) ListSchedulers(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
-	result, err := h.svc.ListSchedulers(c.Request.Context(), routerID)
+	results, err := h.svc.ListSchedulers(c.Request.Context(), routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list schedulers"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
+	for i, s := range results {
+		if s["name"] == "Mikhmon-Expire-Monitor" {
+			results[i]["system_managed"] = "true"
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": results, "error": nil})
 }
 
-// GetSystemResourceHistory returns historical CPU/memory metrics from InfluxDB.
-// Query params:
-//   - range: time window — 15m | 1h | 6h | 12h | 24h | 7d | 30d  (default: 1h)
-//   - step:  bucket size — 30s | 1m | 5m | 15m | 30m | 1h | 6h | 12h | 1d (default: auto)
+func (h *SystemHandler) CreateScheduler(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	var params map[string]string
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+	result, err := h.svc.AddScheduler(c.Request.Context(), routerID, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to create scheduler"})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": result, "error": nil})
+}
+
+func (h *SystemHandler) UpdateScheduler(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	schedulerID := c.Param("schedulerId")
+	var params map[string]string
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+	if err := h.svc.UpdateScheduler(c.Request.Context(), routerID, schedulerID, params); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to update scheduler"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler updated"}, "error": nil})
+}
+
+func (h *SystemHandler) DeleteScheduler(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	schedulerID := c.Param("schedulerId")
+	if err := h.svc.DeleteScheduler(c.Request.Context(), routerID, schedulerID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to delete scheduler"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler deleted"}, "error": nil})
+}
+
+func (h *SystemHandler) EnableSchedulerByID(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	schedulerID := c.Param("schedulerId")
+	if err := h.svc.EnableSchedulerByID(c.Request.Context(), routerID, schedulerID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to enable scheduler"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler enabled"}, "error": nil})
+}
+
+func (h *SystemHandler) DisableSchedulerByID(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	schedulerID := c.Param("schedulerId")
+	if err := h.svc.DisableSchedulerByID(c.Request.Context(), routerID, schedulerID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to disable scheduler"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler disabled"}, "error": nil})
+}
+
+func (h *SystemHandler) ListScripts(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	results, err := h.svc.ListScripts(c.Request.Context(), routerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list scripts"})
+		return
+	}
+	for i, s := range results {
+		if s["comment"] == "mikhmon" || s["comment"] == "QuickPrintMikhmon" {
+			results[i]["system_managed"] = "true"
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": results, "error": nil})
+}
+
+func (h *SystemHandler) CreateScript(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	var params map[string]string
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+	result, err := h.svc.AddScript(c.Request.Context(), routerID, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to create script"})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": result, "error": nil})
+}
+
+func (h *SystemHandler) UpdateScript(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	scriptID := c.Param("scriptId")
+	var params map[string]string
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+	if err := h.svc.UpdateScript(c.Request.Context(), routerID, scriptID, params); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to update script"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "script updated"}, "error": nil})
+}
+
+func (h *SystemHandler) DeleteScript(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	scriptID := c.Param("scriptId")
+	if err := h.svc.DeleteScript(c.Request.Context(), routerID, scriptID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to delete script"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "script deleted"}, "error": nil})
+}
+
+func (h *SystemHandler) RunScriptByID(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	scriptID := c.Param("scriptId")
+	if err := h.svc.RunScript(c.Request.Context(), routerID, scriptID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to run script"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "script executed"}, "error": nil})
+}
+
+func (h *SystemHandler) SetupLogging(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	if err := h.svc.SetupLogging(c.Request.Context(), routerID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to setup logging"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logging configured"}, "error": nil})
+}
+
 func (h *SystemHandler) GetSystemResourceHistory(c *gin.Context) {
 	routerID, err := parseRouterID(c)
 	if err != nil {
