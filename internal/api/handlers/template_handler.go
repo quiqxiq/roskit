@@ -117,8 +117,14 @@ func (h *TemplateHandler) SeedDefaults(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.SeedDefaults(c.Request.Context()); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
+	var seedErr error
+	if c.Query("force") == "true" {
+		seedErr = h.svc.ForceSeedDefaults(c.Request.Context())
+	} else {
+		seedErr = h.svc.SeedDefaults(c.Request.Context())
+	}
+	if seedErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": seedErr.Error()})
 		return
 	}
 
@@ -164,11 +170,16 @@ func (h *TemplateHandler) Render(c *gin.Context) {
 		return
 	}
 
+	logo := req.Logo
+	if logo == "" {
+		logo = routerLogoURL(routerID, router.LogoPath)
+	}
+
 	params := services.RenderParams{
 		HotspotName: router.HotspotName,
 		DNSName:     router.DNSName,
 		Currency:    router.Currency,
-		Logo:        req.Logo,
+		Logo:        logo,
 		UserMode:    req.UserMode,
 		Profile:     req.Profile,
 		Validity:    req.Validity,
@@ -181,11 +192,11 @@ func (h *TemplateHandler) Render(c *gin.Context) {
 	vouchers := make([]roskitservice.GeneratedVoucher, len(cached.Vouchers))
 	copy(vouchers, cached.Vouchers)
 
-	rendered, err := h.svc.Render(c.Request.Context(), routerID, req.TemplateType, vouchers, params)
+	page, err := h.svc.RenderPage(c.Request.Context(), routerID, req.TemplateType, vouchers, params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": rendered, "error": nil})
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(page))
 }

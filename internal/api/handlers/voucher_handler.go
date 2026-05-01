@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -200,19 +199,15 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 	routerParams := services.RouterVoucherParams{
 		HotspotName: router.HotspotName,
 		DNSName:     router.DNSName,
-		Logo:        router.LogoPath,
+		Logo:        routerLogoURL(routerID, router.LogoPath),
 		Currency:    router.Currency,
 	}
 
-	rendered, err := h.templateSvc.RenderFromUsers(ctx, routerID, templateType, resolved, routerParams)
+	page, err := h.templateSvc.RenderFromUsers(ctx, routerID, templateType, resolved, routerParams)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
 
-	var sb strings.Builder
-	for _, r := range rendered {
-		sb.WriteString(r.HTML)
-	}
-	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(services.WrapPrintHTML(sb.String())))
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(page))
 }

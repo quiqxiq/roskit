@@ -39,8 +39,9 @@ type VoucherTemplateVars struct {
 	HotspotName string
 	DNSName     string
 	Logo        string
-	UserMode    string       // "vc" (username=password) or "up" (separate username & password)
-	QR          string       // "yes" or "no"
+	Currency    string
+	UserMode    string        // "vc" (username=password) or "up" (separate username & password)
+	QR          string        // "yes" or "no"
 	QRCode      template.HTML // rendered <img> tag for QR code
 	TimeStamp   string
 }
@@ -143,7 +144,11 @@ func (s *TemplateService) Delete(ctx context.Context, id uint) error {
 }
 
 func (s *TemplateService) SeedDefaults(ctx context.Context) error {
-	return SeedGlobalDefaults(ctx, s.repo)
+	return SeedGlobalDefaults(ctx, s.repo, false)
+}
+
+func (s *TemplateService) ForceSeedDefaults(ctx context.Context) error {
+	return SeedGlobalDefaults(ctx, s.repo, true)
 }
 
 // Render renders a named template type for the given vouchers.
@@ -223,6 +228,7 @@ func buildVars(num int, v roskitservice.GeneratedVoucher, p RenderParams) Vouche
 		HotspotName: p.HotspotName,
 		DNSName:     p.DNSName,
 		Logo:        p.Logo,
+		Currency:    p.Currency,
 		UserMode:    userMode,
 		QR:          qr,
 		QRCode:      qrCode,
@@ -272,6 +278,7 @@ func buildVarsFromResolved(num int, v ResolvedVoucher, router RouterVoucherParam
 		HotspotName: router.HotspotName,
 		DNSName:     router.DNSName,
 		Logo:        router.Logo,
+		Currency:    router.Currency,
 		UserMode:    userMode,
 		QR:          qr,
 		QRCode:      qrCode,
@@ -279,44 +286,133 @@ func buildVarsFromResolved(num int, v ResolvedVoucher, router RouterVoucherParam
 	}
 }
 
+// RenderFromUsers renders a full HTML print page: header once, one row per voucher, footer once.
+// Returns complete HTML ready to serve directly as text/html.
 func (s *TemplateService) RenderFromUsers(
 	ctx context.Context,
 	routerID uint,
 	templateType string,
 	vouchers []ResolvedVoucher,
 	router RouterVoucherParams,
-) ([]RenderedVoucher, error) {
+) (string, error) {
+	if len(vouchers) == 0 {
+		return "", fmt.Errorf("no vouchers to render")
+	}
 	parts, err := s.repo.GetByRouterAndType(ctx, routerID, templateType)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if len(parts) == 0 {
-		return nil, fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
+		return "", fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
 	}
 	byPart := map[string]string{}
 	for _, p := range parts {
 		byPart[p.Part] = p.Content
 	}
-	results := make([]RenderedVoucher, 0, len(vouchers))
+
+	// Header and footer use shared page-level vars (hotspot name, currency, etc.)
+	pageVars := buildVarsFromResolved(1, vouchers[0], router)
+
+	var buf bytes.Buffer
+
+	if content, ok := byPart["header"]; ok {
+		rendered, err := renderPart(content, pageVars)
+		if err != nil {
+			s.logger.Warn("template render error", "part", "header", "error", err)
+			buf.WriteString(content)
+		} else {
+			buf.WriteString(rendered)
+		}
+	}
+
 	for i, v := range vouchers {
 		vars := buildVarsFromResolved(i+1, v, router)
-		var buf bytes.Buffer
-		for _, partName := range []string{"header", "row", "footer"} {
-			content, ok := byPart[partName]
-			if !ok {
-				continue
-			}
+		if content, ok := byPart["row"]; ok {
 			rendered, err := renderPart(content, vars)
 			if err != nil {
-				s.logger.Warn("template render error", "part", partName, "voucher", v.Username, "error", err)
+				s.logger.Warn("template render error", "part", "row", "voucher", v.Username, "error", err)
 				buf.WriteString(content)
 			} else {
 				buf.WriteString(rendered)
 			}
 		}
-		results = append(results, RenderedVoucher{Num: i + 1, HTML: buf.String()})
 	}
-	return results, nil
+
+	if content, ok := byPart["footer"]; ok {
+		rendered, err := renderPart(content, pageVars)
+		if err != nil {
+			s.logger.Warn("template render error", "part", "footer", "error", err)
+			buf.WriteString(content)
+		} else {
+			buf.WriteString(rendered)
+		}
+	}
+
+	return buf.String(), nil
+}
+
+// RenderPage renders a full HTML print page from cached generated vouchers.
+// Same architecture as RenderFromUsers: header once, one row per voucher, footer once.
+func (s *TemplateService) RenderPage(
+	ctx context.Context,
+	routerID uint,
+	templateType string,
+	vouchers []roskitservice.GeneratedVoucher,
+	params RenderParams,
+) (string, error) {
+	if len(vouchers) == 0 {
+		return "", fmt.Errorf("no vouchers to render")
+	}
+	parts, err := s.repo.GetByRouterAndType(ctx, routerID, templateType)
+	if err != nil {
+		return "", err
+	}
+	if len(parts) == 0 {
+		return "", fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
+	}
+	byPart := map[string]string{}
+	for _, p := range parts {
+		byPart[p.Part] = p.Content
+	}
+
+	pageVars := buildVars(1, vouchers[0], params)
+
+	var buf bytes.Buffer
+
+	if content, ok := byPart["header"]; ok {
+		rendered, err := renderPart(content, pageVars)
+		if err != nil {
+			s.logger.Warn("template render error", "part", "header", "error", err)
+			buf.WriteString(content)
+		} else {
+			buf.WriteString(rendered)
+		}
+	}
+
+	for i, v := range vouchers {
+		vars := buildVars(i+1, v, params)
+		if content, ok := byPart["row"]; ok {
+			rendered, err := renderPart(content, vars)
+			if err != nil {
+				s.logger.Warn("template render error", "part", "row", "voucher", v.Username, "error", err)
+				buf.WriteString(content)
+			} else {
+				buf.WriteString(rendered)
+			}
+		}
+	}
+
+	if content, ok := byPart["footer"]; ok {
+		rendered, err := renderPart(content, pageVars)
+		if err != nil {
+			s.logger.Warn("template render error", "part", "footer", "error", err)
+			buf.WriteString(content)
+		} else {
+			buf.WriteString(rendered)
+		}
+	}
+
+	return buf.String(), nil
 }
 
 func renderPart(content string, vars VoucherTemplateVars) (string, error) {

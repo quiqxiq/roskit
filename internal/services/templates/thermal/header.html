@@ -61,5 +61,13 @@
 			}
 
 		</style>
+		<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+		<script>
+			var currency = "{{.Currency}}";
+			function currencyFormat(n, c) {
+				if (isNaN(n) || n === 0) return c + " 0";
+				return c + " " + parseInt(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+			}
+		</script>
 	</head>
 	<body>

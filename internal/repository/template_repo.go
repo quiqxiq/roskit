@@ -40,7 +40,7 @@ func (r *TemplateRepo) GetByID(ctx context.Context, id uint) (*models.PrintTempl
 func (r *TemplateRepo) List(ctx context.Context, routerID uint) ([]models.PrintTemplate, error) {
 	var templates []models.PrintTemplate
 	if err := r.db.WithContext(ctx).
-		Where("router_id = ? OR router_id IS NULL", routerID).
+		Where("router_id = ? OR router_id = 0", routerID).
 		Order("name ASC, part ASC").
 		Find(&templates).Error; err != nil {
 		return nil, fmt.Errorf("list templates: %w", err)
@@ -66,8 +66,8 @@ func (r *TemplateRepo) Delete(ctx context.Context, id uint) error {
 func (r *TemplateRepo) GetByRouterAndType(ctx context.Context, routerID uint, templateType string) ([]models.PrintTemplate, error) {
 	var templates []models.PrintTemplate
 	err := r.db.WithContext(ctx).
-		Where("(router_id = ? OR router_id IS NULL) AND type = ?", routerID, templateType).
-		Order("part ASC").
+		Where("(router_id = ? OR router_id = 0) AND type = ?", routerID, templateType).
+		Order("router_id DESC, part ASC").
 		Find(&templates).Error
 	if err != nil {
 		return nil, fmt.Errorf("get templates by type: %w", err)

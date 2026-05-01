@@ -5,7 +5,7 @@
 		</tr>
 		<tr>
 			<td style="text-align: center; font-size: 14px; border-bottom: 1px black solid;">
-				<img src="{{.Logo}}" alt="logo" style="height:30px;border:0;"><br>
+				{{if .Logo}}<img src="{{.Logo}}" alt="logo" style="height:30px;border:0;"><br>{{end}}
 				<span>{{.TimeStamp}}</span>
 			</td>
 		</tr>

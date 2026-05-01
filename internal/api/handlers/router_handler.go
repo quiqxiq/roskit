@@ -24,6 +24,15 @@ func parseRouterID(c *gin.Context) (uint, error) {
 	return uint(id), nil
 }
 
+// routerLogoURL converts a stored LogoPath to a web-accessible URL.
+// Returns empty string if no logo is configured.
+func routerLogoURL(routerID uint, logoPath string) string {
+	if logoPath == "" {
+		return ""
+	}
+	return fmt.Sprintf("/api/v1/routers/%d/logo", routerID)
+}
+
 type RouterHandler struct {
 	svc *services.RouterService
 }
