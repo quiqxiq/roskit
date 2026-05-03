@@ -12,8 +12,8 @@ API_URL     := http://localhost:8080
 .PHONY: all build build-api build-migrate build-worker build-seed \
         run docker-up docker-down docker-logs docker-build docker-clean \
         migrate-up migrate-import sync-profiles seed seed-docker \
-        test clean env \
-        curl-health curl-setup curl-login
+        test test-mikrotik test-redis test-influxdb test-integration \
+        clean env curl-health curl-setup curl-login
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +92,22 @@ seed-docker:
 
 test:
 	go test -race ./...
+
+test-mikrotik:
+	@echo "Running MikroTik integration tests..."
+	set -a && source .env.test && set +a && go test -race -tags mikrotik -count=1 -v ./internal/roskit/execution/ ./internal/roskit/orchestrator/ ./internal/roskit/adapter/service/
+
+test-redis:
+	@echo "Running Redis integration tests..."
+	set -a && source .env.test && set +a && go test -race -tags redis -count=1 -v ./internal/roskit/pipeline/cache/ ./internal/roskit/pipeline/pubsub/ ./internal/roskit/pipeline/event/
+
+test-influxdb:
+	@echo "Running InfluxDB integration tests..."
+	set -a && source .env.test && set +a && go test -race -tags influxdb -count=1 -v ./internal/roskit/pipeline/timeseries/
+
+test-integration:
+	@echo "Running all integration tests..."
+	set -a && source .env.test && set +a && go test -race -tags 'mikrotik redis influxdb' -count=1 -v ./...
 
 # ── Curl helpers ─────────────────────────────────────────────────────────────
 
