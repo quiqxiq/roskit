@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/quiqxiq/roskit/internal/api/handlers"
@@ -51,11 +52,14 @@ func NewRouter(
 		slog.Default().Warn("template seed defaults failed", "error", err)
 	}
 
+	auditRepo := repository.NewAuditRepo(db)
+	auditLogger := middleware.NewAuditLogger(auditRepo)
+
 	routerH := handlers.NewRouterHandler(routerSvc)
 	hotspotH := handlers.NewHotspotHandler(hotspotSvc)
 	voucherH := handlers.NewVoucherHandler(voucherSvc, templateSvc, hotspotSvc)
 	reportH := handlers.NewReportHandler(reportSvc)
-	authH := handlers.NewAuthHandler(authSvc)
+	authH := handlers.NewAuthHandler(authSvc, auditLogger)
 	eventH := handlers.NewEventHandler(routerRepo, saleRepo, profileRepo, bridge, cache)
 	systemH := handlers.NewSystemHandler(systemSvc)
 	pppH := handlers.NewPPPHandler(bridge)
@@ -66,6 +70,8 @@ func NewRouter(
 	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber)
 	statusSvc := services.NewStatusService(routerRepo, bridge)
 	statusH := handlers.NewStatusHandler(statusSvc)
+	healthH := handlers.NewHealthHandler(db, cache, bridge)
+	profileMappingH := handlers.NewProfileMappingHandler(profileRepo)
 
 	// Serve the frontend website from the same origin as the API
 	engine.Static("/css", "./website/css")
@@ -76,12 +82,17 @@ func NewRouter(
 		c.File("./website/index.html")
 	})
 
+	loginRL := middleware.RateLimit(10, time.Minute)
+	onLoginRL := middleware.RateLimit(100, time.Minute)
+
 	api := engine.Group("/api/v1")
 	{
+		api.GET("/health", healthH.Check)
+
 		auth := api.Group("/auth")
 		{
-			auth.POST("/setup", authH.Setup)
-			auth.POST("/login", authH.Login)
+			auth.POST("/setup", loginRL, authH.Setup)
+			auth.POST("/login", loginRL, authH.Login)
 			auth.POST("/refresh", authH.Refresh)
 			auth.POST("/logout", middleware.AuthMiddleware(authSvc), authH.Logout)
 		}
@@ -265,9 +276,13 @@ func NewRouter(
 
 		events := api.Group("/events")
 		{
-			events.POST("/on-login", eventH.OnLoginEvent)
+			events.POST("/on-login", onLoginRL, eventH.OnLoginEvent)
 			events.GET("/health", eventH.HealthCheck)
 		}
+
+		protected.GET("/routers/:routerId/profile-mappings", profileMappingH.List)
+		protected.PUT("/routers/:routerId/profile-mappings/:profileName", profileMappingH.Update)
+		protected.DELETE("/routers/:routerId/profile-mappings/:profileName", profileMappingH.Delete)
 	}
 
 	return engine

@@ -5,9 +5,8 @@ package orchestrator_test
 import (
 	"context"
 	"testing"
-	"time"
-
-	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
+	"github.com/quiqxiq/roskit/internal/roskit/adapter/service"
+	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +62,8 @@ func TestEngine_Dispatcher_Mutate(t *testing.T) {
 	ctx := context.Background()
 	rid := testhelpers.RouterID()
 	prefix := testhelpers.UniqueName("eng")
-	t.Cleanup(func() { testhelpers.CleanupHotspotUsers(ctx, engine.Dispatcher(), rid, prefix) })
+	bridge := service.NewBridge(engine.Dispatcher(), cache.NoopRepository{})
+	t.Cleanup(func() { testhelpers.CleanupHotspotUsers(ctx, bridge, rid, prefix) })
 
 	name := testhelpers.UniqueName("eng")
 	reply, err := engine.Dispatcher().Mutate(ctx, rid, "ip/hotspot/user/add",

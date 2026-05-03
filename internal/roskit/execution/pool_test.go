@@ -10,14 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quiqxiq/roskit/internal/roskit/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPool_RegisterAndStart(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig()
 	pool := NewPool(slog.Default())
 	pool.Register(cfg)
 	ctx := context.Background()
@@ -31,25 +30,25 @@ func TestPool_RegisterAndStart(t *testing.T) {
 }
 
 func TestPool_Borrow_Success(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	conn, err := pool.Borrow(context.Background(), rid)
 	require.NoError(t, err)
 	assert.Equal(t, ConnStateConnected, conn.State())
 }
 
 func TestPool_Borrow_NotRegistered(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
+	skipWithoutMikroTik(t)
 	pool := NewPool(slog.Default())
 	_, err := pool.Borrow(context.Background(), "nonexistent")
 	assert.Error(t, err)
 }
 
 func TestPool_Borrow_NotConnected(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig()
 	pool := NewPool(slog.Default())
 	pool.Register(cfg)
 	_, err := pool.Borrow(context.Background(), cfg.RouterID)
@@ -57,18 +56,18 @@ func TestPool_Borrow_NotConnected(t *testing.T) {
 }
 
 func TestPool_Unregister(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	pool.Unregister(rid)
 	_, exists := pool.Status()[rid]
 	assert.False(t, exists)
 }
 
 func TestPool_LaunchOne(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig()
 	pool := NewPool(slog.Default())
 	ctx := context.Background()
 	pool.Start(ctx)
@@ -83,14 +82,14 @@ func TestPool_LaunchOne(t *testing.T) {
 }
 
 func TestPool_Stop(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, _ := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, _ := newTestPool(t)
 	assert.NotPanics(t, func() { pool.Stop() })
 }
 
 func TestPool_WaitConnected_Timeout(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig()
 	pool := NewPool(slog.Default())
 	pool.Register(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -100,10 +99,10 @@ func TestPool_WaitConnected_Timeout(t *testing.T) {
 }
 
 func TestPool_ConcurrentBorrow(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	var wg sync.WaitGroup
 	errs := make([]error, 10)
 	for i := 0; i < 10; i++ {

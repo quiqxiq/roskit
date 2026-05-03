@@ -6,16 +6,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/quiqxiq/roskit/internal/roskit/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExecutor_Run_IdentityPrint(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	exec := NewExecutor(pool)
 	reply, err := exec.Run(context.Background(), rid, "/system/identity/print")
 	require.NoError(t, err)
@@ -23,12 +22,12 @@ func TestExecutor_Run_IdentityPrint(t *testing.T) {
 }
 
 func TestExecutor_AddSetRemoveHotspotUser(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	exec := NewExecutor(pool)
-	name := testhelpers.UniqueName("test-exec")
+	name := uniqueName("test-exec")
 	reply, err := exec.Add(context.Background(), rid, "ip/hotspot/user", map[string]string{
 		"name":     name,
 		"password": "testpass123",
@@ -47,12 +46,12 @@ func TestExecutor_AddSetRemoveHotspotUser(t *testing.T) {
 }
 
 func TestExecutor_EnableDisable(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	exec := NewExecutor(pool)
-	name := testhelpers.UniqueName("test-exec")
+	name := uniqueName("test-exec")
 	reply, err := exec.Add(context.Background(), rid, "ip/hotspot/user", map[string]string{
 		"name":     name,
 		"password": "testpass123",
@@ -71,12 +70,12 @@ func TestExecutor_EnableDisable(t *testing.T) {
 }
 
 func TestExecutor_ExtractID(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	exec := NewExecutor(pool)
-	name := testhelpers.UniqueName("test-exec")
+	name := uniqueName("test-exec")
 	reply, err := exec.Add(context.Background(), rid, "ip/hotspot/user", map[string]string{
 		"name":     name,
 		"password": "testpass123",
@@ -89,10 +88,10 @@ func TestExecutor_ExtractID(t *testing.T) {
 }
 
 func TestExecutor_Run_InvalidCommand(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	pool, cleanup := testhelpers.NewTestPool(t)
+	skipWithoutMikroTik(t)
+	pool, cleanup := newTestPool(t)
 	defer cleanup()
-	rid := testhelpers.RouterID()
+	rid := routerID()
 	exec := NewExecutor(pool)
 	_, err := exec.Run(context.Background(), rid, "/nonexistent/path")
 	assert.Error(t, err)

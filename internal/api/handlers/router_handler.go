@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -165,10 +166,6 @@ func (h *RouterHandler) UploadLogo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "file too large, max 1MB"})
 		return
 	}
-	if !strings.HasSuffix(strings.ToLower(file.Filename), ".png") {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "only PNG files allowed"})
-		return
-	}
 	f, err := file.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to read file"})
@@ -180,12 +177,33 @@ func (h *RouterHandler) UploadLogo(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to read file"})
 		return
 	}
+	if !isAllowedImageMIME(data) {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "only PNG, JPEG, or WebP images are allowed"})
+		return
+	}
 	if err := h.svc.UploadLogo(c.Request.Context(), routerID, data, file.Filename); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to upload logo"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logo uploaded"}, "error": nil})
 }
+
+func isAllowedImageMIME(data []byte) bool {
+	if len(data) < 4 {
+		return false
+	}
+	if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47}) {
+		return true
+	}
+	if bytes.HasPrefix(data, []byte{0xFF, 0xD8, 0xFF}) {
+		return true
+	}
+	if len(data) >= 12 && bytes.Equal(data[8:12], []byte("WEBP")) {
+		return true
+	}
+	return false
+}
+
 
 func (h *RouterHandler) GetLogo(c *gin.Context) {
 	routerID, err := parseRouterID(c)

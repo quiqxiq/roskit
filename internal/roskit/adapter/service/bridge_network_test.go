@@ -6,7 +6,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -61,6 +61,22 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+func (c *Config) Validate() error {
+	if c.JWTSecret == "" {
+		return fmt.Errorf("JWT_SECRET is required")
+	}
+	if len(c.JWTSecret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters")
+	}
+	if c.JWTRefreshSecret == "" {
+		return fmt.Errorf("JWT_REFRESH_SECRET is required")
+	}
+	if c.AESEncKey == "" {
+		return fmt.Errorf("AES_ENCRYPTION_KEY is required")
+	}
+	return nil
+}
+
 // PostgresDSN returns a GORM-compatible DSN string.
 func (c *Config) PostgresDSN() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",

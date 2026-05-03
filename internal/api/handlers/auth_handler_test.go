@@ -44,7 +44,7 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -75,7 +75,7 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -92,7 +92,7 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 func TestAuthHandler_Login_MissingBody(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -116,7 +116,7 @@ func TestAuthHandler_Login_InactiveUser(t *testing.T) {
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -133,7 +133,7 @@ func TestAuthHandler_Login_InactiveUser(t *testing.T) {
 func TestAuthHandler_Me(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.GET("/me", func(c *gin.Context) {
@@ -167,7 +167,7 @@ func TestAuthHandler_Setup_FirstTime(t *testing.T) {
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/setup", h.Setup)
@@ -184,7 +184,7 @@ func TestAuthHandler_Setup_FirstTime(t *testing.T) {
 func TestAuthHandler_Setup_AlreadyDone(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{UserCount: 1}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/setup", h.Setup)

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	goredis "github.com/redis/go-redis/v9"
+
 	"github.com/quiqxiq/roskit/internal/config"
 	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/repository"
@@ -144,14 +146,12 @@ func (w *Worker) salesCacheWarmup(ctx context.Context) {
 	for _, router := range routers {
 		today, err := w.saleRepo.TodayTotal(ctx, router.ID)
 		if err == nil {
-			cacheKey := fmt.Sprintf("mikhmon:sales:today:%d", router.ID)
-			w.cache.SetJSON(ctx, cacheKey, today, 5*time.Minute)
+			w.cache.SetJSON(ctx, redis.SalesKey(router.ID, "today"), today, 5*time.Minute)
 		}
 
 		month, err := w.saleRepo.MonthTotal(ctx, router.ID)
 		if err == nil {
-			cacheKey := fmt.Sprintf("mikhmon:sales:month:%d", router.ID)
-			w.cache.SetJSON(ctx, cacheKey, month, 5*time.Minute)
+			w.cache.SetJSON(ctx, redis.SalesKey(router.ID, "month"), month, 5*time.Minute)
 		}
 	}
 }
@@ -159,25 +159,50 @@ func (w *Worker) salesCacheWarmup(ctx context.Context) {
 func (w *Worker) voucherSessionCleanup(ctx context.Context) {
 	slog.Info("Running VoucherSessionCleanup task")
 
-	routers, err := w.routerRepo.List(ctx)
-	if err != nil {
+	client := w.cache.Client()
+	if client == nil {
 		return
 	}
 
-	poolStatus := w.bridge.PoolStatus()
-
-	for _, router := range routers {
-		rID := fmt.Sprintf("%d", router.ID)
-		if poolStatus != nil && !poolStatus[rID] {
-			continue
-		}
-
-		count, err := w.bridge.GetActiveSessionCount(ctx, rID)
+	pattern := "mikhmon:vsession:*"
+	var cursor uint64
+	var deleted int
+	for {
+		keys, nextCursor, err := client.Scan(ctx, cursor, pattern, 100).Result()
 		if err != nil {
-			continue
+			slog.Error("VoucherSessionCleanup scan failed", "error", err)
+			break
 		}
-
-		slog.Info("Active voucher sessions", "router", router.ID, "count", count)
+		if len(keys) > 0 {
+			ttls, err := client.Pipelined(ctx, func(pipe goredis.Pipeliner) error {
+				for _, k := range keys {
+					pipe.TTL(ctx, k)
+				}
+				return nil
+			})
+			if err == nil {
+				var toDelete []string
+				for i, cmd := range ttls {
+					if ttlCmd, ok := cmd.(*goredis.DurationCmd); ok {
+						ttlVal := ttlCmd.Val()
+						if ttlVal < 0 {
+							toDelete = append(toDelete, keys[i])
+						}
+					}
+				}
+				if len(toDelete) > 0 {
+					client.Del(ctx, toDelete...)
+					deleted += len(toDelete)
+				}
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	if deleted > 0 {
+		slog.Info("VoucherSessionCleanup complete", "deleted", deleted)
 	}
 }
 

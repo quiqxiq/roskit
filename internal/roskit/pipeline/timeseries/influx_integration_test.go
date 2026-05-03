@@ -137,7 +137,7 @@ func TestInfluxReader_QueryRange_ReturnsData(t *testing.T) {
 	require.NoError(t, w.WritePoint(ctx, timeseries.Point{
 		Measurement: "system_resource",
 		Tags:        map[string]string{"router_id": routerID},
-		Fields:      map[string]any{"cpu-load": float64(42)},
+		Fields:      map[string]any{"cpu-load": int64(42)},
 		Timestamp:   ts,
 	}))
 	require.NoError(t, w.Flush(ctx))

@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
@@ -204,7 +205,13 @@ func toFloat64Fields(m map[string]string) map[string]interface{} {
 		if k == "time" {
 			k = "roskit_time"
 		}
-		out[k] = v
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			out[k] = n
+		} else if f, err := strconv.ParseFloat(v, 64); err == nil {
+			out[k] = f
+		} else {
+			out[k] = v
+		}
 	}
 	return out
 }

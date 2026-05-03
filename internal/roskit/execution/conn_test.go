@@ -8,14 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quiqxiq/roskit/internal/roskit/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConn_Connect_Success(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig().withDefaults()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig().withDefaults()
 	pc := newPersistentConn(cfg, RoleClient, slog.Default())
 	err := pc.Connect(context.Background())
 	require.NoError(t, err)
@@ -24,7 +23,7 @@ func TestConn_Connect_Success(t *testing.T) {
 }
 
 func TestConn_Connect_WrongHost(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
+	skipWithoutMikroTik(t)
 	cfg := ConnConfig{
 		RouterID:    "bad",
 		Address:     "192.0.2.1:8728",
@@ -39,8 +38,8 @@ func TestConn_Connect_WrongHost(t *testing.T) {
 }
 
 func TestConn_RunContext_IdentityPrint(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig().withDefaults()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig().withDefaults()
 	pc := newPersistentConn(cfg, RoleClient, slog.Default())
 	err := pc.Connect(context.Background())
 	require.NoError(t, err)
@@ -51,8 +50,8 @@ func TestConn_RunContext_IdentityPrint(t *testing.T) {
 }
 
 func TestConn_Close_State(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig().withDefaults()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig().withDefaults()
 	pc := newPersistentConn(cfg, RoleClient, slog.Default())
 	err := pc.Connect(context.Background())
 	require.NoError(t, err)
@@ -61,8 +60,8 @@ func TestConn_Close_State(t *testing.T) {
 }
 
 func TestConn_IsAlive_Connected(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig().withDefaults()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig().withDefaults()
 	pc := newPersistentConn(cfg, RoleClient, slog.Default())
 	err := pc.Connect(context.Background())
 	require.NoError(t, err)
@@ -71,8 +70,8 @@ func TestConn_IsAlive_Connected(t *testing.T) {
 }
 
 func TestRouterConn_ConnectBoth(t *testing.T) {
-	testhelpers.SkipWithoutMikroTik(t)
-	cfg := testhelpers.LoadRouterConfig()
+	skipWithoutMikroTik(t)
+	cfg := loadRouterConfig()
 	rc := newRouterConn(cfg, slog.Default())
 	err := rc.Connect(context.Background())
 	require.NoError(t, err)

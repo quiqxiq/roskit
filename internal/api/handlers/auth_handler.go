@@ -8,16 +8,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/quiqxiq/roskit/internal/api/middleware"
 	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/quiqxiq/roskit/pkg/errors"
 )
 
 type AuthHandler struct {
-	svc *services.AuthService
+	svc   *services.AuthService
+	audit *middleware.AuditLogger
 }
 
-func NewAuthHandler(svc *services.AuthService) *AuthHandler {
-	return &AuthHandler{svc: svc}
+func NewAuthHandler(svc *services.AuthService, audit *middleware.AuditLogger) *AuthHandler {
+	return &AuthHandler{svc: svc, audit: audit}
 }
 
 type loginRequest struct {
@@ -101,6 +103,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logged out"}, "error": nil})
+	h.audit.LogAuth(c, "auth.logout", "")
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
@@ -199,4 +202,5 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		},
 		"error": nil,
 	})
+	h.audit.LogAuth(c, "auth.setup", req.Username)
 }

@@ -206,28 +206,15 @@ func (s *ReportService) ExportCSV(ctx context.Context, routerID uint, from, to t
 	ttl := appcache.TTLSalesPast
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() ([]byte, error) {
-		fromDay := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location())
-		toDay := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()).Add(24 * time.Hour)
-
-		sales, err := s.saleRepo.GetByDay(ctx, routerID, fromDay)
+		sales, err := s.fetchSalesForRange(ctx, routerID, from, to)
 		if err != nil {
 			return nil, err
 		}
-
-		for day := fromDay.Add(24 * time.Hour); day.Before(toDay); day = day.Add(24 * time.Hour) {
-			daySales, err := s.saleRepo.GetByDay(ctx, routerID, day)
-			if err != nil {
-				continue
-			}
-			sales = append(sales, daySales...)
-		}
-
 		filtered := applySaleFilters(sales, filters)
 
 		var buf bytes.Buffer
 		w := csv.NewWriter(&buf)
 		w.Write([]string{"Date", "Time", "Username", "Profile", "Price", "Validity", "MAC", "IP", "Comment", "Server"})
-
 		for _, sale := range filtered {
 			w.Write([]string{
 				sale.SoldAt.Format("2006-01-02"),
@@ -243,7 +230,6 @@ func (s *ReportService) ExportCSV(ctx context.Context, routerID uint, from, to t
 			})
 		}
 		w.Flush()
-
 		if err := w.Error(); err != nil {
 			return nil, err
 		}
@@ -256,22 +242,10 @@ func (s *ReportService) ExportExcel(ctx context.Context, routerID uint, from, to
 	ttl := appcache.TTLSalesPast
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() ([]byte, error) {
-		fromDay := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location())
-		toDay := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()).Add(24 * time.Hour)
-
-		sales, err := s.saleRepo.GetByDay(ctx, routerID, fromDay)
+		sales, err := s.fetchSalesForRange(ctx, routerID, from, to)
 		if err != nil {
 			return nil, err
 		}
-
-		for day := fromDay.Add(24 * time.Hour); day.Before(toDay); day = day.Add(24 * time.Hour) {
-			daySales, err := s.saleRepo.GetByDay(ctx, routerID, day)
-			if err != nil {
-				continue
-			}
-			sales = append(sales, daySales...)
-		}
-
 		filtered := applySaleFilters(sales, filters)
 
 		f := excelize.NewFile()
@@ -284,15 +258,12 @@ func (s *ReportService) ExportExcel(ctx context.Context, routerID uint, from, to
 		f.DeleteSheet("Sheet1")
 
 		headers := []string{"Date", "Time", "Username", "Profile", "Price", "Validity", "MAC", "IP", "Comment", "Server"}
-		headerStyle, _ := f.NewStyle(&excelize.Style{
-			Font: &excelize.Font{Bold: true},
-		})
+		headerStyle, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
 		for col, h := range headers {
 			cell, _ := excelize.CoordinatesToCellName(col+1, 1)
 			f.SetCellValue(sheet, cell, h)
 			f.SetCellStyle(sheet, cell, cell, headerStyle)
 		}
-
 		for i, sale := range filtered {
 			row := i + 2
 			f.SetCellValue(sheet, fmt.Sprintf("A%d", row), sale.SoldAt.Format("2006-01-02"))
@@ -306,13 +277,27 @@ func (s *ReportService) ExportExcel(ctx context.Context, routerID uint, from, to
 			f.SetCellValue(sheet, fmt.Sprintf("I%d", row), "")
 			f.SetCellValue(sheet, fmt.Sprintf("J%d", row), sale.Server)
 		}
-
 		buf, err := f.WriteToBuffer()
 		if err != nil {
 			return nil, fmt.Errorf("write excel: %w", err)
 		}
 		return buf.Bytes(), nil
 	})
+}
+
+func (s *ReportService) fetchSalesForRange(ctx context.Context, routerID uint, from, to time.Time) ([]*models.VoucherSale, error) {
+	fromDay := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location())
+	toDay := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()).Add(24 * time.Hour)
+
+	var all []*models.VoucherSale
+	for day := fromDay; day.Before(toDay); day = day.Add(24 * time.Hour) {
+		daySales, err := s.saleRepo.GetByDay(ctx, routerID, day)
+		if err != nil {
+			continue
+		}
+		all = append(all, daySales...)
+	}
+	return all, nil
 }
 
 func applySaleFilters(sales []*models.VoucherSale, filters SaleFilters) []*models.VoucherSale {

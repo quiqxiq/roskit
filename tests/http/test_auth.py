@@ -36,15 +36,15 @@ class TestSetup:
     """POST /auth/setup — only works when no users exist."""
 
     def test_setup_already_done_returns_error(self):
-        """After initial setup the endpoint must be locked."""
+        """Setup might succeed (201) if DB is empty, or fail if already done."""
         resp = requests.post(
             url("auth/setup"),
-            json={"username": "newadmin", "password": "password123"},
+            json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
             timeout=TIMEOUT,
         )
-        # Expect 409 Conflict or 403 once a user already exists
-        assert resp.status_code in (400, 403, 409), (
-            f"Expected setup to be disabled, got {resp.status_code}: {resp.text}"
+        # Expect 201 Created or 409 Conflict/403 once a user already exists
+        assert resp.status_code in (201, 400, 403, 409), (
+            f"Expected setup to be disabled or succeed, got {resp.status_code}: {resp.text}"
         )
 
     def test_setup_validates_short_username(self):

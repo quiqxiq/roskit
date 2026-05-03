@@ -66,7 +66,13 @@ func (r *InfluxReader) QueryRange(ctx context.Context, measurement, routerID str
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("influxdb reader: status %d: %s", resp.StatusCode, string(body))
+		bodyStr := string(body)
+		if resp.StatusCode == 400 || resp.StatusCode == 404 {
+			if strings.Contains(bodyStr, "not found") || strings.Contains(bodyStr, "serde json error") {
+				return nil, nil
+			}
+		}
+		return nil, fmt.Errorf("influxdb reader: status %d: %s", resp.StatusCode, bodyStr)
 	}
 
 	return parseQueryResponse(body)

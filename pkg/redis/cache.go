@@ -145,3 +145,11 @@ func GetOrSetJSON[T any](c *Cache, ctx context.Context, key string, ttl time.Dur
 func (c *Cache) Invalidate(ctx context.Context, keys ...string) error {
 	return c.Delete(ctx, keys...)
 }
+
+func (c *Cache) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx).Err()
+}
+
+func (c *Cache) Client() *goredis.Client {
+	return c.client
+}
