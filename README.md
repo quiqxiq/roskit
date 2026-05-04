@@ -1,73 +1,78 @@
-# mikhmon-api
+# Roskit
 
-Go backend untuk manajemen hotspot MikroTik. Menyediakan REST API dan SSE real-time untuk mengelola user hotspot, PPP secret, voucher, laporan penjualan, dan monitoring RouterOS.
+A modern Go backend for MikroTik hotspot management. Provides REST APIs and real-time SSE (Server-Sent Events) for managing hotspot users, PPP secrets, vouchers, sales reports, and RouterOS monitoring.
 
 **Stack**: Go 1.24 · Gin · GORM · PostgreSQL 16 · Redis 7 · InfluxDB 3  
 **Module**: `github.com/quiqxiq/roskit`
 
+For detailed technical architecture and developer guidelines, see [docs/README.md](docs/README.md).
+
 ---
 
-## Prasyarat
+## Prerequisites
 
-| Kebutuhan | Versi |
+| Requirement | Version |
 |---|---|
 | Go | 1.24+ |
 | PostgreSQL | 16 |
 | Redis | 7 |
-| InfluxDB 3 Core | opsional (time-series metrics) |
-| Docker & Compose | opsional |
+| InfluxDB 3 Core | optional (time-series metrics) |
+| Docker & Compose | optional |
 
 ---
 
 ## Setup
 
-### 1. Clone & install dependencies
+### 1. Clone & Install Dependencies
 
 ```bash
-git clone <repo-url>
-cd mikhmon-api
+git clone https://github.com/quiqxiq/roskit.git
+cd roskit
 go mod download
 ```
 
-### 2. Buat file `.env`
+### 2. Environment Configuration
 
+Create the `.env` file:
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` sesuai environment:
+Configure `.env` according to your environment:
 
-| Variable | Keterangan |
+| Variable | Description |
 |---|---|
-| `JWT_SECRET` | Secret JWT access token (min 32 byte) |
-| `JWT_REFRESH_SECRET` | Secret JWT refresh token (min 32 byte) |
-| `AES_ENCRYPTION_KEY` | Kunci AES-256 GCM untuk enkripsi password router (base64, 32 byte) |
-| `DB_PASSWORD` | Password PostgreSQL |
-| `REDIS_PASSWORD` | Password Redis (kosongkan jika tanpa auth) |
-| `INFLUXDB_URL` | URL InfluxDB (kosongkan untuk disable time-series) |
-| `INFLUXDB_TOKEN` | Token InfluxDB |
-| `INFLUXDB_DATABASE` | Nama database InfluxDB (default: `mikhmon`) |
+| `JWT_SECRET` | Secret for JWT access tokens (min 32 bytes) |
+| `JWT_REFRESH_SECRET` | Secret for JWT refresh tokens (min 32 bytes) |
+| `AES_ENCRYPTION_KEY` | AES-256 GCM key to encrypt router passwords (base64, 32 bytes) |
+| `DB_PASSWORD` | PostgreSQL password |
+| `REDIS_PASSWORD` | Redis password (leave empty if no auth) |
+| `INFLUXDB_URL` | InfluxDB URL (leave empty to disable time-series metrics) |
+| `INFLUXDB_TOKEN` | InfluxDB Token |
+| `INFLUXDB_DATABASE` | InfluxDB database name |
 
-### 3. Jalankan migration
+> Note: The Docker Dev stack defaults use `mikhmon` for the database names, user, and password for backward compatibility with older setups.
+
+### 3. Run Database Migrations
 
 ```bash
 make migrate-up
 ```
 
-### 4. Jalankan API server
+### 4. Run the API Server
 
 ```bash
 make run
-# atau langsung: go run ./cmd/api
+# or directly: go run ./cmd/api
 ```
 
-Server berjalan di `http://localhost:8080`.
+The server will be available at `http://localhost:8080`.
 
-### 5. Buat admin pertama
+### 5. Create Initial Admin User
 
 ```bash
 make curl-setup
-# atau manual:
+# or manually:
 curl -X POST http://localhost:8080/api/v1/auth/setup \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin1234"}'
@@ -75,321 +80,160 @@ curl -X POST http://localhost:8080/api/v1/auth/setup \
 
 ---
 
-## Docker (Development)
+## Docker (Development Stack)
+
+The development stack runs via `docker/docker-compose.dev.yml` and includes the API, PostgreSQL, Redis, and InfluxDB.
 
 ```bash
-make docker-up            # Build & jalankan seluruh stack
-make migrate-up-docker    # Jalankan migration di dalam container
-make docker-logs          # Tail log API
-make docker-down          # Stop stack
-make docker-clean         # Stop + hapus volumes
+make docker-up            # Build & run the entire stack
+make migrate-up-docker    # Run database migrations inside the container
+make docker-logs          # Tail API logs
+make docker-down          # Stop the stack
+make docker-clean         # Stop and remove volumes
 ```
-
-Stack dev menggunakan `docker/docker-compose.dev.yml` yang menjalankan:
-- `api` — aplikasi ini (port 8080)
-- `postgres` — PostgreSQL 16 (port 5432)
-- `redis` — Redis 7 (port 6379)
-- `influxdb` — InfluxDB 3 Core (port 8181)
-
----
-
-## Struktur Proyek
-
-```
-mikhmon-api/
-├── cmd/
-│   ├── api/          — entry point HTTP server
-│   ├── migrate/      — CLI migration & import config.php
-│   └── worker/       — background worker (opsional)
-│
-├── internal/
-│   ├── api/
-│   │   └── handlers/ — Gin route handlers (auth, hotspot, ppp, network, system, dll)
-│   │       └── sse/  — SSE handlers (telemetry, log streaming)
-│   │
-│   ├── roskit/       — inti engine RouterOS
-│   │   ├── core/
-│   │   │   ├── command/    — CommandMeta, registry, builder
-│   │   │   ├── definition/ — registrasi semua command RouterOS (per domain)
-│   │   │   ├── model/      — domain model (HotspotUser, Interface, dll)
-│   │   │   └── parser/     — parsing reply RouterOS → domain model
-│   │   │
-│   │   ├── execution/      — TCP connection pool ke router
-│   │   ├── orchestrator/   — engine startup, dispatcher, router manager
-│   │   ├── behavior/
-│   │   │   ├── stream/     — stream workers (=follow real-time push)
-│   │   │   ├── poll/       — poll workers (ticker periodic)
-│   │   │   ├── query/      — on-demand get/find
-│   │   │   └── mutation/   — write commands (add/set/remove/dll)
-│   │   ├── pipeline/
-│   │   │   ├── event/      — event processor (sink utama)
-│   │   │   ├── cache/      — Redis snapshot & secondary index
-│   │   │   ├── pubsub/     — Redis pub-sub untuk SSE
-│   │   │   └── timeseries/ — InfluxDB writer & reader
-│   │   └── adapter/
-│   │       └── service/    — Bridge: menghubungkan services ke orchestrator
-│   │
-│   └── services/           — business logic (hotspot, router, voucher, report, dll)
-│
-├── migrations/             — SQL migration files
-├── docs/
-│   ├── mikrotik/           — routeros_7.20.8.json (API spec)
-│   └── routeros-commands.md — referensi command registry
-├── tests/http/             — Python integration tests (pytest)
-├── docker/                 — docker-compose files & Dockerfile
-└── Makefile
-```
-
----
-
-## Arsitektur
-
-### Gambaran Besar
-
-```
-RouterOS (TCP 8728)
-        │
-        ▼
-┌─────────────────────────────────────────────────────┐
-│  execution.Pool                                     │
-│   ├── sync conn  — poll / query / mutation          │
-│   └── async conn — semua stream workers (tag-mux)   │
-└─────────────────────────────────────────────────────┘
-        │
-        ├── behavior/stream   — =follow, push per event
-        ├── behavior/poll     — ticker periodic snapshot
-        ├── behavior/query    — on-demand get/find
-        └── behavior/mutation — add/set/remove/enable/disable
-        │
-        ▼
-┌─────────────────────────────────────────────────────┐
-│  pipeline/event.Processor  (StreamSink & PollSink)  │
-│   ├── pipeline/cache    → Redis HSET snapshot       │
-│   ├── pipeline/timeseries → InfluxDB (telemetry)    │
-│   └── pipeline/pubsub   → Redis PUBLISH → SSE       │
-└─────────────────────────────────────────────────────┘
-        │
-        ▼
-roskit/adapter/service.Bridge
-        │
-        ▼
-internal/services  +  internal/api/handlers
-        │
-        ▼
-REST API + SSE  (Gin, port 8080)
-```
-
-### Koneksi TCP per Router
-
-Setiap router menggunakan **tepat 2 koneksi TCP**:
-
-| Koneksi | Digunakan untuk |
-|---|---|
-| `sync` | poll, query, mutation — dieksekusi satu per satu |
-| `async` | semua stream workers — tag-multiplexed via `client.Async()` |
-
-Stream workers tidak membuka koneksi sendiri-sendiri; semuanya berbagi satu `async` connection. Ini menjaga jumlah koneksi jauh di bawah limit RouterOS (default 20).
-
-### Command Registry
-
-Semua command RouterOS didefinisikan di `internal/roskit/core/definition/` menggunakan helper constructors. Engine membaca registry ini saat router ditambahkan dan otomatis memulai workers yang sesuai.
-
-```go
-// Stream: RouterOS push setiap ada perubahan
-command.Register(command.StreamDef("ip/hotspot/active/print", "", "hotspot_active"))
-
-// Poll: dieksekusi periodik via ticker
-command.Register(command.PollDef("system/resource/print", 60*time.Second))
-
-// Mutation: write ke router
-command.Register(command.MutationDef("ip/hotspot/user/add"))
-
-// Query: on-demand, short-cached
-command.Register(command.QueryDef("ip/hotspot/user/find"))
-```
-
-**Aturan Stream vs Poll**:
-
-| Verdict | Kondisi | Contoh |
-|---|---|---|
-| **Stream** | Data berubah sering/intens, follow=true | `hotspot/active`, `ip/route`, `firewall/connection` |
-| **Poll** | follow=true tapi admin-only config, jarang berubah | `firewall/filter`, `interface/vlan`, `system/ntp` |
-| **Poll** | Tidak punya follow, hanya interval | `system/resource`, `system/health` |
-
-Lihat `docs/routeros-commands.md` untuk referensi lengkap semua command yang terdaftar.
-
-### Pipeline Event
-
-`event.Processor` menerima setiap event dari stream/poll dan meneruskannya ke:
-
-1. **Redis cache** — snapshot disimpan sebagai `HSET router:{id}:{measurement}:{entryID}`. Secondary index untuk O(1) lookup (misalnya `hotspot_user` diindex by `name`).
-2. **InfluxDB** — hanya untuk 3 measurement telemetry: `system_resource`, `interface_traffic`, `hotspot_active`.
-3. **Redis pub-sub** — broadcast realtime untuk measurement yang punya frontend subscriber aktif: `hotspot_active`, `interface_traffic`, `system_resource`, `dhcp_lease`.
-
-Cache di-invalidate eksplisit setelah setiap mutation berhasil, sehingga read berikutnya langsung mendapat data terbaru dari router.
-
----
-
-## Command Domains
-
-| File | Domain | Tipe |
-|---|---|---|
-| `definition/hotspot.go` | `ip/hotspot/*` | Stream + Mutation |
-| `definition/network.go` | `ip/address`, `ip/route`, `ip/arp`, `ip/dhcp-*`, `ip/dns`, `ip/pool`, `queue/simple` | Stream + Poll |
-| `definition/ppp.go` | `ppp/secret`, `ppp/active`, `ppp/profile` | Stream + Mutation |
-| `definition/firewall.go` | `ip/firewall/filter`, `address-list`, `mangle`, `raw`, `connection` | Stream + Poll |
-| `definition/interface.go` | `interface/vlan`, `bridge`, `ethernet`, `wireless`, `wifi`, `wireguard`, `pppoe-client`, `l2tp-client` | Stream + Poll |
-| `definition/queue.go` | `queue/tree`, `queue/interface`, `queue/type` | Poll |
-| `definition/routing.go` | `routing/route`, `routing/ospf/*`, `routing/bgp/*` | Stream + Poll |
-| `definition/system.go` | `system/resource`, `system/health`, `system/scheduler`, `system/script`, `system/logging`, `system/ntp` | Poll + Stream |
-| `definition/user.go` | `user`, `user/active`, `user/group` | Stream + Poll |
-| `definition/radius.go` | `radius` | Poll |
-| `definition/ipsec.go` | `ip/ipsec/peer`, `ip/ipsec/active-peers`, `ip/ipsec/policy`, `ip/ipsec/installed-sa` | Stream + Poll |
-| `definition/user_manager.go` | `user-manager/user`, `user-manager/session`, `user-manager/profile`, `user-manager/router` | Stream + Poll |
-| `definition/tools.go` | `tool/netwatch` | Stream |
 
 ---
 
 ## API Endpoints
 
-Semua endpoint di bawah `/api/v1/`. Endpoint terproteksi memerlukan header `Authorization: Bearer <token>`.
+All endpoints are prefixed with `/api/v1/`. Protected endpoints require the `Authorization: Bearer <token>` header.
 
 ### Auth
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| POST | `/auth/setup` | Buat admin pertama (sekali pakai) |
-| POST | `/auth/login` | Login, dapat access + refresh token |
-| POST | `/auth/refresh` | Perbarui access token |
-| POST | `/auth/logout` | Logout (invalidate refresh token) |
-| GET | `/auth/me` | Profil user login |
-| PUT | `/auth/password` | Ganti password |
+| POST | `/auth/setup` | Create the initial admin (one-time use) |
+| POST | `/auth/login` | Login, retrieve access + refresh tokens |
+| POST | `/auth/refresh` | Refresh access token |
+| POST | `/auth/logout` | Logout (invalidates refresh token) |
+| GET | `/auth/me` | Current logged-in user profile |
+| PUT | `/auth/password` | Change password |
 
 ### Router
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/routers` | Daftar semua router |
-| POST | `/routers` | Tambah router baru |
-| GET | `/routers/:id` | Detail router |
-| PUT | `/routers/:id` | Update config router |
-| DELETE | `/routers/:id` | Hapus router |
-| POST | `/routers/:id/test` | Test koneksi ke router |
-| POST | `/routers/migrate` | Import dari `config.php` mikhmon lama |
+| GET | `/routers` | List all routers |
+| POST | `/routers` | Add a new router |
+| GET | `/routers/:id` | Router details |
+| PUT | `/routers/:id` | Update router config |
+| DELETE | `/routers/:id` | Delete router |
+| POST | `/routers/:id/test` | Test connection to router |
+| POST | `/routers/migrate` | Import from legacy `config.php` |
 
 ### Hotspot
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| GET/POST | `/routers/:id/hotspot/users` | List & tambah user |
-| GET/PUT/DELETE | `/routers/:id/hotspot/users/:uid` | Detail, update, hapus user |
-| GET/POST | `/routers/:id/hotspot/profiles` | List & tambah profil |
-| GET/PUT/DELETE | `/routers/:id/hotspot/profiles/:pid` | Detail, update, hapus profil |
-| GET | `/routers/:id/hotspot/active` | Sesi aktif saat ini |
-| DELETE | `/routers/:id/hotspot/active/:aid` | Disconnect sesi |
-| GET | `/routers/:id/hotspot/hosts` | Hotspot hosts |
+| GET/POST | `/routers/:id/hotspot/users` | List & add hotspot users |
+| GET/PUT/DELETE | `/routers/:id/hotspot/users/:uid` | Details, update, delete user |
+| GET/POST | `/routers/:id/hotspot/profiles` | List & add profiles |
+| GET/PUT/DELETE | `/routers/:id/hotspot/profiles/:pid` | Details, update, delete profile |
+| GET | `/routers/:id/hotspot/active` | Current active sessions |
+| DELETE | `/routers/:id/hotspot/active/:aid` | Disconnect active session |
+| GET | `/routers/:id/hotspot/hosts` | Connected hosts |
 | GET | `/routers/:id/hotspot/servers` | Hotspot servers |
-| GET/DELETE | `/routers/:id/hotspot/cookies` | Cookies |
+| GET/DELETE | `/routers/:id/hotspot/cookies` | Hotspot cookies |
 | GET/POST/PUT/DELETE | `/routers/:id/hotspot/bindings` | IP Binding CRUD |
 
 ### PPP
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| GET/POST | `/routers/:id/ppp/secrets` | List & tambah PPP secret |
-| GET/PUT/DELETE | `/routers/:id/ppp/secrets/:sid` | Detail, update, hapus |
-| GET | `/routers/:id/ppp/active` | Sesi PPP aktif |
+| GET/POST | `/routers/:id/ppp/secrets` | List & add PPP secret |
+| GET/PUT/DELETE | `/routers/:id/ppp/secrets/:sid` | Details, update, delete |
+| GET | `/routers/:id/ppp/active` | Active PPP sessions |
 | GET | `/routers/:id/ppp/profiles` | PPP profiles |
 
 ### Network
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/routers/:id/network/interfaces` | Daftar interface |
-| GET | `/routers/:id/network/traffic/:iface` | Monitor traffic interface |
+| GET | `/routers/:id/network/interfaces` | List interfaces |
+| GET | `/routers/:id/network/traffic/:iface` | Monitor interface traffic |
 | GET | `/routers/:id/network/dhcp/leases` | DHCP leases |
 | DELETE | `/routers/:id/network/dhcp/:lid/release` | Release lease |
 
 ### System
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
 | GET | `/routers/:id/system/resource` | CPU, RAM, uptime |
-| GET | `/routers/:id/system/resource/history` | History dari InfluxDB |
-| GET | `/routers/:id/system/log` | System log |
-| GET | `/routers/:id/system/clock` | Jam router |
-| GET | `/routers/:id/system/identity` | Identity router |
-| GET | `/routers/:id/system/routerboard` | Info hardware |
-| GET | `/routers/:id/system/dashboard` | Data ringkasan dashboard |
+| GET | `/routers/:id/system/resource/history` | Historical metrics from InfluxDB |
+| GET | `/routers/:id/system/log` | System logs |
+| GET | `/routers/:id/system/clock` | Router clock |
+| GET | `/routers/:id/system/identity` | Router identity |
+| GET | `/routers/:id/system/routerboard` | Hardware info |
+| GET | `/routers/:id/system/dashboard` | Dashboard summary data |
 | POST | `/routers/:id/system/reboot` | Reboot router |
-| GET | `/routers/:id/system/expire-monitor` | Status expire monitor |
+| GET | `/routers/:id/system/expire-monitor` | Expire monitor status |
 | POST | `/routers/:id/system/expire-monitor/deploy` | Deploy expire monitor script |
 
-### Voucher
+### Vouchers
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| POST | `/routers/:id/vouchers/generate` | Generate batch voucher |
-| POST | `/routers/:id/vouchers/sales` | Catat penjualan |
-| GET | `/routers/:id/vouchers/print-data` | Data untuk cetak voucher |
+| POST | `/routers/:id/vouchers/generate` | Generate batch vouchers |
+| POST | `/routers/:id/vouchers/sales` | Record sale |
+| GET | `/routers/:id/vouchers/print-data` | Data for printing vouchers |
 
-### Report
+### Reports
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/routers/:id/reports/daily` | Laporan harian |
-| GET | `/routers/:id/reports/monthly` | Laporan bulanan |
-| GET | `/routers/:id/reports/resume` | Resume |
+| GET | `/routers/:id/reports/daily` | Daily report |
+| GET | `/routers/:id/reports/monthly` | Monthly report |
+| GET | `/routers/:id/reports/resume` | Sales resume |
 | GET | `/routers/:id/reports/summary` | Dashboard summary |
-| GET | `/routers/:id/reports/export/csv` | Export CSV |
-| GET | `/routers/:id/reports/export/excel` | Export Excel |
+| GET | `/routers/:id/reports/export/csv` | Export as CSV |
+| GET | `/routers/:id/reports/export/excel` | Export as Excel |
 
-### Quick Print & Template
+### Quick Print & Templates
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
 | GET/POST/PUT/DELETE | `/routers/:id/quick-print` | Quick print packages |
-| GET/POST/PUT/DELETE | `/routers/:id/templates` | Template voucher |
+| GET/POST/PUT/DELETE | `/routers/:id/templates` | Voucher templates |
 | POST | `/routers/:id/templates/render` | Render template |
 
 ### SSE (Server-Sent Events)
 
 | Path | Data |
 |---|---|
-| `/routers/:id/sse/hotspot/users` | Perubahan user hotspot real-time |
-| `/routers/:id/sse/hotspot/active` | Sesi aktif real-time |
-| `/routers/:id/sse/system/resource` | CPU/RAM/uptime real-time |
-| `/routers/:id/sse/network/traffic/:iface` | Bandwidth interface real-time |
+| `/routers/:id/sse/hotspot/users` | Real-time hotspot user changes |
+| `/routers/:id/sse/hotspot/active` | Real-time active sessions |
+| `/routers/:id/sse/system/resource` | Real-time CPU/RAM/uptime |
+| `/routers/:id/sse/network/traffic/:iface` | Real-time interface bandwidth |
 | `/routers/:id/logs/stream/all` | System log stream |
-| `/routers/:id/logs/stream/hotspot` | Log hotspot stream |
-| `/routers/:id/logs/stream/ppp` | Log PPP stream |
+| `/routers/:id/logs/stream/hotspot` | Hotspot log stream |
+| `/routers/:id/logs/stream/ppp` | PPP log stream |
 
-### Events (Webhook RouterOS)
+### Events (RouterOS Webhooks)
 
-| Method | Path | Deskripsi |
+| Method | Path | Description |
 |---|---|---|
-| POST | `/events/on-login` | Hook on-login dari RouterOS |
-| GET | `/events/health` | Health check |
+| POST | `/events/on-login` | RouterOS on-login webhook |
+| GET | `/events/health` | Webhook health check |
 
 ---
 
 ## Makefile
 
 ```bash
-make build              # Build semua binary (api, migrate, worker) ke bin/
-make run                # Build & jalankan API server
-make test               # go test -race ./...
-make migrate-up         # Jalankan schema migration (binary lokal)
-make migrate-import     # Import config.php: CONFIG_FILE=/path/to/config.php
-make sync-profiles      # Sinkronisasi profil dari router ke database
-make docker-up          # Build & jalankan dev stack
-make docker-down        # Stop stack
-make docker-logs        # Tail log container api
-make docker-clean       # Stop + hapus volumes
-make migrate-up-docker  # Migration di dalam container
-make curl-health        # Cek health endpoint
-make curl-setup         # Buat admin pertama via curl
-make curl-login         # Login via curl
+make build              # Build all binaries (api, migrate, worker) to bin/
+make run                # Build & run API server
+make test               # Run Go tests: go test -race ./...
+make migrate-up         # Run schema migration (local binary)
+make migrate-import     # Import legacy config: CONFIG_FILE=/path/to/config.php
+make sync-profiles      # Sync profiles from router to DB
+make docker-up          # Build & run Docker stack
+make docker-down        # Stop Docker stack
+make docker-logs        # Tail API container logs
+make docker-clean       # Stop stack & remove volumes
+make migrate-up-docker  # Run schema migration inside container
+make curl-health        # Check health endpoint
+make curl-setup         # Create initial admin via cURL
+make curl-login         # Login via cURL
 ```
 
 ---
@@ -397,10 +241,10 @@ make curl-login         # Login via curl
 ## Testing
 
 ```bash
-# Unit & integration tests Go
+# Go unit & integration tests
 make test
 
-# Integration tests HTTP (butuh router aktif)
+# HTTP Integration tests (requires active router)
 TEST_PASSWORD=admin1234 \
 ROUTER_ID=1 \
 ROUTER_IP=192.168.1.1 \
