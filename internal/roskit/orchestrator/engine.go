@@ -121,10 +121,7 @@ func (e *Engine) RemoveRouter(routerID string) {
 		delete(e.pollCancels, routerID)
 	}
 	e.mu.Unlock()
-	// Unregister runs async: Close() can block if a poll/health goroutine holds
-	// the connection read lock during a network operation. Cancelling the workers
-	// above is sufficient to stop activity; the TCP teardown can happen in the bg.
-	go e.pool.Unregister(routerID)
+	e.pool.Unregister(routerID)
 }
 
 func (e *Engine) Start(ctx context.Context) {
@@ -136,7 +133,17 @@ func (e *Engine) Start(ctx context.Context) {
 
 	go func() {
 		for routerID := range e.pool.Status() {
-			e.startRouterWorkers(ctx, routerID)
+			rid := routerID
+			go func() {
+				waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+				if err := e.pool.WaitConnected(waitCtx, rid); err != nil {
+					e.logger.Warn("engine: skipping workers for router (not connected)",
+						"router_id", rid, "err", err)
+					return
+				}
+				e.startRouterWorkers(ctx, rid)
+			}()
 		}
 	}()
 }

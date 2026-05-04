@@ -34,22 +34,37 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 		"path", meta.Path,
 	)
 
-	for {
+	for attempt := 0; ; attempt++ {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
 		}
 
+		state := w.pool.RouterState(routerID)
+		if state == execution.ConnStateAuthFailed {
+			w.logger.Info("stream worker stopping: router auth failed",
+				"router_id", routerID,
+				"measurement", meta.Measurement,
+			)
+			return nil
+		}
+
 		if err := w.acquireAndStream(ctx, routerID, meta); err != nil {
-			w.logger.Error("stream session ended",
+			w.logger.Warn("stream session ended",
 				"router_id", routerID,
 				"measurement", meta.Measurement,
 				"error", err,
+				"attempt", attempt+1,
 			)
 
+			delay := 5 * time.Second << uint(attempt)
+			if delay > 30*time.Second {
+				delay = 30 * time.Second
+			}
+
 			select {
-			case <-time.After(5 * time.Second):
+			case <-time.After(delay):
 			case <-ctx.Done():
 				return nil
 			}

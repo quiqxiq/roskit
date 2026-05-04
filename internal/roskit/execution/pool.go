@@ -213,7 +213,8 @@ func (p *Pool) Start(ctx context.Context) {
 	p.mu.Unlock()
 
 	for _, conn := range conns {
-		go conn.ConnectWithBackoff(ctx) //nolint:errcheck
+		go conn.client.ConnectWithBackoff(ctx) //nolint:errcheck
+		go conn.stream.ConnectWithBackoff(ctx) //nolint:errcheck
 		go p.healthLoop(healthCtx, conn)
 	}
 }
@@ -270,6 +271,18 @@ func (p *Pool) Status() map[string]ConnState {
 	return out
 }
 
+// RouterState returns the connection state for a single router.
+// Returns ConnStateDisconnected if the router is not registered.
+func (p *Pool) RouterState(routerID string) ConnState {
+	p.mu.RLock()
+	conn := p.conns[routerID]
+	p.mu.RUnlock()
+	if conn == nil {
+		return ConnStateDisconnected
+	}
+	return conn.State()
+}
+
 // BorrowAsync returns the persistent stream connection for the given router.
 // All stream workers share this single connection via tag-multiplexing.
 // Unlike the old implementation, this NEVER creates a new TCP connection —
@@ -298,19 +311,26 @@ func (p *Pool) LaunchOne(routerID string) {
 	if appCtx == nil || conn == nil {
 		return
 	}
-	go conn.ConnectWithBackoff(appCtx) //nolint:errcheck
+	go conn.client.ConnectWithBackoff(appCtx) //nolint:errcheck
+	go conn.stream.ConnectWithBackoff(appCtx) //nolint:errcheck
 	go p.healthLoop(healthCtx, conn)
 }
 
-// WaitConnected blocks until routerID reaches ConnStateConnected or ctx is
-// cancelled. Returns ctx.Err() on cancellation.
+// WaitConnected blocks until routerID reaches ConnStateConnected, or returns
+// early with ErrAuthFailed if authentication permanently failed.
+// Returns ctx.Err() on cancellation.
 func (p *Pool) WaitConnected(ctx context.Context, routerID string) error {
 	for {
 		p.mu.RLock()
 		conn := p.conns[routerID]
 		p.mu.RUnlock()
-		if conn != nil && conn.State() == ConnStateConnected {
-			return nil
+		if conn != nil {
+			switch conn.State() {
+			case ConnStateConnected:
+				return nil
+			case ConnStateAuthFailed:
+				return ErrAuthFailed
+			}
 		}
 		select {
 		case <-ctx.Done():
