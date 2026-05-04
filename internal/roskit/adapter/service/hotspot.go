@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 )
 
@@ -232,17 +231,6 @@ func (b *Bridge) DisableIPBinding(ctx context.Context, routerID, id string) erro
 }
 
 func (b *Bridge) ListInactiveHotspotUsers(ctx context.Context, routerID string) ([]map[string]string, error) {
-	if b.cache != nil {
-		key := fmt.Sprintf("roskit:%s:hotspot_inactive", routerID)
-		data, err := b.cache.GetSnapshot(ctx, key)
-		if err == nil && data != nil && data["list"] != "" {
-			var list []map[string]string
-			if err := json.Unmarshal([]byte(data["list"]), &list); err == nil {
-				return list, nil
-			}
-		}
-	}
-
 	allUsers, err := b.ListHotspotUsers(ctx, routerID, "")
 	if err != nil {
 		return nil, err

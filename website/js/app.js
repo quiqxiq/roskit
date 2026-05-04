@@ -16,11 +16,13 @@ document.getElementById('logout-btn').addEventListener('click', () => AuthAPI.lo
 
 /* ── Routing (tab nav) ─────────────────────────────────────────────── */
 const TITLES = {
-  'dashboard':      'Dashboard',
-  'hotspot-users':  'Hotspot › Users',
-  'hotspot-active': 'Hotspot › Active',
-  'ppp-secrets':    'PPP › Secrets',
-  'ppp-active':     'PPP › Active Sessions',
+  'dashboard':        'Dashboard',
+  'hotspot-users':    'Hotspot › Users',
+  'hotspot-active':   'Hotspot › Active',
+  'hotspot-inactive': 'Hotspot › Inactive',
+  'ppp-secrets':      'PPP › Secrets',
+  'ppp-active':       'PPP › Active Sessions',
+  'ppp-inactive':     'PPP › Inactive Secrets',
 };
 
 document.querySelectorAll('.nav-item[data-view]').forEach(el => {
@@ -40,11 +42,13 @@ function navigate(view) {
 
 function onViewEnter(view) {
   if (!currentRouterId) return;
-  if (view === 'dashboard')      loadDashboard();
-  if (view === 'hotspot-users')  loadHotspotUsers();
-  if (view === 'hotspot-active') loadHotspotActive();
-  if (view === 'ppp-secrets')    loadPPPSecrets();
-  if (view === 'ppp-active')     loadPPPActive();
+  if (view === 'dashboard')        loadDashboard();
+  if (view === 'hotspot-users')    loadHotspotUsers();
+  if (view === 'hotspot-active')   loadHotspotActive();
+  if (view === 'hotspot-inactive') loadHotspotInactive();
+  if (view === 'ppp-secrets')      loadPPPSecrets();
+  if (view === 'ppp-active')       loadPPPActive();
+  if (view === 'ppp-inactive')     loadPPPInactive();
 }
 
 /* ── Router select ─────────────────────────────────────────────────── */
@@ -85,6 +89,8 @@ function selectRouter(id, label) {
   startLogStream(id);
   // Start SSE resource monitor
   startResourceSSE(id);
+  // Start Inactive count monitors
+  startInactiveCountSSE(id);
 
   // Re-load current view
   const activeNav = document.querySelector('.nav-item.active');
@@ -106,17 +112,26 @@ async function loadDashboard() {
     }
 
     // Counts via list length (small routers, acceptable)
-    const [hsUsers, hsActive, pppSecrets, pppActive] = await Promise.all([
+    const [hsUsers, hsActive, pppSecrets, pppActive, hsInactiveCnt, pppInactiveCnt] = await Promise.all([
       Hotspot.users(currentRouterId).catch(() => null),
       Hotspot.active(currentRouterId).catch(() => null),
       PPP.secrets(currentRouterId).catch(() => null),
       PPP.active(currentRouterId).catch(() => null),
+      Hotspot.inactiveCount(currentRouterId).catch(() => ({count: 0})),
+      PPP.inactiveCount(currentRouterId).catch(() => ({count: 0})),
     ]);
 
     setText('stat-hs-users',   Array.isArray(hsUsers)    ? hsUsers.length    : '—');
     setText('stat-hs-active',  Array.isArray(hsActive)   ? hsActive.length   : '—');
     setText('stat-ppp-secrets',Array.isArray(pppSecrets) ? pppSecrets.length : '—');
     setText('stat-ppp-active', Array.isArray(pppActive)  ? pppActive.length  : '—');
+    
+    setText('stat-hs-inactive',  hsInactiveCnt ? hsInactiveCnt.count : '—');
+    setText('stat-ppp-inactive', pppInactiveCnt ? pppInactiveCnt.count : '—');
+    setText('nav-hs-inactive',   hsInactiveCnt ? hsInactiveCnt.count : '');
+    setText('nav-ppp-inactive',  pppInactiveCnt ? pppInactiveCnt.count : '');
+    setText('nav-hs-active',     Array.isArray(hsActive) ? hsActive.length : '');
+    setText('nav-ppp-active',    Array.isArray(pppActive) ? pppActive.length : '');
   } catch (err) { console.error('Dashboard error', err); }
 }
 
@@ -148,6 +163,30 @@ function startResourceSSE(routerId) {
     }
   });
   sseUnsubs.push(unsub);
+}
+
+function startInactiveCountSSE(routerId) {
+  const unsubHs = SSE.subscribe(routerId, 'hotspot/inactive', (data) => {
+    const fields = data.fields || data;
+    if (fields.count !== undefined) {
+      setText('stat-hs-inactive', fields.count);
+      setText('nav-hs-inactive', fields.count);
+      if (document.getElementById('view-hotspot-inactive').classList.contains('active')) {
+        loadHotspotInactive();
+      }
+    }
+  });
+  const unsubPpp = SSE.subscribe(routerId, 'ppp/inactive', (data) => {
+    const fields = data.fields || data;
+    if (fields.count !== undefined) {
+      setText('stat-ppp-inactive', fields.count);
+      setText('nav-ppp-inactive', fields.count);
+      if (document.getElementById('view-ppp-inactive').classList.contains('active')) {
+        loadPPPInactive();
+      }
+    }
+  });
+  sseUnsubs.push(unsubHs, unsubPpp);
 }
 
 /* ── Log stream ────────────────────────────────────────────────────── */
@@ -308,6 +347,8 @@ async function loadHotspotActive() {
         else _hsActive.push(fields);
       }
       renderHotspotActive(_hsActive);
+      setText('stat-hs-active', _hsActive.length);
+      setText('nav-hs-active', _hsActive.length);
     });
     sseUnsubs.push(unsub);
   } catch (err) {
@@ -344,6 +385,38 @@ function disconnectHotspot(id, user) {
     await Hotspot.disconnect(currentRouterId, id);
     await loadHotspotActive();
   });
+}
+
+/* ── Hotspot Inactive ──────────────────────────────────────────────── */
+async function loadHotspotInactive() {
+  const tbody = document.getElementById('hs-inactive-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:20px">Loading…</td></tr>';
+  try {
+    const inactive = await Hotspot.inactive(currentRouterId) || [];
+    renderHotspotInactive(inactive);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--red);padding:14px">${err.message}</td></tr>`;
+  }
+}
+
+function renderHotspotInactive(users) {
+  const tbody = document.getElementById('hs-inactive-tbody');
+  const empty = document.getElementById('hs-inactive-empty');
+
+  if (!users.length) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = users.map(u => `<tr>
+    <td>${escapeHtml(u.name || '—')}</td>
+    <td>${escapeHtml(u.profile || '—')}</td>
+    <td>${escapeHtml(u.server || '—')}</td>
+    <td>${escapeHtml(u['limit-uptime'] || '—')}</td>
+    <td>${formatBytes(u['bytes-out'] ?? 0)}</td>
+  </tr>`).join('');
 }
 
 /* ── PPP Secrets ───────────────────────────────────────────────────── */
@@ -477,6 +550,8 @@ async function loadPPPActive() {
         else _pppActive.push(fields);
       }
       renderPPPActive(_pppActive);
+      setText('stat-ppp-active', _pppActive.length);
+      setText('nav-ppp-active', _pppActive.length);
     });
     sseUnsubs.push(unsub);
   } catch (err) {
@@ -512,6 +587,38 @@ function disconnectPPP(id, name) {
     await PPP.disconnect(currentRouterId, id);
     await loadPPPActive();
   });
+}
+
+/* ── PPP Inactive ──────────────────────────────────────────────────── */
+async function loadPPPInactive() {
+  const tbody = document.getElementById('ppp-inactive-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:20px">Loading…</td></tr>';
+  try {
+    const inactive = await PPP.inactive(currentRouterId) || [];
+    renderPPPInactive(inactive);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--red);padding:14px">${err.message}</td></tr>`;
+  }
+}
+
+function renderPPPInactive(secrets) {
+  const tbody = document.getElementById('ppp-inactive-tbody');
+  const empty = document.getElementById('ppp-inactive-empty');
+
+  if (!secrets.length) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = secrets.map(s => `<tr>
+    <td>${escapeHtml(s.name || '—')}</td>
+    <td>${escapeHtml(s.service || '—')}</td>
+    <td>${escapeHtml(s.profile || '—')}</td>
+    <td>${escapeHtml(s['local-address'] || s['client-address'] || '—')}</td>
+    <td>${escapeHtml(s['remote-address'] || '—')}</td>
+  </tr>`).join('');
 }
 
 /* ── Modal ─────────────────────────────────────────────────────────── */

@@ -13,17 +13,37 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
 
+const aggregatorCacheTTL = 10 * time.Minute
+const aggregatorDebounce = 100 * time.Millisecond
+
+type routerAggState struct {
+	pppSecrets     map[string]struct{}
+	pppActives     map[string]struct{}
+	hotspotUsers   map[string]struct{}
+	hotspotActives map[string]struct{}
+
+	pppDirty     bool
+	hotspotDirty bool
+	pppTimer     *time.Timer
+	hotspotTimer *time.Timer
+}
+
+func newRouterAggState() *routerAggState {
+	return &routerAggState{
+		pppSecrets:     make(map[string]struct{}),
+		pppActives:     make(map[string]struct{}),
+		hotspotUsers:   make(map[string]struct{}),
+		hotspotActives: make(map[string]struct{}),
+	}
+}
+
 type InactiveAggregator struct {
-	cache    cache.Repository
-	pubsub   pubsub.Publisher
-	logger   *slog.Logger
+	cache  cache.Repository
+	pubsub pubsub.Publisher
+	logger *slog.Logger
 
-	mu sync.RWMutex
-
-	pppSecrets     map[string]map[string]map[string]string
-	pppActives     map[string]map[string]struct{}
-	hotspotUsers   map[string]map[string]map[string]string
-	hotspotActives map[string]map[string]struct{}
+	mu      sync.Mutex
+	routers map[string]*routerAggState
 }
 
 func NewInactiveAggregator(
@@ -35,123 +55,142 @@ func NewInactiveAggregator(
 		logger = slog.Default()
 	}
 	return &InactiveAggregator{
-		cache:          c,
-		pubsub:         ps,
-		logger:         logger,
-		pppSecrets:     make(map[string]map[string]map[string]string),
-		pppActives:     make(map[string]map[string]struct{}),
-		hotspotUsers:   make(map[string]map[string]map[string]string),
-		hotspotActives: make(map[string]map[string]struct{}),
+		cache:   c,
+		pubsub:  ps,
+		logger:  logger,
+		routers: make(map[string]*routerAggState),
 	}
 }
 
 func (a *InactiveAggregator) OnEvent(ctx context.Context, event behavior.StreamEvent) error {
 	a.mu.Lock()
-	a.ensureRouter(event.RouterID)
+	defer a.mu.Unlock()
 
-	var changed bool
-	var category string
+	s := a.ensureRouter(event.RouterID)
 
 	switch event.Meta.Measurement {
 	case "ppp_secret":
 		name := event.Fields["name"]
-		if event.IsDead {
-			delete(a.pppSecrets[event.RouterID], name)
-		} else {
-			a.pppSecrets[event.RouterID][name] = event.Fields
+		if name == "" {
+			return nil
 		}
-		category = "ppp"
-		changed = true
+		if event.IsDead {
+			delete(s.pppSecrets, name)
+		} else {
+			s.pppSecrets[name] = struct{}{}
+		}
+		a.schedulePPP(ctx, event.RouterID, s)
 
 	case "ppp_active":
 		name := event.Fields["name"]
-		if event.IsDead {
-			delete(a.pppActives[event.RouterID], name)
-		} else {
-			a.pppActives[event.RouterID][name] = struct{}{}
+		if name == "" {
+			return nil
 		}
-		category = "ppp"
-		changed = true
+		if event.IsDead {
+			delete(s.pppActives, name)
+		} else {
+			s.pppActives[name] = struct{}{}
+		}
+		a.schedulePPP(ctx, event.RouterID, s)
 
 	case "hotspot_user":
 		name := event.Fields["name"]
-		if event.IsDead {
-			delete(a.hotspotUsers[event.RouterID], name)
-		} else {
-			a.hotspotUsers[event.RouterID][name] = event.Fields
+		if name == "" {
+			return nil
 		}
-		category = "hotspot"
-		changed = true
+		if event.IsDead {
+			delete(s.hotspotUsers, name)
+		} else {
+			s.hotspotUsers[name] = struct{}{}
+		}
+		a.scheduleHotspot(ctx, event.RouterID, s)
 
 	case "hotspot_active":
 		user := event.Fields["user"]
-		if event.IsDead {
-			delete(a.hotspotActives[event.RouterID], user)
-		} else {
-			a.hotspotActives[event.RouterID][user] = struct{}{}
+		if user == "" {
+			return nil
 		}
-		category = "hotspot"
-		changed = true
-	}
-	a.mu.Unlock()
-
-	if changed {
-		go a.recalculateAndCache(context.Background(), event.RouterID, category)
+		if event.IsDead {
+			delete(s.hotspotActives, user)
+		} else {
+			s.hotspotActives[user] = struct{}{}
+		}
+		a.scheduleHotspot(ctx, event.RouterID, s)
 	}
 
 	return nil
 }
 
-func (a *InactiveAggregator) ensureRouter(routerID string) {
-	if a.pppSecrets[routerID] == nil {
-		a.pppSecrets[routerID] = make(map[string]map[string]string)
-		a.pppActives[routerID] = make(map[string]struct{})
-		a.hotspotUsers[routerID] = make(map[string]map[string]string)
-		a.hotspotActives[routerID] = make(map[string]struct{})
+func (a *InactiveAggregator) schedulePPP(ctx context.Context, routerID string, s *routerAggState) {
+	if s.pppTimer != nil {
+		s.pppTimer.Stop()
 	}
+	s.pppTimer = time.AfterFunc(aggregatorDebounce, func() {
+		a.recalculate(ctx, routerID, "ppp")
+	})
 }
 
-func (a *InactiveAggregator) recalculateAndCache(ctx context.Context, routerID, category string) {
-	a.mu.RLock()
-	var totals map[string]map[string]string
-	var actives map[string]struct{}
+func (a *InactiveAggregator) scheduleHotspot(ctx context.Context, routerID string, s *routerAggState) {
+	if s.hotspotTimer != nil {
+		s.hotspotTimer.Stop()
+	}
+	s.hotspotTimer = time.AfterFunc(aggregatorDebounce, func() {
+		a.recalculate(ctx, routerID, "hotspot")
+	})
+}
+
+func (a *InactiveAggregator) ensureRouter(routerID string) *routerAggState {
+	if a.routers[routerID] == nil {
+		a.routers[routerID] = newRouterAggState()
+	}
+	return a.routers[routerID]
+}
+
+func (a *InactiveAggregator) recalculate(ctx context.Context, routerID, category string) {
+	a.mu.Lock()
+	s := a.routers[routerID]
+	if s == nil {
+		a.mu.Unlock()
+		return
+	}
+
+	var inactiveNames []string
 	var key string
 
 	switch category {
 	case "ppp":
-		totals = a.pppSecrets[routerID]
-		actives = a.pppActives[routerID]
 		key = fmt.Sprintf("roskit:%s:ppp_inactive", routerID)
+		for name := range s.pppSecrets {
+			if _, active := s.pppActives[name]; !active {
+				inactiveNames = append(inactiveNames, name)
+			}
+		}
 	case "hotspot":
-		totals = a.hotspotUsers[routerID]
-		actives = a.hotspotActives[routerID]
 		key = fmt.Sprintf("roskit:%s:hotspot_inactive", routerID)
+		for name := range s.hotspotUsers {
+			if _, active := s.hotspotActives[name]; !active {
+				inactiveNames = append(inactiveNames, name)
+			}
+		}
 	default:
-		a.mu.RUnlock()
+		a.mu.Unlock()
 		return
 	}
+	a.mu.Unlock()
 
-	var payload []map[string]string
-	for username, data := range totals {
-		if _, isActive := actives[username]; !isActive {
-			payload = append(payload, data)
-		}
-	}
-	a.mu.RUnlock()
-
-	jsonPayload, _ := json.Marshal(payload)
+	jsonPayload, _ := json.Marshal(inactiveNames)
 	finalData := map[string]string{
-		"list":      string(jsonPayload),
-		"count":     fmt.Sprintf("%d", len(payload)),
+		"names":     string(jsonPayload),
+		"count":     fmt.Sprintf("%d", len(inactiveNames)),
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
-	if err := a.cache.SetSnapshot(ctx, key, finalData, 0); err != nil {
+	if err := a.cache.SetSnapshot(ctx, key, finalData, aggregatorCacheTTL); err != nil {
 		a.logger.Error("aggregator: cache write failed",
 			"category", category, "router_id", routerID, "err", err)
 	} else {
 		a.logger.Debug("aggregator: inactive recalculated",
-			"category", category, "router_id", routerID, "count", len(payload))
+			"category", category, "router_id", routerID, "count", len(inactiveNames))
 	}
 
 	channel := cache.FormatPubSubChannel(routerID)
@@ -160,37 +199,41 @@ func (a *InactiveAggregator) recalculateAndCache(ctx context.Context, routerID, 
 		RouterID:    routerID,
 		Measurement: category + "_inactive",
 		Fields: map[string]string{
-			"count": fmt.Sprintf("%d", len(payload)),
+			"count": fmt.Sprintf("%d", len(inactiveNames)),
 		},
 		Timestamp: time.Now(),
 	})
 }
 
-func (a *InactiveAggregator) GetInactiveHotspotUsers(routerID string) []map[string]string {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+func (a *InactiveAggregator) GetInactiveHotspotUsers(routerID string) []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	users := a.hotspotUsers[routerID]
-	actives := a.hotspotActives[routerID]
-	var inactive []map[string]string
-	for name, data := range users {
-		if _, isActive := actives[name]; !isActive {
-			inactive = append(inactive, data)
+	s := a.routers[routerID]
+	if s == nil {
+		return nil
+	}
+	var inactive []string
+	for name := range s.hotspotUsers {
+		if _, active := s.hotspotActives[name]; !active {
+			inactive = append(inactive, name)
 		}
 	}
 	return inactive
 }
 
-func (a *InactiveAggregator) GetInactivePPPSecrets(routerID string) []map[string]string {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+func (a *InactiveAggregator) GetInactivePPPSecrets(routerID string) []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	secrets := a.pppSecrets[routerID]
-	actives := a.pppActives[routerID]
-	var inactive []map[string]string
-	for name, data := range secrets {
-		if _, isActive := actives[name]; !isActive {
-			inactive = append(inactive, data)
+	s := a.routers[routerID]
+	if s == nil {
+		return nil
+	}
+	var inactive []string
+	for name := range s.pppSecrets {
+		if _, active := s.pppActives[name]; !active {
+			inactive = append(inactive, name)
 		}
 	}
 	return inactive

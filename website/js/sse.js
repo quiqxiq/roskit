@@ -35,8 +35,10 @@ class SSEManager {
     const pathMap = {
       'hotspot/users':   `/routers/${routerId}/sse/hotspot/users`,
       'hotspot/active':  `/routers/${routerId}/sse/hotspot/active`,
+      'hotspot/inactive':`/routers/${routerId}/sse/hotspot/inactive`,
       'ppp/secrets':     `/routers/${routerId}/sse/ppp/secrets`,
       'ppp/active':      `/routers/${routerId}/sse/ppp/active`,
+      'ppp/inactive':    `/routers/${routerId}/sse/ppp/inactive`,
       'system/resource': `/routers/${routerId}/sse/system/resource`,
       'logs/all':        `/routers/${routerId}/logs/stream/all`,
       'logs/hotspot':    `/routers/${routerId}/logs/stream/hotspot`,

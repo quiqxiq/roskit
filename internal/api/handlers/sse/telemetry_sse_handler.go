@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
+
+const sseKeepAliveInterval = 30 * time.Second
 
 type TelemetrySSEHandler struct {
 	sub pubsub.Subscriber
@@ -49,8 +52,20 @@ func (h *TelemetrySSEHandler) Stream(measurement string) gin.HandlerFunc {
 		fmt.Fprintf(c.Writer, ": connected to %s telemetry stream\n\n", measurement)
 		c.Writer.Flush()
 
+		keepAlive := time.NewTicker(sseKeepAliveInterval)
+		defer keepAlive.Stop()
+
 		for {
 			select {
+			case <-ctx.Done():
+				return
+
+			case <-keepAlive.C:
+				if _, err := fmt.Fprintf(c.Writer, ": keep-alive\n\n"); err != nil {
+					return
+				}
+				c.Writer.Flush()
+
 			case msg, ok := <-msgCh:
 				if !ok {
 					return
@@ -73,11 +88,10 @@ func (h *TelemetrySSEHandler) Stream(measurement string) gin.HandlerFunc {
 					continue
 				}
 
-				fmt.Fprintf(c.Writer, "data: %s\n\n", string(msg.Payload))
+				if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(msg.Payload)); err != nil {
+					return
+				}
 				c.Writer.Flush()
-
-			case <-ctx.Done():
-				return
 			}
 		}
 	}

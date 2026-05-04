@@ -65,17 +65,28 @@ func (h *LogSSEHandler) stream(c *gin.Context, filter string) {
 
 	h.sendInitialDump(c, fmt.Sprintf("%d", routerID), filter)
 
+	keepAlive := time.NewTicker(sseKeepAliveInterval)
+	defer keepAlive.Stop()
+
 	for {
 		select {
+		case <-ctx.Done():
+			return
+
+		case <-keepAlive.C:
+			if _, err := fmt.Fprintf(c.Writer, ": keep-alive\n\n"); err != nil {
+				return
+			}
+			c.Writer.Flush()
+
 		case msg, ok := <-msgCh:
 			if !ok {
 				return
 			}
-			fmt.Fprintf(c.Writer, "data: %s\n\n", string(msg.Payload))
+			if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(msg.Payload)); err != nil {
+				return
+			}
 			c.Writer.Flush()
-
-		case <-ctx.Done():
-			return
 		}
 	}
 }

@@ -79,6 +79,8 @@ const Hotspot = {
   deleteUser:   (rid, id)     => del(`/routers/${rid}/hotspot/users/${id}`),
   active:       (rid)         => get(`/routers/${rid}/hotspot/active`),
   disconnect:   (rid, id)     => post(`/routers/${rid}/hotspot/active/${id}/disconnect`, {}),
+  inactive:     (rid)         => get(`/routers/${rid}/hotspot/inactive`),
+  inactiveCount:(rid)         => get(`/routers/${rid}/hotspot/inactive/count`),
 };
 
 /* PPP */
@@ -90,6 +92,8 @@ const PPP = {
   active:       (rid)         => get(`/routers/${rid}/ppp/active`),
   disconnect:   (rid, id)     => del(`/routers/${rid}/ppp/active/${id}`),
   profiles:     (rid)         => get(`/routers/${rid}/ppp/profiles`),
+  inactive:     (rid)         => get(`/routers/${rid}/ppp/inactive`),
+  inactiveCount:(rid)         => get(`/routers/${rid}/ppp/inactive/count`),
 };
 
 /* System */

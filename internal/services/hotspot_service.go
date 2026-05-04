@@ -119,6 +119,14 @@ func (s *HotspotService) GetUserCount(ctx context.Context, routerID uint, profil
 	return s.bridge.GetHotspotUserCount(ctx, routerIDStr(routerID))
 }
 
+func (s *HotspotService) ListInactiveHotspotUsers(ctx context.Context, routerID string) ([]map[string]string, error) {
+	return s.bridge.ListInactiveHotspotUsers(ctx, routerID)
+}
+
+func (s *HotspotService) GetInactiveHotspotUserCount(ctx context.Context, routerID string) (int, error) {
+	return s.bridge.GetInactiveHotspotUserCount(ctx, routerID)
+}
+
 func (s *HotspotService) AddUser(ctx context.Context, routerID uint, params map[string]string) (map[string]string, error) {
 	_, err := s.bridge.AddHotspotUser(ctx, routerIDStr(routerID), params)
 	if err != nil {

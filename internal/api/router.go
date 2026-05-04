@@ -137,6 +137,9 @@ func NewRouter(
 				hotspots.DELETE("/active/:id", hotspotH.RemoveActive)
 				hotspots.POST("/active/:id/disconnect", hotspotH.DisconnectUser)
 
+				hotspots.GET("/inactive", hotspotH.ListInactive)
+				hotspots.GET("/inactive/count", hotspotH.GetInactiveCount)
+
 				hotspots.GET("/hosts", hotspotH.ListHosts)
 				hotspots.DELETE("/hosts/:id", hotspotH.RemoveHost)
 
@@ -216,6 +219,8 @@ func NewRouter(
 				ppp.DELETE("/secrets/:id", pppH.RemoveSecret)
 				ppp.GET("/active", pppH.ListActive)
 				ppp.DELETE("/active/:id", pppH.DisconnectActive)
+				ppp.GET("/inactive", pppH.ListInactive)
+				ppp.GET("/inactive/count", pppH.GetInactiveCount)
 				ppp.GET("/profiles", pppH.ListProfiles)
 			}
 

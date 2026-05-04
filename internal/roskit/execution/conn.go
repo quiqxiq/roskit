@@ -98,7 +98,11 @@ func (pc *PersistentConn) ConnectWithBackoff(ctx context.Context) error {
 			return ErrAuthFailed
 		}
 
-		delay := reconnectBaseDelay * time.Duration(1<<uint(attempt))
+		shift := attempt
+		if shift > 5 {
+			shift = 5
+		}
+		delay := reconnectBaseDelay * time.Duration(1<<uint(shift))
 		if delay > reconnectMaxDelay {
 			delay = reconnectMaxDelay
 		}

@@ -33,7 +33,7 @@ func (w *LogWorker) Start(ctx context.Context, routerID, filter string, interval
 	w.logger.Info("log worker starting",
 		"router_id", routerID, "filter", filter, "interval", interval)
 
-	var lastCount int
+	var lastID string
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -50,17 +50,16 @@ func (w *LogWorker) Start(ctx context.Context, routerID, filter string, interval
 				continue
 			}
 
-			if len(rows) <= lastCount && lastCount > 0 {
+			if len(rows) == 0 {
 				continue
 			}
 
-			newStart := lastCount
-			if newStart > len(rows) {
-				newStart = 0
+			newRows, newLastID := filterNewLogs(rows, lastID)
+			if newLastID != "" {
+				lastID = newLastID
 			}
-			lastCount = len(rows)
 
-			for _, row := range rows[newStart:] {
+			for _, row := range newRows {
 				channel := cache.FormatLogChannel(routerID, filter)
 				w.pubsub.Publish(ctx, channel, pubsub.Message{
 					Type:        "log",
@@ -72,6 +71,38 @@ func (w *LogWorker) Start(ctx context.Context, routerID, filter string, interval
 			}
 		}
 	}
+}
+
+func filterNewLogs(rows []map[string]string, lastID string) ([]map[string]string, string) {
+	if lastID == "" {
+		if len(rows) > 0 {
+			return nil, rows[len(rows)-1][".id"]
+		}
+		return nil, ""
+	}
+
+	var newRows []map[string]string
+	found := false
+	for _, row := range rows {
+		if found {
+			newRows = append(newRows, row)
+		} else if row[".id"] == lastID {
+			found = true
+		}
+	}
+
+	if !found {
+		if len(rows) > 0 {
+			return nil, rows[len(rows)-1][".id"]
+		}
+		return nil, lastID
+	}
+
+	newLastID := lastID
+	if len(newRows) > 0 {
+		newLastID = newRows[len(newRows)-1][".id"]
+	}
+	return newRows, newLastID
 }
 
 func (w *LogWorker) pollLogs(ctx context.Context, routerID, filter string) ([]map[string]string, error) {
@@ -101,7 +132,7 @@ func (w *LogWorker) pollLogs(ctx context.Context, routerID, filter string) ([]ma
 		return nil, err
 	}
 
-	var results []map[string]string
+	results := make([]map[string]string, 0, len(reply.Re))
 	for _, s := range reply.Re {
 		row := make(map[string]string, len(s.Map))
 		for k, v := range s.Map {

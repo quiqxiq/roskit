@@ -147,6 +147,41 @@ func (h *HotspotHandler) ResetUserCounters(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "counters reset"}, "error": nil})
 }
 
+func (h *HotspotHandler) ListInactive(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	result, err := h.svc.ListInactiveHotspotUsers(c.Request.Context(), fmt.Sprintf("%d", routerID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list inactive hotspot users"})
+		return
+	}
+
+	if result == nil {
+		result = []map[string]string{}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
+}
+
+func (h *HotspotHandler) GetInactiveCount(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	count, err := h.svc.GetInactiveHotspotUserCount(c.Request.Context(), fmt.Sprintf("%d", routerID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get inactive hotspot user count"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": map[string]int{"count": count}, "error": nil})
+}
+
 func (h *HotspotHandler) ListProfiles(c *gin.Context) {
 	routerID, err := parseRouterID(c)
 	if err != nil {

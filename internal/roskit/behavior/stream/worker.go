@@ -58,7 +58,11 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 				"attempt", attempt+1,
 			)
 
-			delay := 5 * time.Second << uint(attempt)
+			shift := attempt
+			if shift > 5 {
+				shift = 5
+			}
+			delay := 5 * time.Second << uint(shift)
 			if delay > 30*time.Second {
 				delay = 30 * time.Second
 			}

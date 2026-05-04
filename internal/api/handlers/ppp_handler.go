@@ -133,3 +133,36 @@ func (h *PPPHandler) ListProfiles(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
 }
+
+func (h *PPPHandler) ListInactive(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+	items, err := h.bridge.ListInactivePPPSecrets(c.Request.Context(), fmt.Sprintf("%d", routerID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list inactive PPP secrets"})
+		return
+	}
+	if items == nil {
+		items = []map[string]string{}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "error": nil})
+}
+
+func (h *PPPHandler) GetInactiveCount(c *gin.Context) {
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	count, err := h.bridge.GetInactivePPPSecretCount(c.Request.Context(), fmt.Sprintf("%d", routerID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get inactive PPP count"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": map[string]int{"count": count}, "error": nil})
+}
