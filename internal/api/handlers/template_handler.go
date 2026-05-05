@@ -171,14 +171,21 @@ func (h *TemplateHandler) Render(c *gin.Context) {
 	}
 
 	logo := req.Logo
-	if logo == "" {
-		logo = routerLogoURL(routerID, router.LogoPath)
+	if logo == "" && router.HotspotConfig != nil {
+		logo = routerLogoURL(routerID, router.HotspotConfig.LogoPath)
+	}
+
+	var hotspotName, dnsName, currency string
+	if router.HotspotConfig != nil {
+		hotspotName = router.HotspotConfig.HotspotName
+		dnsName = router.HotspotConfig.DNSName
+		currency = router.HotspotConfig.Currency
 	}
 
 	params := services.RenderParams{
-		HotspotName: router.HotspotName,
-		DNSName:     router.DNSName,
-		Currency:    router.Currency,
+		HotspotName: hotspotName,
+		DNSName:     dnsName,
+		Currency:    currency,
 		Logo:        logo,
 		UserMode:    req.UserMode,
 		Profile:     req.Profile,

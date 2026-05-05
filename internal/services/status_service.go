@@ -33,8 +33,8 @@ func NewStatusService(routerRepo *repository.RouterRepo, bridge *roskitservice.B
 	}
 }
 
-func (s *StatusService) GetUserStatus(ctx context.Context, sessionName string, mac string) (*UserStatus, error) {
-	router, err := s.routerRepo.GetBySessionName(ctx, sessionName)
+func (s *StatusService) GetUserStatus(ctx context.Context, routerName string, mac string) (*UserStatus, error) {
+	router, err := s.routerRepo.GetByName(ctx, routerName)
 	if err != nil {
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
