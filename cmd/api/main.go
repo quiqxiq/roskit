@@ -165,6 +165,8 @@ func main() {
 
 	engine.Start(ctx)
 
+	go routerSvc.WatchAndSyncStatus(ctx)
+
 	saleRepo := repository.NewSaleRepo(db)
 	profileRepo := repository.NewProfilePriceMappingRepo(db)
 

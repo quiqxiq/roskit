@@ -13,27 +13,30 @@ import (
 )
 
 var sampleRouters = []struct {
-	SessionName string
-	IP          string
-	Username    string
+	Name        string
+	IPAddress   string
+	APIPort     int
+	APIUsername string
 	Password    string
 	HotspotName string
 	DNSName     string
 	Currency    string
 }{
 	{
-		SessionName: "router-alpha",
-		IP:          "192.168.233.1",
-		Username:    "admin",
+		Name:        "router-alpha",
+		IPAddress:   "192.168.233.1",
+		APIPort:     8728,
+		APIUsername: "admin",
 		Password:    "",
 		HotspotName: "Alpha Hotspot",
 		DNSName:     "alpha.local",
 		Currency:    "Rp",
 	},
 	{
-		SessionName: "router-beta",
-		IP:          "192.168.230.2",
-		Username:    "admin",
+		Name:        "router-beta",
+		IPAddress:   "192.168.230.2",
+		APIPort:     8728,
+		APIUsername: "admin",
 		Password:    "",
 		HotspotName: "Beta Hotspot",
 		DNSName:     "beta.local",
@@ -52,53 +55,68 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	if err := database.AutoMigrate(db); err != nil {
-		log.Fatalf("migration failed: %v", err)
-	}
-
 	ctx := context.Background()
 	seeded := 0
 
 	for _, sr := range sampleRouters {
 		var existing models.Router
 		err := db.WithContext(ctx).
-			Where("session_name = ?", sr.SessionName).
+			Where("name = ?", sr.Name).
 			First(&existing).Error
 
 		if err == nil {
-			fmt.Printf("  skip: %s (already exists, id=%d)\n", sr.SessionName, existing.ID)
+			fmt.Printf("  skip: %s (already exists, id=%d)\n", sr.Name, existing.ID)
 			continue
 		}
 		if err != gorm.ErrRecordNotFound {
-			log.Printf("  error checking %s: %v", sr.SessionName, err)
+			log.Printf("  error checking %s: %v", sr.Name, err)
 			continue
 		}
 
 		encPass, err := encrypt.Encrypt(sr.Password, cfg.AESEncKey)
 		if err != nil {
-			log.Printf("  error encrypting password for %s: %v", sr.SessionName, err)
+			log.Printf("  error encrypting password for %s: %v", sr.Name, err)
 			continue
 		}
 
-		router := &models.Router{
-			SessionName: sr.SessionName,
-			IP:          sr.IP,
-			Username:    sr.Username,
-			PasswordEnc: encPass,
-			HotspotName: sr.HotspotName,
-			DNSName:     sr.DNSName,
-			Currency:    sr.Currency,
-			IdleTimeout: "30",
-			ReportMode:  "disable",
+		port := sr.APIPort
+		if port == 0 {
+			port = 8728
 		}
 
-		if err := db.WithContext(ctx).Create(router).Error; err != nil {
-			log.Printf("  error creating %s: %v", sr.SessionName, err)
+		txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			router := &models.Router{
+				Name:                 sr.Name,
+				IPAddress:            sr.IPAddress,
+				APIPort:              port,
+				APIUsername:          sr.APIUsername,
+				APIPasswordEncrypted: encPass,
+				Status:               models.RouterStatusUnknown,
+			}
+			if err := tx.Create(router).Error; err != nil {
+				return err
+			}
+			currency := sr.Currency
+			if currency == "" {
+				currency = "Rp"
+			}
+			hotspotConfig := &models.HotspotConfig{
+				RouterID:    router.ID,
+				HotspotName: sr.HotspotName,
+				DNSName:     sr.DNSName,
+				Currency:    currency,
+				IdleTimeout: 30,
+				ReportMode:  "disable",
+			}
+			return tx.Create(hotspotConfig).Error
+		})
+		if txErr != nil {
+			log.Printf("  error creating %s: %v", sr.Name, txErr)
 			continue
 		}
 
 		seeded++
-		fmt.Printf("  created: %s (id=%d, ip=%s)\n", sr.SessionName, router.ID, sr.IP)
+		fmt.Printf("  created: %s (ip=%s)\n", sr.Name, sr.IPAddress)
 	}
 
 	fmt.Println("  ═══════ Seed Summary ═══════")
