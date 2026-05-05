@@ -127,10 +127,9 @@ func (h *RouterHandler) Delete(c *gin.Context) {
 
 func (h *RouterHandler) TestConnection(c *gin.Context) {
 	var req struct {
-		IPAddress   string `json:"ip_address"`
-		APIPort     int    `json:"api_port"`
-		APIUsername string `json:"api_username"`
-		Password    string `json:"password"`
+		IP       string `json:"ip"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -138,17 +137,12 @@ func (h *RouterHandler) TestConnection(c *gin.Context) {
 		return
 	}
 
-	if req.IPAddress == "" || req.APIUsername == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "ip_address, api_username, and password are required"})
+	if req.IP == "" || req.Username == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "ip, username, and password are required"})
 		return
 	}
 
-	port := req.APIPort
-	if port == 0 {
-		port = 8728
-	}
-
-	result, err := h.svc.TestConnection(c.Request.Context(), req.IPAddress, port, req.APIUsername, req.Password)
+	result, err := h.svc.TestConnection(c.Request.Context(), req.IP, req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "connection test failed"})
 		return

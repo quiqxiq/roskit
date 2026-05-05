@@ -38,57 +38,53 @@ func NewEventHandler(routerRepo repository.RouterRepository, saleRepo repository
 }
 
 type OnLoginPayload struct {
-	RouterName string
-	Server     string
-	Username   string
-	MAC        string
-	IP         string
-	Date       string
-	Time       string
-	Profile    string
+	RouterSession string
+	Server        string
+	Username      string
+	MAC           string
+	IP            string
+	Date          string
+	Time          string
+	Profile       string
 }
 
 func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 	payload := OnLoginPayload{
-		RouterName: c.PostForm("router_name"),
-		Server:     c.PostForm("server"),
-		Username:   c.PostForm("username"),
-		MAC:        c.PostForm("mac"),
-		IP:         c.PostForm("ip"),
-		Date:       c.PostForm("date"),
-		Time:       c.PostForm("time"),
-		Profile:    c.PostForm("profile"),
+		RouterSession: c.PostForm("router_session"),
+		Server:        c.PostForm("server"),
+		Username:      c.PostForm("username"),
+		MAC:           c.PostForm("mac"),
+		IP:            c.PostForm("ip"),
+		Date:          c.PostForm("date"),
+		Time:          c.PostForm("time"),
+		Profile:       c.PostForm("profile"),
 	}
 
-	if payload.Username == "" || payload.RouterName == "" {
+	if payload.Username == "" || payload.RouterSession == "" {
 		c.Status(http.StatusOK)
 		return
 	}
 
-	router, err := h.routerRepo.GetByName(c.Request.Context(), payload.RouterName)
+	router, err := h.routerRepo.GetBySessionName(c.Request.Context(), payload.RouterSession)
 	if err != nil {
-		h.logger.Warn("on-login: router not found", "name", payload.RouterName, "error", err)
+		h.logger.Warn("on-login: router session not found", "session", payload.RouterSession, "error", err)
 		c.Status(http.StatusOK)
 		return
 	}
 
-	if router.HotspotConfig != nil && router.HotspotConfig.WebhookToken != "" {
+	if router.Token != "" {
 		token := c.GetHeader("X-Router-Token")
 		if token == "" {
 			token = c.PostForm("token")
 		}
-		if token != router.HotspotConfig.WebhookToken {
-			h.logger.Warn("on-login: invalid token", "name", payload.RouterName)
+		if token != router.Token {
+			h.logger.Warn("on-login: invalid token", "session", payload.RouterSession)
 			c.Status(http.StatusOK)
 			return
 		}
 	}
 
-	tz := ""
-	if router.HotspotConfig != nil {
-		tz = router.HotspotConfig.Timezone
-	}
-	soldAt, _ := parseMikroTikDateTime(payload.Date, payload.Time, tz)
+	soldAt, _ := parseMikroTikDateTime(payload.Date, payload.Time, router.Timezone)
 	if soldAt.IsZero() {
 		soldAt = time.Now()
 	}
@@ -106,11 +102,7 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
-	reportMode := "disable"
-	if router.HotspotConfig != nil {
-		reportMode = router.HotspotConfig.ReportMode
-	}
-	if reportMode == "disable" {
+	if router.ReportMode == "disable" {
 		c.Status(http.StatusOK)
 		return
 	}

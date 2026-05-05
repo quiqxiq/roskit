@@ -264,11 +264,7 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
 
-	tz := ""
-	if router.HotspotConfig != nil {
-		tz = router.HotspotConfig.Timezone
-	}
-	loc := mikrotik.ResolveLocation(tz)
+	loc := mikrotik.ResolveLocation(router.Timezone)
 
 	records, err := s.bridge.ImportSalesFromRouterOS(ctx, fmt.Sprintf("%d", routerID), "")
 	if err != nil {
@@ -325,7 +321,7 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 	s.invalidateSalesCache(ctx, routerID)
 
 	s.logger.Info("sales import complete",
-		"router", router.Name,
+		"router", router.SessionName,
 		"total", result.Total,
 		"imported", result.Imported,
 		"skipped", result.Skipped,

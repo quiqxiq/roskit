@@ -132,11 +132,6 @@ type summaryStats struct {
 	profilesSynced  int
 }
 
-type routerWithConfig struct {
-	router models.Router
-	config models.HotspotConfig
-}
-
 func replyToMaps(reply *routeros.Reply) []map[string]string {
 	result := make([]map[string]string, 0, len(reply.Re))
 	for _, sentence := range reply.Re {
@@ -189,7 +184,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 	}
 	defer file.Close()
 
-	var routers []routerWithConfig
+	var routers []models.Router
 	var sessions []string
 
 	scanner := bufio.NewScanner(file)
@@ -252,31 +247,22 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 			encryptedPassword = passStr
 		}
 
-		port := 8728
-
 		r := models.Router{
-			Name:                 sessionName,
-			IPAddress:            ipStr,
-			APIPort:              port,
-			APIUsername:          userStr,
-			APIPasswordEncrypted: encryptedPassword,
-			Status:               models.RouterStatusUnknown,
-		}
-		hc := models.HotspotConfig{
+			SessionName: sessionName,
+			IP:          ipStr,
+			Username:    userStr,
+			PasswordEnc: encryptedPassword,
 			HotspotName: hotspotStr,
 			DNSName:     dnsStr,
 			Currency:    currencyStr,
 			Phone:       phoneStr,
 			Email:       emailStr,
 			InfoLP:      infoStr,
-			IdleTimeout: 30,
+			IdleTimeout: idleStr,
 			ReportMode:  reportStr,
-			WebhookToken: tokenStr,
+			Token:       tokenStr,
 		}
-		if idleInt, err := strconv.Atoi(strings.TrimSpace(idleStr)); err == nil && idleInt > 0 {
-			hc.IdleTimeout = idleInt
-		}
-		routers = append(routers, routerWithConfig{router: r, config: hc})
+		routers = append(routers, r)
 		sessions = append(sessions, sessionName)
 	}
 
@@ -292,45 +278,34 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 	ctx := context.Background()
 
-	for _, rw := range routers {
+	for _, rawRouter := range routers {
 		var r models.Router
-		err := db.Where("name = ?", rw.router.Name).First(&r).Error
+		err := db.Where("session_name = ?", rawRouter.SessionName).First(&r).Error
 		if err == gorm.ErrRecordNotFound {
-			txErr := db.Transaction(func(tx *gorm.DB) error {
-				if err := tx.Create(&rw.router).Error; err != nil {
-					return err
-				}
-				rw.config.RouterID = rw.router.ID
-				return tx.Create(&rw.config).Error
-			})
-			if txErr != nil {
-				log.Printf("failed to create router %s: %v", rw.router.Name, txErr)
+			if err := db.Create(&rawRouter).Error; err != nil {
+				log.Printf("failed to create router %s: %v", rawRouter.SessionName, err)
 				summary.routersSkipped++
 				continue
 			}
-			r = rw.router
+			r = rawRouter
 			summary.routersImported++
 		} else if err != nil {
-			log.Printf("failed to check router %s: %v", rw.router.Name, err)
+			log.Printf("failed to check router %s: %v", rawRouter.SessionName, err)
 			summary.routersSkipped++
 			continue
 		} else {
 			summary.routersSkipped++
 		}
 
-		cleartextPassword, err := encrypt.Decrypt(r.APIPasswordEncrypted, cfg.AESEncKey)
+		cleartextPassword, err := encrypt.Decrypt(r.PasswordEnc, cfg.AESEncKey)
 		if err != nil {
-			log.Printf("failed to decrypt password for router %s", r.Name)
+			log.Printf("failed to decrypt password for router %s", r.SessionName)
 			continue
-		}
-		port := r.APIPort
-		if port == 0 {
-			port = 8728
 		}
 		pool.Register(execution.ConnConfig{
 			RouterID: fmt.Sprintf("%d", r.ID),
-			Address:  fmt.Sprintf("%s:%d", r.IPAddress, port),
-			Username: r.APIUsername,
+			Address:  r.IP + ":8728",
+			Username: r.Username,
 			Password: cleartextPassword,
 		})
 	}
@@ -339,9 +314,9 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 	defer cancelStart()
 	pool.Start(ctxStart)
 
-	for _, rw := range routers {
+	for _, r := range routers {
 		var dbR models.Router
-		if err := db.Where("name = ?", rw.router.Name).First(&dbR).Error; err != nil {
+		if err := db.Where("session_name = ?", r.SessionName).First(&dbR).Error; err != nil {
 			continue
 		}
 
@@ -350,7 +325,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 		reply, err := bridge.Run(ctx, rID, "/system/script/print", "?comment=mikhmon")
 		if err != nil {
-			log.Printf("failed to fetch scripts for router %s: %v", rw.router.Name, err)
+			log.Printf("failed to fetch scripts for router %s: %v", r.SessionName, err)
 			continue
 		}
 
@@ -371,7 +346,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 			price := parseInt64(fields[3])
 
-			keyStr := rw.router.Name + fields[2] + fields[0] + fields[1]
+			keyStr := r.SessionName + fields[2] + fields[0] + fields[1]
 			hash := sha256.Sum256([]byte(keyStr))
 			idempKey := hex.EncodeToString(hash[:])
 
@@ -442,7 +417,7 @@ func runSyncProfiles(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Br
 
 	var routers []models.Router
 	if routerName != "" {
-		if err := db.Where("name = ?", routerName).Find(&routers).Error; err != nil {
+		if err := db.Where("session_name = ?", routerName).Find(&routers).Error; err != nil {
 			log.Fatalf("failed to find router: %v", err)
 		}
 	} else {
@@ -452,18 +427,14 @@ func runSyncProfiles(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Br
 	}
 
 	for _, r := range routers {
-		cleartextPassword, err := encrypt.Decrypt(r.APIPasswordEncrypted, cfg.AESEncKey)
+		cleartextPassword, err := encrypt.Decrypt(r.PasswordEnc, cfg.AESEncKey)
 		if err != nil {
 			continue
 		}
-		port := r.APIPort
-		if port == 0 {
-			port = 8728
-		}
 		pool.Register(execution.ConnConfig{
 			RouterID: fmt.Sprintf("%d", r.ID),
-			Address:  fmt.Sprintf("%s:%d", r.IPAddress, port),
-			Username: r.APIUsername,
+			Address:  r.IP + ":8728",
+			Username: r.Username,
 			Password: cleartextPassword,
 		})
 	}
@@ -482,7 +453,7 @@ func runSyncProfiles(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Br
 
 		profiles, err := bridge.ListHotspotProfiles(ctx, rID)
 		if err != nil {
-			log.Printf("failed to fetch profiles for router %s: %v", r.Name, err)
+			log.Printf("failed to fetch profiles for router %s: %v", r.SessionName, err)
 			continue
 		}
 
@@ -514,7 +485,7 @@ func runSyncProfiles(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Br
 			}
 
 			if err := profileRepo.Upsert(ctx, mapping); err != nil {
-				log.Printf("warning: failed to upsert profile %s on router %s: %v", prof["name"], r.Name, err)
+				log.Printf("warning: failed to upsert profile %s on router %s: %v", prof["name"], r.SessionName, err)
 			} else {
 				summary.profilesSynced++
 			}

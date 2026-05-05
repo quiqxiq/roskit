@@ -128,26 +128,16 @@ func (h *VoucherHandler) PrintData(c *gin.Context) {
 		return
 	}
 
-	var hotspotName, dnsName, currency, phone, email, infoLP string
-	if router.HotspotConfig != nil {
-		hotspotName = router.HotspotConfig.HotspotName
-		dnsName = router.HotspotConfig.DNSName
-		currency = router.HotspotConfig.Currency
-		phone = router.HotspotConfig.Phone
-		email = router.HotspotConfig.Email
-		infoLP = router.HotspotConfig.InfoLP
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
 			"vouchers": result.Vouchers,
 			"router_info": gin.H{
-				"hotspot_name": hotspotName,
-				"dns_name":     dnsName,
-				"currency":     currency,
-				"phone":        phone,
-				"email":        email,
-				"info_lp":      infoLP,
+				"hotspot_name": router.HotspotName,
+				"dns_name":     router.DNSName,
+				"currency":     router.Currency,
+				"phone":        router.Phone,
+				"email":        router.Email,
+				"info_lp":      router.InfoLP,
 			},
 		},
 		"error": nil,
@@ -206,19 +196,11 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 		return
 	}
 
-	var hName, hDNS, hCurrency, hLogo string
-	if router.HotspotConfig != nil {
-		hName = router.HotspotConfig.HotspotName
-		hDNS = router.HotspotConfig.DNSName
-		hCurrency = router.HotspotConfig.Currency
-		hLogo = routerLogoURL(routerID, router.HotspotConfig.LogoPath)
-	}
-
 	routerParams := services.RouterVoucherParams{
-		HotspotName: hName,
-		DNSName:     hDNS,
-		Logo:        hLogo,
-		Currency:    hCurrency,
+		HotspotName: router.HotspotName,
+		DNSName:     router.DNSName,
+		Logo:        routerLogoURL(routerID, router.LogoPath),
+		Currency:    router.Currency,
 	}
 
 	page, err := h.templateSvc.RenderFromUsers(ctx, routerID, templateType, resolved, routerParams)

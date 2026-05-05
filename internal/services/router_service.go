@@ -14,7 +14,6 @@ import (
 	routeros "github.com/go-routeros/routeros/v3"
 
 	"github.com/quiqxiq/roskit/internal/models"
-	"github.com/quiqxiq/roskit/internal/repository"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 	"github.com/quiqxiq/roskit/pkg/encrypt"
@@ -23,25 +22,33 @@ import (
 
 type RouterPublicView struct {
 	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	IPAddress   string `json:"ip_address"`
-	APIPort     int    `json:"api_port"`
-	APIUsername string `json:"api_username"`
-	Status      string `json:"status"`
-	LastSeenAt  *time.Time `json:"last_seen_at"`
-	Notes       *string    `json:"notes"`
+	SessionName string `json:"session_name"`
+	IP          string `json:"ip"`
+	Username    string `json:"username"`
+	HotspotName string `json:"hotspot_name"`
+	DNSName     string `json:"dns_name"`
+	Currency    string `json:"currency"`
+	Phone       string `json:"phone"`
+	Email       string `json:"email"`
+	InfoLP      string `json:"info_lp"`
+	IdleTimeout string `json:"idle_timeout"`
+	ReportMode  string `json:"report_mode"`
 }
 
 func toPublicView(r *models.Router) RouterPublicView {
 	return RouterPublicView{
 		ID:          r.ID,
-		Name:        r.Name,
-		IPAddress:   r.IPAddress,
-		APIPort:     r.APIPort,
-		APIUsername: r.APIUsername,
-		Status:      r.Status.String(),
-		LastSeenAt:  r.LastSeenAt,
-		Notes:       r.Notes,
+		SessionName: r.SessionName,
+		IP:          r.IP,
+		Username:    r.Username,
+		HotspotName: r.HotspotName,
+		DNSName:     r.DNSName,
+		Currency:    r.Currency,
+		Phone:       r.Phone,
+		Email:       r.Email,
+		InfoLP:      r.InfoLP,
+		IdleTimeout: r.IdleTimeout,
+		ReportMode:  r.ReportMode,
 	}
 }
 
@@ -55,36 +62,32 @@ type ConnectionTestResult struct {
 }
 
 type CreateRouterRequest struct {
-	Name        string `json:"name" binding:"required"`
-	IPAddress   string `json:"ip_address" binding:"required"`
-	APIPort     int    `json:"api_port"`
-	APIUsername string `json:"api_username" binding:"required"`
+	SessionName string `json:"session_name" binding:"required"`
+	IP          string `json:"ip" binding:"required"`
+	Username    string `json:"username" binding:"required"`
 	Password    string `json:"password" binding:"required"`
-	Notes       string `json:"notes"`
 	HotspotName string `json:"hotspot_name"`
 	DNSName     string `json:"dns_name"`
 	Currency    string `json:"currency"`
 	Phone       string `json:"phone"`
 	Email       string `json:"email"`
 	InfoLP      string `json:"info_lp"`
-	IdleTimeout int    `json:"idle_timeout"`
+	IdleTimeout string `json:"idle_timeout"`
 	ReportMode  string `json:"report_mode"`
 }
 
 type UpdateRouterRequest struct {
-	Name        string `json:"name"`
-	IPAddress   string `json:"ip_address"`
-	APIPort     int    `json:"api_port"`
-	APIUsername string `json:"api_username"`
+	SessionName string `json:"session_name"`
+	IP          string `json:"ip"`
+	Username    string `json:"username"`
 	Password    string `json:"password"`
-	Notes       string `json:"notes"`
 	HotspotName string `json:"hotspot_name"`
 	DNSName     string `json:"dns_name"`
 	Currency    string `json:"currency"`
 	Phone       string `json:"phone"`
 	Email       string `json:"email"`
 	InfoLP      string `json:"info_lp"`
-	IdleTimeout int    `json:"idle_timeout"`
+	IdleTimeout string `json:"idle_timeout"`
 	ReportMode  string `json:"report_mode"`
 }
 
@@ -97,7 +100,6 @@ type MigrationResult struct {
 
 type RouterService struct {
 	repo   RouterRepository
-	db     repository.RouterRepository
 	engine *orchestrator.Engine
 	cache  *appcache.Cache
 	logger *slog.Logger
@@ -114,62 +116,6 @@ func NewRouterService(repo RouterRepository, engine *orchestrator.Engine, cache 
 	}
 }
 
-func NewRouterServiceWithDB(repo RouterRepository, dbRepo repository.RouterRepository, engine *orchestrator.Engine, cache *appcache.Cache, aesKey string) *RouterService {
-	return &RouterService{
-		repo:   repo,
-		db:     dbRepo,
-		engine: engine,
-		cache:  cache,
-		logger: slog.Default().With("component", "router-svc"),
-		aesKey: aesKey,
-	}
-}
-
-func (s *RouterService) WatchAndSyncStatus(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	prev := make(map[string]string)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			statuses := s.engine.Status()
-			for routerIDStr, stateStr := range statuses {
-				last, seen := prev[routerIDStr]
-				if seen && last == stateStr {
-					continue
-				}
-				prev[routerIDStr] = stateStr
-
-				var routerID uint
-				if _, err := fmt.Sscanf(routerIDStr, "%d", &routerID); err != nil {
-					continue
-				}
-
-				status := models.RouterStatus(stateStr)
-				if err := s.repo.UpdateStatus(ctx, routerID, status); err != nil {
-					s.logger.Warn("failed to update router status in db",
-						"router_id", routerIDStr, "status", stateStr, "error", err)
-					continue
-				}
-
-				if status == models.RouterStatusConnected {
-					now := time.Now()
-					if err := s.repo.UpdateLastSeen(ctx, routerID, now); err != nil {
-						s.logger.Warn("failed to update router last_seen_at",
-							"router_id", routerIDStr, "error", err)
-					}
-				}
-				s.logger.Info("router status updated", "router_id", routerIDStr, "status", stateStr)
-			}
-		}
-	}
-}
-
-
 func (s *RouterService) UploadLogo(ctx context.Context, routerID uint, fileData []byte, filename string) error {
 	dir := "uploads/logos"
 	_ = os.MkdirAll(dir, 0755)
@@ -179,15 +125,7 @@ func (s *RouterService) UploadLogo(ctx context.Context, routerID uint, fileData 
 		return err
 	}
 
-	router, err := s.repo.GetByID(ctx, routerID)
-	if err != nil {
-		return err
-	}
-	if router.HotspotConfig == nil {
-		router.HotspotConfig = &models.HotspotConfig{RouterID: routerID}
-	}
-	router.HotspotConfig.LogoPath = path
-	return s.repo.Update(ctx, router)
+	return s.repo.Update(ctx, &models.Router{ID: routerID, LogoPath: path})
 }
 
 func (s *RouterService) GetLogoPath(ctx context.Context, routerID uint) (string, error) {
@@ -195,10 +133,10 @@ func (s *RouterService) GetLogoPath(ctx context.Context, routerID uint) (string,
 	if err != nil {
 		return "", err
 	}
-	if router.HotspotConfig == nil || router.HotspotConfig.LogoPath == "" {
+	if router.LogoPath == "" {
 		return "", fmt.Errorf("logo not found")
 	}
-	return router.HotspotConfig.LogoPath, nil
+	return router.LogoPath, nil
 }
 
 func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
@@ -210,24 +148,20 @@ func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
 
 	registered := 0
 	for _, r := range routers {
-		password, err := encrypt.Decrypt(r.APIPasswordEncrypted, s.aesKey)
+		password, err := encrypt.Decrypt(r.PasswordEnc, s.aesKey)
 		if err != nil {
 			s.logger.Error("failed to decrypt router password, skipping",
-				"id", r.ID, "name", r.Name, "error", err)
+				"id", r.ID, "session", r.SessionName, "error", err)
 			continue
-		}
-		port := r.APIPort
-		if port == 0 {
-			port = 8728
 		}
 		if err := s.engine.AddRouter(ctx, execution.ConnConfig{
 			RouterID: fmt.Sprintf("%d", r.ID),
-			Address:  fmt.Sprintf("%s:%d", r.IPAddress, port),
-			Username: r.APIUsername,
+			Address:  r.IP + ":8728",
+			Username: r.Username,
 			Password: password,
 		}); err != nil {
 			s.logger.Error("failed to register router in engine",
-				"id", r.ID, "name", r.Name, "error", err)
+				"id", r.ID, "session", r.SessionName, "error", err)
 			continue
 		}
 		registered++
@@ -239,18 +173,13 @@ func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
 }
 
 func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterRequest) (*RouterPublicView, error) {
-	if req.IPAddress == "" || req.APIUsername == "" || req.Password == "" {
-		return nil, fmt.Errorf("ip_address, api_username, and password are required")
-	}
-
-	port := req.APIPort
-	if port == 0 {
-		port = 8728
+	if req.IP == "" || req.Username == "" || req.Password == "" {
+		return nil, fmt.Errorf("ip, username, and password are required")
 	}
 
 	testCtx, testCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer testCancel()
-	result, err := s.TestConnection(testCtx, req.IPAddress, port, req.APIUsername, req.Password)
+	result, err := s.TestConnection(testCtx, req.IP, req.Username, req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("connection test failed: %w", err)
 	}
@@ -263,62 +192,35 @@ func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterReques
 		return nil, fmt.Errorf("encrypt password: %w", err)
 	}
 
-	var notes *string
-	if req.Notes != "" {
-		notes = &req.Notes
-	}
-
 	router := &models.Router{
-		Name:                 req.Name,
-		IPAddress:            req.IPAddress,
-		APIPort:              port,
-		APIUsername:          req.APIUsername,
-		APIPasswordEncrypted: encPass,
-		Notes:                notes,
-		Status:               models.RouterStatusUnknown,
+		SessionName: req.SessionName,
+		IP:          req.IP,
+		Username:    req.Username,
+		PasswordEnc: encPass,
+		HotspotName: req.HotspotName,
+		DNSName:     req.DNSName,
+		Currency:    req.Currency,
+		Phone:       req.Phone,
+		Email:       req.Email,
+		InfoLP:      req.InfoLP,
+		IdleTimeout: req.IdleTimeout,
+		ReportMode:  req.ReportMode,
+		Token:       generateToken(),
 	}
 
 	if err := s.repo.Create(ctx, router); err != nil {
 		return nil, fmt.Errorf("save router: %w", err)
 	}
 
-	idleTimeout := req.IdleTimeout
-	if idleTimeout == 0 {
-		idleTimeout = 30
-	}
-	reportMode := req.ReportMode
-	if reportMode == "" {
-		reportMode = "disable"
-	}
-	currency := req.Currency
-	if currency == "" {
-		currency = "Rp"
-	}
-	hotspotConfig := &models.HotspotConfig{
-		RouterID:     router.ID,
-		HotspotName:  req.HotspotName,
-		DNSName:      req.DNSName,
-		Currency:     currency,
-		Phone:        req.Phone,
-		Email:        req.Email,
-		InfoLP:       req.InfoLP,
-		IdleTimeout:  idleTimeout,
-		ReportMode:   reportMode,
-		WebhookToken: generateToken(),
-	}
-	if err := s.repo.CreateHotspotConfig(ctx, hotspotConfig); err != nil {
-		s.logger.Warn("failed to create hotspot config", "router_id", router.ID, "error", err)
-	}
-
 	routerID := fmt.Sprintf("%d", router.ID)
 	_ = s.engine.AddRouter(ctx, execution.ConnConfig{
 		RouterID: routerID,
-		Address:  fmt.Sprintf("%s:%d", req.IPAddress, port),
-		Username: req.APIUsername,
+		Address:  req.IP + ":8728",
+		Username: req.Username,
 		Password: req.Password,
 	})
 
-	s.logger.Info("router created and registered", "id", router.ID, "name", req.Name)
+	s.logger.Info("router created and registered", "id", router.ID, "session", req.SessionName)
 
 	view := toPublicView(router)
 	return &view, nil
@@ -351,23 +253,18 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 		return nil, err
 	}
 
-	ip := router.IPAddress
-	username := router.APIUsername
-	port := router.APIPort
-	password := router.APIPasswordEncrypted
+	ip := router.IP
+	username := router.Username
+	password := router.PasswordEnc
 	passwordPlain := ""
 	credsChanged := false
 
-	if req.IPAddress != "" && req.IPAddress != router.IPAddress {
-		ip = req.IPAddress
+	if req.IP != "" && req.IP != router.IP {
+		ip = req.IP
 		credsChanged = true
 	}
-	if req.APIUsername != "" && req.APIUsername != router.APIUsername {
-		username = req.APIUsername
-		credsChanged = true
-	}
-	if req.APIPort != 0 && req.APIPort != router.APIPort {
-		port = req.APIPort
+	if req.Username != "" && req.Username != router.Username {
+		username = req.Username
 		credsChanged = true
 	}
 	if req.Password != "" {
@@ -383,17 +280,13 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 	if credsChanged {
 		testPass := passwordPlain
 		if testPass == "" {
-			dec, err := encrypt.Decrypt(router.APIPasswordEncrypted, s.aesKey)
+			dec, err := encrypt.Decrypt(router.PasswordEnc, s.aesKey)
 			if err != nil {
 				return nil, fmt.Errorf("decrypt existing password: %w", err)
 			}
 			testPass = dec
 		}
-		testPort := port
-		if testPort == 0 {
-			testPort = 8728
-		}
-		testResult, err := s.TestConnection(ctx, ip, testPort, username, testPass)
+		testResult, err := s.TestConnection(ctx, ip, username, testPass)
 		if err != nil {
 			return nil, fmt.Errorf("connection test with new credentials failed: %w", err)
 		}
@@ -402,15 +295,35 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 		}
 	}
 
-	if req.Name != "" {
-		router.Name = req.Name
+	if req.SessionName != "" {
+		router.SessionName = req.SessionName
 	}
-	router.IPAddress = ip
-	router.APIUsername = username
-	router.APIPort = port
-	router.APIPasswordEncrypted = password
-	if req.Notes != "" {
-		router.Notes = &req.Notes
+	router.IP = ip
+	router.Username = username
+	router.PasswordEnc = password
+	if req.HotspotName != "" {
+		router.HotspotName = req.HotspotName
+	}
+	if req.DNSName != "" {
+		router.DNSName = req.DNSName
+	}
+	if req.Currency != "" {
+		router.Currency = req.Currency
+	}
+	if req.Phone != "" {
+		router.Phone = req.Phone
+	}
+	if req.Email != "" {
+		router.Email = req.Email
+	}
+	if req.InfoLP != "" {
+		router.InfoLP = req.InfoLP
+	}
+	if req.IdleTimeout != "" {
+		router.IdleTimeout = req.IdleTimeout
+	}
+	if req.ReportMode != "" {
+		router.ReportMode = req.ReportMode
 	}
 
 	if err := s.repo.Update(ctx, router); err != nil {
@@ -421,7 +334,7 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 		routerID := fmt.Sprintf("%d", id)
 		plainPass := passwordPlain
 		if plainPass == "" {
-			dec, err := encrypt.Decrypt(router.APIPasswordEncrypted, s.aesKey)
+			dec, err := encrypt.Decrypt(router.PasswordEnc, s.aesKey)
 			if err == nil {
 				plainPass = dec
 			}
@@ -429,7 +342,7 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 		s.engine.RemoveRouter(routerID)
 		_ = s.engine.AddRouter(ctx, execution.ConnConfig{
 			RouterID: routerID,
-			Address:  fmt.Sprintf("%s:%d", ip, port),
+			Address:  ip + ":8728",
 			Username: username,
 			Password: plainPass,
 		})
@@ -460,18 +373,14 @@ func (s *RouterService) DeleteRouter(ctx context.Context, id uint) error {
 		_ = s.cache.Delete(ctx, appcache.DashboardKey(id))
 	}
 
-	s.logger.Info("router deleted", "id", id, "name", router.Name)
+	s.logger.Info("router deleted", "id", id, "session", router.SessionName)
 	return nil
 }
 
-func (s *RouterService) TestConnection(ctx context.Context, ip string, port int, username, password string) (*ConnectionTestResult, error) {
-	if port == 0 {
-		port = 8728
-	}
+func (s *RouterService) TestConnection(ctx context.Context, ip, username, password string) (*ConnectionTestResult, error) {
 	start := time.Now()
 
-	addr := fmt.Sprintf("%s:%d", ip, port)
-	client, err := routeros.DialContext(ctx, addr, username, password)
+	client, err := routeros.DialContext(ctx, ip+":8728", username, password)
 	if err != nil {
 		return &ConnectionTestResult{
 			Connected: false,
@@ -544,7 +453,7 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 		ip := extractDelimited(line, "!", "")
 		username := extractDelimited(line, "@|@", "")
 		encPass := extractDelimited(line, "#|#", "")
-		name := extractField(line)
+		sessionName := extractField(line)
 
 		if ip == "" || username == "" || encPass == "" {
 			result.Errors++
@@ -558,14 +467,14 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 			password = dec
 		} else {
 			result.Errors++
-			s.logger.Warn("failed to decrypt password", "name", name, "error", err)
+			s.logger.Warn("failed to decrypt password", "session", sessionName, "error", err)
 			continue
 		}
 
 		req := CreateRouterRequest{
-			Name:        name,
-			IPAddress:   ip,
-			APIUsername: username,
+			SessionName: sessionName,
+			IP:          ip,
+			Username:    username,
 			Password:    password,
 		}
 
@@ -573,10 +482,10 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 		if err != nil {
 			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 				result.Skipped++
-				s.logger.Warn("router already exists, skipping", "name", name)
+				s.logger.Warn("router already exists, skipping", "session", sessionName)
 			} else {
 				result.Errors++
-				s.logger.Error("failed to import router", "name", name, "error", err)
+				s.logger.Error("failed to import router", "session", sessionName, "error", err)
 			}
 			continue
 		}
@@ -597,13 +506,10 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 type RouterRepository interface {
 	Create(ctx context.Context, router *models.Router) error
 	GetByID(ctx context.Context, id uint) (*models.Router, error)
-	GetByName(ctx context.Context, name string) (*models.Router, error)
+	GetBySessionName(ctx context.Context, sessionName string) (*models.Router, error)
 	List(ctx context.Context) ([]*models.Router, error)
 	Update(ctx context.Context, router *models.Router) error
 	Delete(ctx context.Context, id uint) error
-	CreateHotspotConfig(ctx context.Context, cfg *models.HotspotConfig) error
-	UpdateStatus(ctx context.Context, routerID uint, status models.RouterStatus) error
-	UpdateLastSeen(ctx context.Context, routerID uint, t time.Time) error
 }
 
 func generateToken() string {
