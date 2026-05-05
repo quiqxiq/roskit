@@ -13,12 +13,12 @@ import (
 
 // MockUserRepository implements services.UserRepository for auth handler tests.
 type MockUserRepository struct {
-	User      *models.SystemUser
+	User      *models.User
 	Err       error
 	UserCount int64
 }
 
-func (m *MockUserRepository) Create(_ context.Context, user *models.SystemUser) error {
+func (m *MockUserRepository) Create(_ context.Context, user *models.User) error {
 	if m.Err != nil {
 		return m.Err
 	}
@@ -26,22 +26,33 @@ func (m *MockUserRepository) Create(_ context.Context, user *models.SystemUser) 
 	return nil
 }
 
-func (m *MockUserRepository) GetByID(_ context.Context, _ uint) (*models.SystemUser, error) {
+func (m *MockUserRepository) GetByID(_ context.Context, _ uint) (*models.User, error) {
 	return m.User, m.Err
 }
 
-func (m *MockUserRepository) GetByUsername(_ context.Context, _ string) (*models.SystemUser, error) {
+func (m *MockUserRepository) GetByTenantUsername(_ context.Context, _ *uint, _ string) (*models.User, error) {
 	return m.User, m.Err
 }
 
-func (m *MockUserRepository) List(_ context.Context) ([]*models.SystemUser, error) {
+func (m *MockUserRepository) GetSuperAdminByUsername(_ context.Context, _ string) (*models.User, error) {
+	return m.User, m.Err
+}
+
+func (m *MockUserRepository) List(_ context.Context, _ uint) ([]*models.User, error) {
 	if m.User == nil {
 		return nil, m.Err
 	}
-	return []*models.SystemUser{m.User}, m.Err
+	return []*models.User{m.User}, m.Err
 }
 
-func (m *MockUserRepository) Update(_ context.Context, user *models.SystemUser) error {
+func (m *MockUserRepository) ListSuperAdmins(_ context.Context) ([]*models.User, error) {
+	if m.User == nil {
+		return nil, m.Err
+	}
+	return []*models.User{m.User}, m.Err
+}
+
+func (m *MockUserRepository) Update(_ context.Context, _ *models.User) error {
 	return m.Err
 }
 
@@ -54,6 +65,10 @@ func (m *MockUserRepository) Delete(_ context.Context, _ uint) error {
 }
 
 func (m *MockUserRepository) Count(_ context.Context) (int64, error) {
+	return m.UserCount, m.Err
+}
+
+func (m *MockUserRepository) CountByTenant(_ context.Context, _ uint) (int64, error) {
 	return m.UserCount, m.Err
 }
 

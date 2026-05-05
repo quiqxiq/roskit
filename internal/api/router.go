@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
+
 	"github.com/quiqxiq/roskit/internal/api/handlers"
 	sse "github.com/quiqxiq/roskit/internal/api/handlers/sse"
 	"github.com/quiqxiq/roskit/internal/api/middleware"
@@ -28,6 +30,11 @@ func NewRouter(
 	tsReader timeseries.Reader,
 	subscriber pubsub.Subscriber,
 	profileRepo repository.ProfilePriceMappingRepository,
+	tenantRepo repository.TenantRepository,
+	tenantSettingsRepo repository.TenantSettingsRepository,
+	tenantSvc *services.TenantService,
+	authSvc *services.AuthService,
+	enforcer *casbin.Enforcer,
 ) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Recovery(), middleware.LoggerMiddleware(), middleware.CORSMiddleware())
@@ -39,13 +46,9 @@ func NewRouter(
 	saleRepo := repository.NewSaleRepo(db)
 	templateRepo := repository.NewTemplateRepo(db)
 
-	jwtSecret := []byte(cfg.JWTSecret)
-	refreshSecret := []byte(cfg.JWTRefreshSecret)
-	authSvc := services.NewAuthService(userRepo, cache, jwtSecret, refreshSecret)
-
 	systemSvc := services.NewSystemService(bridge, tsReader, routerRepo, cache)
 	hotspotSvc := services.NewHotspotService(bridge, cache)
-	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, cache)
+	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, tenantSettingsRepo, cache)
 	reportSvc := services.NewReportService(saleRepo, cache)
 	templateSvc := services.NewTemplateService(templateRepo)
 	if err := templateSvc.SeedDefaults(context.Background()); err != nil {
@@ -57,21 +60,23 @@ func NewRouter(
 
 	routerH := handlers.NewRouterHandler(routerSvc)
 	hotspotH := handlers.NewHotspotHandler(hotspotSvc)
-	voucherH := handlers.NewVoucherHandler(voucherSvc, templateSvc, hotspotSvc)
+	voucherH := handlers.NewVoucherHandler(voucherSvc, templateSvc, hotspotSvc, tenantSettingsRepo)
 	reportH := handlers.NewReportHandler(reportSvc)
-	authH := handlers.NewAuthHandler(authSvc, auditLogger)
-	eventH := handlers.NewEventHandler(routerRepo, saleRepo, profileRepo, bridge, cache)
+	authH := handlers.NewAuthHandler(authSvc, tenantSvc, auditLogger)
+	eventH := handlers.NewEventHandler(routerRepo, saleRepo, profileRepo, tenantSettingsRepo, bridge, cache)
 	systemH := handlers.NewSystemHandler(systemSvc)
 	pppH := handlers.NewPPPHandler(bridge)
 	networkH := handlers.NewNetworkHandler(bridge)
 	qpH := handlers.NewQuickPrintHandler(bridge)
-	templateH := handlers.NewTemplateHandler(templateSvc, voucherSvc)
+	templateH := handlers.NewTemplateHandler(templateSvc, voucherSvc, tenantSettingsRepo)
 	logSSEH := sse.NewLogSSEHandler(subscriber, bridge)
 	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber)
 	statusSvc := services.NewStatusService(routerRepo, bridge)
 	statusH := handlers.NewStatusHandler(statusSvc)
 	healthH := handlers.NewHealthHandler(db, cache, bridge)
 	profileMappingH := handlers.NewProfileMappingHandler(profileRepo)
+	tenantH := handlers.NewTenantHandler(tenantSvc)
+	userH := handlers.NewUserHandler(authSvc, userRepo, enforcer)
 
 	// Serve the frontend website from the same origin as the API
 	engine.Static("/css", "./website/css")
@@ -97,175 +102,56 @@ func NewRouter(
 			auth.POST("/logout", middleware.AuthMiddleware(authSvc), authH.Logout)
 		}
 
-		protected := api.Group("")
-		protected.Use(middleware.AuthMiddleware(authSvc))
+		// /auth/me and /auth/password are tenant-aware (need claims) but Casbin
+		// is not appropriate (any logged-in user should be able to view self).
+		me := api.Group("")
+		me.Use(middleware.AuthMiddleware(authSvc))
 		{
-			protected.GET("/auth/me", authH.Me)
-			protected.PUT("/auth/password", authH.ChangePassword)
+			me.GET("/auth/me", authH.Me)
+			me.PUT("/auth/password", authH.ChangePassword)
+		}
 
-			routers := protected.Group("/routers")
+		// Public on-login webhook (auth via webhook_token in body, no JWT).
+		events := api.Group("/events")
+		{
+			events.POST("/on-login", onLoginRL, eventH.OnLoginEvent)
+			events.GET("/health", eventH.HealthCheck)
+		}
+
+		// Public status check (no auth, used by login page).
+		api.GET("/status", statusH.GetUserStatus)
+
+		// All other routes require: AuthMiddleware → TenantMiddleware → CasbinMiddleware
+		protected := api.Group("")
+		protected.Use(
+			middleware.AuthMiddleware(authSvc),
+			middleware.TenantMiddleware(tenantRepo),
+			middleware.CasbinMiddleware(enforcer),
+		)
+		{
+			// ====== Tenant self-management (owner) ======
+			tenant := protected.Group("/tenant")
 			{
-				routers.GET("", routerH.List)
-				routers.GET("/:routerId", routerH.Get)
-				routers.POST("", routerH.Create)
-				routers.PUT("/:routerId", routerH.Update)
-				routers.DELETE("/:routerId", routerH.Delete)
-			routers.POST("/:routerId/test", routerH.TestConnection)
-			routers.POST("/:routerId/logo", routerH.UploadLogo)
-			routers.GET("/:routerId/logo", routerH.GetLogo)
-			routers.POST("/migrate", routerH.MigrateConfig)
+				tenant.GET("", tenantH.GetSelf)
+				tenant.PUT("", tenantH.UpdateSelfName)
+				tenant.GET("/settings", tenantH.GetSelfSettings)
+				tenant.PUT("/settings", tenantH.UpdateSelfSettings)
+				tenant.POST("/logo", tenantH.UploadLogo)
+				tenant.GET("/logo", tenantH.GetLogo)
 			}
 
-			hotspots := protected.Group("/routers/:routerId/hotspot")
+			// ====== User management (owner + admin) ======
+			users := protected.Group("/users")
 			{
-				hotspots.GET("/users", hotspotH.ListUsers)
-				hotspots.GET("/users/count", hotspotH.GetUserCount)
-				hotspots.GET("/users/export", hotspotH.ExportUsers)
-				hotspots.GET("/users/:id", hotspotH.GetUser)
-				hotspots.POST("/users", hotspotH.AddUser)
-				hotspots.PUT("/users/:id", hotspotH.UpdateUser)
-				hotspots.DELETE("/users/:id", hotspotH.RemoveUser)
-				hotspots.POST("/users/:id/reset-counters", hotspotH.ResetUserCounters)
-
-				hotspots.GET("/profiles", hotspotH.ListProfiles)
-				hotspots.GET("/profiles/:id", hotspotH.GetProfile)
-				hotspots.POST("/profiles", hotspotH.AddProfile)
-				hotspots.PUT("/profiles/:id", hotspotH.UpdateProfile)
-				hotspots.DELETE("/profiles/:id", hotspotH.RemoveProfile)
-
-				hotspots.GET("/active", hotspotH.ListActive)
-				hotspots.DELETE("/active/:id", hotspotH.RemoveActive)
-				hotspots.POST("/active/:id/disconnect", hotspotH.DisconnectUser)
-
-				hotspots.GET("/inactive", hotspotH.ListInactive)
-				hotspots.GET("/inactive/count", hotspotH.GetInactiveCount)
-
-				hotspots.GET("/hosts", hotspotH.ListHosts)
-				hotspots.DELETE("/hosts/:id", hotspotH.RemoveHost)
-
-				hotspots.GET("/servers", hotspotH.ListServers)
-
-				hotspots.GET("/cookies", hotspotH.ListCookies)
-				hotspots.DELETE("/cookies/:id", hotspotH.RemoveCookie)
-
-				hotspots.GET("/bindings", hotspotH.ListIPBindings)
-				hotspots.POST("/bindings", hotspotH.AddIPBinding)
-				hotspots.PUT("/bindings/:id", hotspotH.UpdateIPBinding)
-				hotspots.DELETE("/bindings/:id", hotspotH.RemoveIPBinding)
-				hotspots.POST("/bindings/:id/enable", hotspotH.EnableIPBinding)
-				hotspots.POST("/bindings/:id/disable", hotspotH.DisableIPBinding)
-
-				hotspots.GET("/walled-garden", hotspotH.ListWalledGarden)
-				hotspots.POST("/walled-garden", hotspotH.AddWalledGarden)
-				hotspots.DELETE("/walled-garden/:wid", hotspotH.RemoveWalledGarden)
-				hotspots.GET("/walled-garden-ip", hotspotH.ListWalledGardenIP)
-				hotspots.POST("/walled-garden-ip", hotspotH.AddWalledGardenIP)
-				hotspots.DELETE("/walled-garden-ip/:wid", hotspotH.RemoveWalledGardenIP)
+				users.GET("", userH.List)
+				users.POST("", userH.Create)
+				users.GET("/:id", userH.Get)
+				users.PUT("/:id", userH.Update)
+				users.DELETE("/:id", userH.Delete)
 			}
 
-			vouchers := protected.Group("/routers/:routerId/vouchers")
-			{
-				vouchers.POST("/generate", voucherH.Generate)
-				vouchers.POST("/cache", voucherH.CacheVoucher)
-				vouchers.GET("/print-data", voucherH.PrintData)
-				vouchers.POST("/sales", voucherH.RecordSale)
-				vouchers.POST("/import", voucherH.ImportSales)
-			vouchers.POST("/print", voucherH.PrintVouchers)
-			}
-
-			reports := protected.Group("/routers/:routerId/reports")
-			{
-				reports.GET("/daily", reportH.GetDailyReport)
-				reports.GET("/monthly", reportH.GetMonthlyReport)
-				reports.GET("/resume", reportH.GetResumeReport)
-				reports.GET("/summary", reportH.GetDashboardSummary)
-				reports.GET("/export/csv", reportH.ExportCSV)
-				reports.GET("/export/excel", reportH.ExportExcel)
-			}
-
-			system := protected.Group("/routers/:routerId/system")
-			{
-				system.GET("/resource", systemH.GetSystemResource)
-				system.GET("/resource/history", systemH.GetSystemResourceHistory)
-				system.GET("/log", systemH.GetSystemLog)
-				system.GET("/clock", systemH.GetSystemClock)
-				system.GET("/identity", systemH.GetSystemIdentity)
-				system.GET("/routerboard", systemH.GetRouterboard)
-				system.POST("/reboot", systemH.Reboot)
-				system.POST("/shutdown", systemH.Shutdown)
-				system.GET("/expire-monitor", systemH.GetExpireMonitor)
-				system.POST("/expire-monitor/deploy", systemH.DeployExpireMonitor)
-				system.POST("/expire-monitor/remove", systemH.RemoveExpireMonitor)
-				system.GET("/schedulers", systemH.ListSchedulers)
-				system.POST("/schedulers", systemH.CreateScheduler)
-				system.PUT("/schedulers/:schedulerId", systemH.UpdateScheduler)
-				system.DELETE("/schedulers/:schedulerId", systemH.DeleteScheduler)
-				system.POST("/schedulers/:schedulerId/enable", systemH.EnableSchedulerByID)
-				system.POST("/schedulers/:schedulerId/disable", systemH.DisableSchedulerByID)
-			system.GET("/scripts", systemH.ListScripts)
-			system.POST("/scripts", systemH.CreateScript)
-			system.PUT("/scripts/:scriptId", systemH.UpdateScript)
-			system.DELETE("/scripts/:scriptId", systemH.DeleteScript)
-			system.POST("/scripts/:scriptId/run", systemH.RunScriptByID)
-			system.POST("/setup-logging", systemH.SetupLogging)
-				system.GET("/dashboard", systemH.GetDashboard)
-			}
-
-			ppp := protected.Group("/routers/:routerId/ppp")
-			{
-				ppp.GET("/secrets", pppH.ListSecrets)
-				ppp.POST("/secrets", pppH.AddSecret)
-				ppp.PUT("/secrets/:id", pppH.UpdateSecret)
-				ppp.DELETE("/secrets/:id", pppH.RemoveSecret)
-				ppp.GET("/active", pppH.ListActive)
-				ppp.DELETE("/active/:id", pppH.DisconnectActive)
-				ppp.GET("/inactive", pppH.ListInactive)
-				ppp.GET("/inactive/count", pppH.GetInactiveCount)
-				ppp.GET("/profiles", pppH.ListProfiles)
-			}
-
-			net := protected.Group("/routers/:routerId/network")
-			{
-				net.GET("/interfaces", networkH.ListInterfaces)
-				net.GET("/traffic/:iface", networkH.GetInterfaceTraffic)
-				net.GET("/pools", networkH.ListPools)
-				net.GET("/queues", networkH.ListQueues)
-				net.GET("/nat", networkH.ListNATRules)
-				net.GET("/dhcp/leases", networkH.ListDHCPLeases)
-				net.DELETE("/dhcp/:id/release", networkH.ReleaseDHCPLease)
-			}
-
-			qp := protected.Group("/routers/:routerId/quick-print")
-			{
-				qp.GET("", qpH.ListPackages)
-				qp.POST("", qpH.CreatePackage)
-				qp.GET("/:name", qpH.GetPackage)
-				qp.PUT("/:name", qpH.UpdatePackage)
-				qp.DELETE("/:name", qpH.RemovePackage)
-			}
-
-			logs := protected.Group("/routers/:routerId/logs")
-			{
-				logs.GET("/stream/all", logSSEH.StreamAll)
-				logs.GET("/stream/hotspot", logSSEH.StreamHotspot)
-				logs.GET("/stream/ppp", logSSEH.StreamPPP)
-			}
-
-			telemetry := protected.Group("/routers/:routerId/sse")
-			{
-				telemetry.GET("/hotspot/users", telemetrySSEH.Stream("hotspot_user"))
-				telemetry.GET("/hotspot/active", telemetrySSEH.Stream("hotspot_active"))
-				telemetry.GET("/hotspot/inactive", telemetrySSEH.Stream("hotspot_inactive"))
-				telemetry.GET("/hotspot/bindings", telemetrySSEH.Stream("ip_binding"))
-				telemetry.GET("/ppp/secrets", telemetrySSEH.Stream("ppp_secret"))
-				telemetry.GET("/ppp/active", telemetrySSEH.Stream("ppp_active"))
-				telemetry.GET("/ppp/inactive", telemetrySSEH.Stream("ppp_inactive"))
-				telemetry.GET("/system/resource", telemetrySSEH.Stream("system_resource"))
-				telemetry.GET("/network/traffic/:iface", telemetrySSEH.Stream("interface_traffic"))
-				telemetry.GET("/network/dhcp/leases", telemetrySSEH.Stream("dhcp_lease"))
-			}
-
-			templates := protected.Group("/routers/:routerId/templates")
+			// ====== Templates (tenant-scoped) ======
+			templates := protected.Group("/templates")
 			{
 				templates.GET("", templateH.List)
 				templates.POST("", templateH.Create)
@@ -275,20 +161,178 @@ func NewRouter(
 				templates.POST("/render", templateH.Render)
 				templates.POST("/seed-defaults", templateH.SeedDefaults)
 			}
+
+			// ====== Routers (tenant-scoped) ======
+			routers := protected.Group("/routers")
+			{
+				routers.GET("", routerH.List)
+				routers.POST("", routerH.Create)
+				routers.POST("/migrate", routerH.MigrateConfig)
+			}
+			routerOne := protected.Group("/routers/:routerId")
+			routerOne.Use(middleware.RouterTenantMiddleware(routerRepo))
+			{
+				routerOne.GET("", routerH.Get)
+				routerOne.PUT("", routerH.Update)
+				routerOne.DELETE("", routerH.Delete)
+				routerOne.POST("/test", routerH.TestConnection)
+
+				// Hotspot
+				routerOne.GET("/hotspot/users", hotspotH.ListUsers)
+				routerOne.GET("/hotspot/users/count", hotspotH.GetUserCount)
+				routerOne.GET("/hotspot/users/export", hotspotH.ExportUsers)
+				routerOne.GET("/hotspot/users/:id", hotspotH.GetUser)
+				routerOne.POST("/hotspot/users", hotspotH.AddUser)
+				routerOne.PUT("/hotspot/users/:id", hotspotH.UpdateUser)
+				routerOne.DELETE("/hotspot/users/:id", hotspotH.RemoveUser)
+				routerOne.POST("/hotspot/users/:id/reset-counters", hotspotH.ResetUserCounters)
+
+				routerOne.GET("/hotspot/profiles", hotspotH.ListProfiles)
+				routerOne.GET("/hotspot/profiles/:id", hotspotH.GetProfile)
+				routerOne.POST("/hotspot/profiles", hotspotH.AddProfile)
+				routerOne.PUT("/hotspot/profiles/:id", hotspotH.UpdateProfile)
+				routerOne.DELETE("/hotspot/profiles/:id", hotspotH.RemoveProfile)
+
+				routerOne.GET("/hotspot/active", hotspotH.ListActive)
+				routerOne.DELETE("/hotspot/active/:id", hotspotH.RemoveActive)
+				routerOne.POST("/hotspot/active/:id/disconnect", hotspotH.DisconnectUser)
+
+				routerOne.GET("/hotspot/inactive", hotspotH.ListInactive)
+				routerOne.GET("/hotspot/inactive/count", hotspotH.GetInactiveCount)
+
+				routerOne.GET("/hotspot/hosts", hotspotH.ListHosts)
+				routerOne.DELETE("/hotspot/hosts/:id", hotspotH.RemoveHost)
+
+				routerOne.GET("/hotspot/servers", hotspotH.ListServers)
+
+				routerOne.GET("/hotspot/cookies", hotspotH.ListCookies)
+				routerOne.DELETE("/hotspot/cookies/:id", hotspotH.RemoveCookie)
+
+				routerOne.GET("/hotspot/bindings", hotspotH.ListIPBindings)
+				routerOne.POST("/hotspot/bindings", hotspotH.AddIPBinding)
+				routerOne.PUT("/hotspot/bindings/:id", hotspotH.UpdateIPBinding)
+				routerOne.DELETE("/hotspot/bindings/:id", hotspotH.RemoveIPBinding)
+				routerOne.POST("/hotspot/bindings/:id/enable", hotspotH.EnableIPBinding)
+				routerOne.POST("/hotspot/bindings/:id/disable", hotspotH.DisableIPBinding)
+
+				routerOne.GET("/hotspot/walled-garden", hotspotH.ListWalledGarden)
+				routerOne.POST("/hotspot/walled-garden", hotspotH.AddWalledGarden)
+				routerOne.DELETE("/hotspot/walled-garden/:wid", hotspotH.RemoveWalledGarden)
+				routerOne.GET("/hotspot/walled-garden-ip", hotspotH.ListWalledGardenIP)
+				routerOne.POST("/hotspot/walled-garden-ip", hotspotH.AddWalledGardenIP)
+				routerOne.DELETE("/hotspot/walled-garden-ip/:wid", hotspotH.RemoveWalledGardenIP)
+
+				// Vouchers
+				routerOne.POST("/vouchers/generate", voucherH.Generate)
+				routerOne.POST("/vouchers/cache", voucherH.CacheVoucher)
+				routerOne.GET("/vouchers/print-data", voucherH.PrintData)
+				routerOne.POST("/vouchers/sales", voucherH.RecordSale)
+				routerOne.POST("/vouchers/import", voucherH.ImportSales)
+				routerOne.POST("/vouchers/print", voucherH.PrintVouchers)
+
+				// Reports (per-router)
+				routerOne.GET("/reports/daily", reportH.GetDailyReport)
+				routerOne.GET("/reports/monthly", reportH.GetMonthlyReport)
+				routerOne.GET("/reports/resume", reportH.GetResumeReport)
+				routerOne.GET("/reports/summary", reportH.GetDashboardSummary)
+				routerOne.GET("/reports/export/csv", reportH.ExportCSV)
+				routerOne.GET("/reports/export/excel", reportH.ExportExcel)
+
+				// System
+				routerOne.GET("/system/resource", systemH.GetSystemResource)
+				routerOne.GET("/system/resource/history", systemH.GetSystemResourceHistory)
+				routerOne.GET("/system/log", systemH.GetSystemLog)
+				routerOne.GET("/system/clock", systemH.GetSystemClock)
+				routerOne.GET("/system/identity", systemH.GetSystemIdentity)
+				routerOne.GET("/system/routerboard", systemH.GetRouterboard)
+				routerOne.POST("/system/reboot", systemH.Reboot)
+				routerOne.POST("/system/shutdown", systemH.Shutdown)
+				routerOne.GET("/system/expire-monitor", systemH.GetExpireMonitor)
+				routerOne.POST("/system/expire-monitor/deploy", systemH.DeployExpireMonitor)
+				routerOne.POST("/system/expire-monitor/remove", systemH.RemoveExpireMonitor)
+				routerOne.GET("/system/schedulers", systemH.ListSchedulers)
+				routerOne.POST("/system/schedulers", systemH.CreateScheduler)
+				routerOne.PUT("/system/schedulers/:schedulerId", systemH.UpdateScheduler)
+				routerOne.DELETE("/system/schedulers/:schedulerId", systemH.DeleteScheduler)
+				routerOne.POST("/system/schedulers/:schedulerId/enable", systemH.EnableSchedulerByID)
+				routerOne.POST("/system/schedulers/:schedulerId/disable", systemH.DisableSchedulerByID)
+				routerOne.GET("/system/scripts", systemH.ListScripts)
+				routerOne.POST("/system/scripts", systemH.CreateScript)
+				routerOne.PUT("/system/scripts/:scriptId", systemH.UpdateScript)
+				routerOne.DELETE("/system/scripts/:scriptId", systemH.DeleteScript)
+				routerOne.POST("/system/scripts/:scriptId/run", systemH.RunScriptByID)
+				routerOne.POST("/system/setup-logging", systemH.SetupLogging)
+				routerOne.GET("/system/dashboard", systemH.GetDashboard)
+
+				// PPP
+				routerOne.GET("/ppp/secrets", pppH.ListSecrets)
+				routerOne.POST("/ppp/secrets", pppH.AddSecret)
+				routerOne.PUT("/ppp/secrets/:id", pppH.UpdateSecret)
+				routerOne.DELETE("/ppp/secrets/:id", pppH.RemoveSecret)
+				routerOne.GET("/ppp/active", pppH.ListActive)
+				routerOne.DELETE("/ppp/active/:id", pppH.DisconnectActive)
+				routerOne.GET("/ppp/inactive", pppH.ListInactive)
+				routerOne.GET("/ppp/inactive/count", pppH.GetInactiveCount)
+				routerOne.GET("/ppp/profiles", pppH.ListProfiles)
+
+				// Network
+				routerOne.GET("/network/interfaces", networkH.ListInterfaces)
+				routerOne.GET("/network/traffic/:iface", networkH.GetInterfaceTraffic)
+				routerOne.GET("/network/pools", networkH.ListPools)
+				routerOne.GET("/network/queues", networkH.ListQueues)
+				routerOne.GET("/network/nat", networkH.ListNATRules)
+				routerOne.GET("/network/dhcp/leases", networkH.ListDHCPLeases)
+				routerOne.DELETE("/network/dhcp/:id/release", networkH.ReleaseDHCPLease)
+
+				// Quick print
+				routerOne.GET("/quick-print", qpH.ListPackages)
+				routerOne.POST("/quick-print", qpH.CreatePackage)
+				routerOne.GET("/quick-print/:name", qpH.GetPackage)
+				routerOne.PUT("/quick-print/:name", qpH.UpdatePackage)
+				routerOne.DELETE("/quick-print/:name", qpH.RemovePackage)
+
+				// Logs SSE
+				routerOne.GET("/logs/stream/all", logSSEH.StreamAll)
+				routerOne.GET("/logs/stream/hotspot", logSSEH.StreamHotspot)
+				routerOne.GET("/logs/stream/ppp", logSSEH.StreamPPP)
+
+				// Telemetry SSE
+				routerOne.GET("/sse/hotspot/users", telemetrySSEH.Stream("hotspot_user"))
+				routerOne.GET("/sse/hotspot/active", telemetrySSEH.Stream("hotspot_active"))
+				routerOne.GET("/sse/hotspot/inactive", telemetrySSEH.Stream("hotspot_inactive"))
+				routerOne.GET("/sse/hotspot/bindings", telemetrySSEH.Stream("ip_binding"))
+				routerOne.GET("/sse/ppp/secrets", telemetrySSEH.Stream("ppp_secret"))
+				routerOne.GET("/sse/ppp/active", telemetrySSEH.Stream("ppp_active"))
+				routerOne.GET("/sse/ppp/inactive", telemetrySSEH.Stream("ppp_inactive"))
+				routerOne.GET("/sse/system/resource", telemetrySSEH.Stream("system_resource"))
+				routerOne.GET("/sse/network/traffic/:iface", telemetrySSEH.Stream("interface_traffic"))
+				routerOne.GET("/sse/network/dhcp/leases", telemetrySSEH.Stream("dhcp_lease"))
+
+				// Profile mappings
+				routerOne.GET("/profile-mappings", profileMappingH.List)
+				routerOne.PUT("/profile-mappings/:profileName", profileMappingH.Update)
+				routerOne.DELETE("/profile-mappings/:profileName", profileMappingH.Delete)
+			}
+
+			// ====== Platform admin (superadmin only via Casbin /api/v1/* policy) ======
+			admin := protected.Group("/admin")
+			{
+				admin.GET("/tenants", tenantH.AdminList)
+				admin.POST("/tenants", tenantH.AdminCreate)
+				admin.GET("/tenants/:id", tenantH.AdminGet)
+				admin.PUT("/tenants/:id", tenantH.AdminUpdate)
+				admin.DELETE("/tenants/:id", tenantH.AdminHardDelete)
+				admin.POST("/tenants/:id/suspend", tenantH.AdminSuspend)
+				admin.POST("/tenants/:id/activate", tenantH.AdminActivate)
+
+				admin.GET("/templates", templateH.List)
+				admin.POST("/templates", templateH.Create)
+				admin.PUT("/templates/:templateId", templateH.Update)
+				admin.DELETE("/templates/:templateId", templateH.Delete)
+			}
 		}
-
-		api.GET("/status", statusH.GetUserStatus)
-
-		events := api.Group("/events")
-		{
-			events.POST("/on-login", onLoginRL, eventH.OnLoginEvent)
-			events.GET("/health", eventH.HealthCheck)
-		}
-
-		protected.GET("/routers/:routerId/profile-mappings", profileMappingH.List)
-		protected.PUT("/routers/:routerId/profile-mappings/:profileName", profileMappingH.Update)
-		protected.DELETE("/routers/:routerId/profile-mappings/:profileName", profileMappingH.Delete)
 	}
 
+	_ = cfg
 	return engine
 }

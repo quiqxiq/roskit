@@ -5,20 +5,44 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/quiqxiq/roskit/internal/repository"
 	"github.com/quiqxiq/roskit/internal/services"
 )
 
 type VoucherHandler struct {
-	svc         *services.VoucherService
-	templateSvc *services.TemplateService
-	hotspotSvc  *services.HotspotService
+	svc          *services.VoucherService
+	templateSvc  *services.TemplateService
+	hotspotSvc   *services.HotspotService
+	settingsRepo repository.TenantSettingsRepository
 }
 
-func NewVoucherHandler(svc *services.VoucherService, templateSvc *services.TemplateService, hotspotSvc *services.HotspotService) *VoucherHandler {
-	return &VoucherHandler{svc: svc, templateSvc: templateSvc, hotspotSvc: hotspotSvc}
+func NewVoucherHandler(
+	svc *services.VoucherService,
+	templateSvc *services.TemplateService,
+	hotspotSvc *services.HotspotService,
+	settingsRepo repository.TenantSettingsRepository,
+) *VoucherHandler {
+	return &VoucherHandler{
+		svc:          svc,
+		templateSvc:  templateSvc,
+		hotspotSvc:   hotspotSvc,
+		settingsRepo: settingsRepo,
+	}
+}
+
+func tenantLogoURL(tenantID uint, logoPath string) string {
+	if logoPath == "" {
+		return ""
+	}
+	_ = tenantID
+	return "/api/v1/tenant/logo"
 }
 
 func (h *VoucherHandler) Generate(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -31,7 +55,7 @@ func (h *VoucherHandler) Generate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GenerateVoucher(c.Request.Context(), routerID, params)
+	result, err := h.svc.GenerateVoucher(c.Request.Context(), tenantID, routerID, params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -67,6 +91,10 @@ func (h *VoucherHandler) CacheVoucher(c *gin.Context) {
 }
 
 func (h *VoucherHandler) RecordSale(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -79,7 +107,7 @@ func (h *VoucherHandler) RecordSale(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordSale(c.Request.Context(), routerID, params); err != nil {
+	if err := h.svc.RecordSale(c.Request.Context(), tenantID, routerID, params); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
@@ -88,13 +116,17 @@ func (h *VoucherHandler) RecordSale(c *gin.Context) {
 }
 
 func (h *VoucherHandler) ImportSales(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
 
-	result, err := h.svc.ImportSalesFromRouterOS(c.Request.Context(), routerID)
+	result, err := h.svc.ImportSalesFromRouterOS(c.Request.Context(), tenantID, routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -104,6 +136,10 @@ func (h *VoucherHandler) ImportSales(c *gin.Context) {
 }
 
 func (h *VoucherHandler) PrintData(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -122,32 +158,22 @@ func (h *VoucherHandler) PrintData(c *gin.Context) {
 		return
 	}
 
-	router, err := h.svc.GetRouterInfo(c.Request.Context(), routerID)
+	settings, err := h.settingsRepo.GetByTenantID(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get router info"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get tenant settings"})
 		return
-	}
-
-	var hotspotName, dnsName, currency, phone, email, infoLP string
-	if router.HotspotConfig != nil {
-		hotspotName = router.HotspotConfig.HotspotName
-		dnsName = router.HotspotConfig.DNSName
-		currency = router.HotspotConfig.Currency
-		phone = router.HotspotConfig.Phone
-		email = router.HotspotConfig.Email
-		infoLP = router.HotspotConfig.InfoLP
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
 			"vouchers": result.Vouchers,
 			"router_info": gin.H{
-				"hotspot_name": hotspotName,
-				"dns_name":     dnsName,
-				"currency":     currency,
-				"phone":        phone,
-				"email":        email,
-				"info_lp":      infoLP,
+				"hotspot_name": settings.HotspotName,
+				"dns_name":     settings.DNSName,
+				"currency":     settings.Currency,
+				"phone":        settings.Phone,
+				"email":        settings.Email,
+				"info_lp":      settings.InfoLP,
 			},
 		},
 		"error": nil,
@@ -161,6 +187,10 @@ type printVouchersRequest struct {
 }
 
 func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -184,8 +214,7 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	router, err := h.svc.GetRouterInfo(ctx, routerID)
-	if err != nil {
+	if _, err := h.svc.GetRouterInfo(ctx, tenantID, routerID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return
 	}
@@ -206,22 +235,20 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 		return
 	}
 
-	var hName, hDNS, hCurrency, hLogo string
-	if router.HotspotConfig != nil {
-		hName = router.HotspotConfig.HotspotName
-		hDNS = router.HotspotConfig.DNSName
-		hCurrency = router.HotspotConfig.Currency
-		hLogo = routerLogoURL(routerID, router.HotspotConfig.LogoPath)
+	settings, err := h.settingsRepo.GetByTenantID(ctx, tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get tenant settings"})
+		return
 	}
 
 	routerParams := services.RouterVoucherParams{
-		HotspotName: hName,
-		DNSName:     hDNS,
-		Logo:        hLogo,
-		Currency:    hCurrency,
+		HotspotName: settings.HotspotName,
+		DNSName:     settings.DNSName,
+		Logo:        tenantLogoURL(tenantID, settings.LogoPath),
+		Currency:    settings.Currency,
 	}
 
-	page, err := h.templateSvc.RenderFromUsers(ctx, routerID, templateType, resolved, routerParams)
+	page, err := h.templateSvc.RenderFromUsers(ctx, tenantID, templateType, resolved, routerParams)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return

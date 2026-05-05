@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -22,12 +20,13 @@ import (
 )
 
 type RouterPublicView struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	IPAddress   string `json:"ip_address"`
-	APIPort     int    `json:"api_port"`
-	APIUsername string `json:"api_username"`
-	Status      string `json:"status"`
+	ID          uint       `json:"id"`
+	TenantID    uint       `json:"tenant_id"`
+	Name        string     `json:"name"`
+	IPAddress   string     `json:"ip_address"`
+	APIPort     int        `json:"api_port"`
+	APIUsername string     `json:"api_username"`
+	Status      string     `json:"status"`
 	LastSeenAt  *time.Time `json:"last_seen_at"`
 	Notes       *string    `json:"notes"`
 }
@@ -35,6 +34,7 @@ type RouterPublicView struct {
 func toPublicView(r *models.Router) RouterPublicView {
 	return RouterPublicView{
 		ID:          r.ID,
+		TenantID:    r.TenantID,
 		Name:        r.Name,
 		IPAddress:   r.IPAddress,
 		APIPort:     r.APIPort,
@@ -61,14 +61,6 @@ type CreateRouterRequest struct {
 	APIUsername string `json:"api_username" binding:"required"`
 	Password    string `json:"password" binding:"required"`
 	Notes       string `json:"notes"`
-	HotspotName string `json:"hotspot_name"`
-	DNSName     string `json:"dns_name"`
-	Currency    string `json:"currency"`
-	Phone       string `json:"phone"`
-	Email       string `json:"email"`
-	InfoLP      string `json:"info_lp"`
-	IdleTimeout int    `json:"idle_timeout"`
-	ReportMode  string `json:"report_mode"`
 }
 
 type UpdateRouterRequest struct {
@@ -78,14 +70,6 @@ type UpdateRouterRequest struct {
 	APIUsername string `json:"api_username"`
 	Password    string `json:"password"`
 	Notes       string `json:"notes"`
-	HotspotName string `json:"hotspot_name"`
-	DNSName     string `json:"dns_name"`
-	Currency    string `json:"currency"`
-	Phone       string `json:"phone"`
-	Email       string `json:"email"`
-	InfoLP      string `json:"info_lp"`
-	IdleTimeout int    `json:"idle_timeout"`
-	ReportMode  string `json:"report_mode"`
 }
 
 type MigrationResult struct {
@@ -93,6 +77,20 @@ type MigrationResult struct {
 	Imported int `json:"imported"`
 	Skipped  int `json:"skipped"`
 	Errors   int `json:"errors"`
+}
+
+// RouterRepository is the local interface used by RouterService.
+type RouterRepository interface {
+	Create(ctx context.Context, router *models.Router) error
+	GetByID(ctx context.Context, tenantID, id uint) (*models.Router, error)
+	GetByIDAny(ctx context.Context, id uint) (*models.Router, error)
+	GetByName(ctx context.Context, tenantID uint, name string) (*models.Router, error)
+	List(ctx context.Context, tenantID uint) ([]*models.Router, error)
+	ListAll(ctx context.Context) ([]*models.Router, error)
+	Update(ctx context.Context, router *models.Router) error
+	Delete(ctx context.Context, tenantID, id uint) error
+	UpdateStatus(ctx context.Context, routerID uint, status models.RouterStatus) error
+	UpdateLastSeen(ctx context.Context, routerID uint, t time.Time) error
 }
 
 type RouterService struct {
@@ -169,40 +167,10 @@ func (s *RouterService) WatchAndSyncStatus(ctx context.Context) {
 	}
 }
 
-
-func (s *RouterService) UploadLogo(ctx context.Context, routerID uint, fileData []byte, filename string) error {
-	dir := "uploads/logos"
-	_ = os.MkdirAll(dir, 0755)
-
-	path := fmt.Sprintf("%s/%d.png", dir, routerID)
-	if err := os.WriteFile(path, fileData, 0644); err != nil {
-		return err
-	}
-
-	router, err := s.repo.GetByID(ctx, routerID)
-	if err != nil {
-		return err
-	}
-	if router.HotspotConfig == nil {
-		router.HotspotConfig = &models.HotspotConfig{RouterID: routerID}
-	}
-	router.HotspotConfig.LogoPath = path
-	return s.repo.Update(ctx, router)
-}
-
-func (s *RouterService) GetLogoPath(ctx context.Context, routerID uint) (string, error) {
-	router, err := s.repo.GetByID(ctx, routerID)
-	if err != nil {
-		return "", err
-	}
-	if router.HotspotConfig == nil || router.HotspotConfig.LogoPath == "" {
-		return "", fmt.Errorf("logo not found")
-	}
-	return router.HotspotConfig.LogoPath, nil
-}
-
+// SeedEngineFromDB registers all routers across all tenants in the engine at startup.
+// This is platform-level — the engine is shared, indexed by router ID.
 func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
-	routers, err := s.repo.List(ctx)
+	routers, err := s.repo.ListAll(ctx)
 	if err != nil {
 		s.logger.Error("failed to load routers for engine seeding", "error", err)
 		return
@@ -238,7 +206,7 @@ func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
 	}
 }
 
-func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterRequest) (*RouterPublicView, error) {
+func (s *RouterService) CreateRouter(ctx context.Context, tenantID uint, req CreateRouterRequest) (*RouterPublicView, error) {
 	if req.IPAddress == "" || req.APIUsername == "" || req.Password == "" {
 		return nil, fmt.Errorf("ip_address, api_username, and password are required")
 	}
@@ -269,6 +237,7 @@ func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterReques
 	}
 
 	router := &models.Router{
+		TenantID:             tenantID,
 		Name:                 req.Name,
 		IPAddress:            req.IPAddress,
 		APIPort:              port,
@@ -282,34 +251,6 @@ func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterReques
 		return nil, fmt.Errorf("save router: %w", err)
 	}
 
-	idleTimeout := req.IdleTimeout
-	if idleTimeout == 0 {
-		idleTimeout = 30
-	}
-	reportMode := req.ReportMode
-	if reportMode == "" {
-		reportMode = "disable"
-	}
-	currency := req.Currency
-	if currency == "" {
-		currency = "Rp"
-	}
-	hotspotConfig := &models.HotspotConfig{
-		RouterID:     router.ID,
-		HotspotName:  req.HotspotName,
-		DNSName:      req.DNSName,
-		Currency:     currency,
-		Phone:        req.Phone,
-		Email:        req.Email,
-		InfoLP:       req.InfoLP,
-		IdleTimeout:  idleTimeout,
-		ReportMode:   reportMode,
-		WebhookToken: generateToken(),
-	}
-	if err := s.repo.CreateHotspotConfig(ctx, hotspotConfig); err != nil {
-		s.logger.Warn("failed to create hotspot config", "router_id", router.ID, "error", err)
-	}
-
 	routerID := fmt.Sprintf("%d", router.ID)
 	_ = s.engine.AddRouter(ctx, execution.ConnConfig{
 		RouterID: routerID,
@@ -318,14 +259,14 @@ func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterReques
 		Password: req.Password,
 	})
 
-	s.logger.Info("router created and registered", "id", router.ID, "name", req.Name)
+	s.logger.Info("router created and registered", "id", router.ID, "name", req.Name, "tenant_id", tenantID)
 
 	view := toPublicView(router)
 	return &view, nil
 }
 
-func (s *RouterService) GetRouter(ctx context.Context, id uint) (*RouterPublicView, error) {
-	router, err := s.repo.GetByID(ctx, id)
+func (s *RouterService) GetRouter(ctx context.Context, tenantID, id uint) (*RouterPublicView, error) {
+	router, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -333,8 +274,8 @@ func (s *RouterService) GetRouter(ctx context.Context, id uint) (*RouterPublicVi
 	return &view, nil
 }
 
-func (s *RouterService) ListRouters(ctx context.Context) ([]RouterPublicView, error) {
-	routers, err := s.repo.List(ctx)
+func (s *RouterService) ListRouters(ctx context.Context, tenantID uint) ([]RouterPublicView, error) {
+	routers, err := s.repo.List(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -345,8 +286,8 @@ func (s *RouterService) ListRouters(ctx context.Context) ([]RouterPublicView, er
 	return views, nil
 }
 
-func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRouterRequest) (*RouterPublicView, error) {
-	router, err := s.repo.GetByID(ctx, id)
+func (s *RouterService) UpdateRouter(ctx context.Context, tenantID, id uint, req UpdateRouterRequest) (*RouterPublicView, error) {
+	router, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -443,8 +384,8 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 	return &view, nil
 }
 
-func (s *RouterService) DeleteRouter(ctx context.Context, id uint) error {
-	router, err := s.repo.GetByID(ctx, id)
+func (s *RouterService) DeleteRouter(ctx context.Context, tenantID, id uint) error {
+	router, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return err
 	}
@@ -452,7 +393,7 @@ func (s *RouterService) DeleteRouter(ctx context.Context, id uint) error {
 	routerID := fmt.Sprintf("%d", id)
 	s.engine.RemoveRouter(routerID)
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.repo.Delete(ctx, tenantID, id); err != nil {
 		return fmt.Errorf("delete router: %w", err)
 	}
 
@@ -460,7 +401,7 @@ func (s *RouterService) DeleteRouter(ctx context.Context, id uint) error {
 		_ = s.cache.Delete(ctx, appcache.DashboardKey(id))
 	}
 
-	s.logger.Info("router deleted", "id", id, "name", router.Name)
+	s.logger.Info("router deleted", "id", id, "name", router.Name, "tenant_id", tenantID)
 	return nil
 }
 
@@ -524,7 +465,7 @@ func (s *RouterService) TestConnection(ctx context.Context, ip string, port int,
 	}, nil
 }
 
-func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath string) (*MigrationResult, error) {
+func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, tenantID uint, filePath string) (*MigrationResult, error) {
 	data, err := readFileContent(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("read config file: %w", err)
@@ -569,7 +510,7 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 			Password:    password,
 		}
 
-		_, err = s.CreateRouter(ctx, req)
+		_, err = s.CreateRouter(ctx, tenantID, req)
 		if err != nil {
 			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 				result.Skipped++
@@ -585,6 +526,7 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 	}
 
 	s.logger.Info("migration complete",
+		"tenant_id", tenantID,
 		"total", result.Total,
 		"imported", result.Imported,
 		"skipped", result.Skipped,
@@ -592,24 +534,6 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath strin
 	)
 
 	return result, nil
-}
-
-type RouterRepository interface {
-	Create(ctx context.Context, router *models.Router) error
-	GetByID(ctx context.Context, id uint) (*models.Router, error)
-	GetByName(ctx context.Context, name string) (*models.Router, error)
-	List(ctx context.Context) ([]*models.Router, error)
-	Update(ctx context.Context, router *models.Router) error
-	Delete(ctx context.Context, id uint) error
-	CreateHotspotConfig(ctx context.Context, cfg *models.HotspotConfig) error
-	UpdateStatus(ctx context.Context, routerID uint, status models.RouterStatus) error
-	UpdateLastSeen(ctx context.Context, routerID uint, t time.Time) error
-}
-
-func generateToken() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
 }
 
 func extractDelimited(s, delim, fallback string) string {

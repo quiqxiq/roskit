@@ -133,8 +133,32 @@ type summaryStats struct {
 }
 
 type routerWithConfig struct {
-	router models.Router
-	config models.HotspotConfig
+	router   models.Router
+	settings models.TenantSettings
+}
+
+func tenantSlugFromSession(name string) string {
+	lower := strings.ToLower(strings.TrimSpace(name))
+	var b strings.Builder
+	last := byte('-')
+	for i := 0; i < len(lower); i++ {
+		c := lower[i]
+		switch {
+		case (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'):
+			b.WriteByte(c)
+			last = c
+		default:
+			if last != '-' {
+				b.WriteByte('-')
+				last = '-'
+			}
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	if slug == "" {
+		slug = "imported"
+	}
+	return slug
 }
 
 func replyToMaps(reply *routeros.Reply) []map[string]string {
@@ -262,21 +286,21 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 			APIPasswordEncrypted: encryptedPassword,
 			Status:               models.RouterStatusUnknown,
 		}
-		hc := models.HotspotConfig{
-			HotspotName: hotspotStr,
-			DNSName:     dnsStr,
-			Currency:    currencyStr,
-			Phone:       phoneStr,
-			Email:       emailStr,
-			InfoLP:      infoStr,
-			IdleTimeout: 30,
-			ReportMode:  reportStr,
+		ts := models.TenantSettings{
+			HotspotName:  hotspotStr,
+			DNSName:      dnsStr,
+			Currency:     currencyStr,
+			Phone:        phoneStr,
+			Email:        emailStr,
+			InfoLP:       infoStr,
+			IdleTimeout:  30,
+			ReportMode:   reportStr,
 			WebhookToken: tokenStr,
 		}
 		if idleInt, err := strconv.Atoi(strings.TrimSpace(idleStr)); err == nil && idleInt > 0 {
-			hc.IdleTimeout = idleInt
+			ts.IdleTimeout = idleInt
 		}
-		routers = append(routers, routerWithConfig{router: r, config: hc})
+		routers = append(routers, routerWithConfig{router: r, settings: ts})
 		sessions = append(sessions, sessionName)
 	}
 
@@ -292,19 +316,41 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 	ctx := context.Background()
 
-	for _, rw := range routers {
+	for i := range routers {
+		rw := &routers[i]
+		slug := tenantSlugFromSession(rw.router.Name)
+
+		var tenant models.Tenant
+		errT := db.Where("slug = ?", slug).First(&tenant).Error
+		if errT == gorm.ErrRecordNotFound {
+			tenant = models.Tenant{
+				Name:   rw.router.Name,
+				Slug:   slug,
+				Plan:   models.TenantPlanFree,
+				Status: models.TenantStatusActive,
+			}
+			if err := db.Create(&tenant).Error; err != nil {
+				log.Printf("failed to create tenant %s: %v", slug, err)
+				summary.routersSkipped++
+				continue
+			}
+			rw.settings.TenantID = tenant.ID
+			if err := db.Create(&rw.settings).Error; err != nil {
+				log.Printf("failed to create tenant settings %s: %v", slug, err)
+			}
+		} else if errT != nil {
+			log.Printf("failed to check tenant %s: %v", slug, errT)
+			summary.routersSkipped++
+			continue
+		}
+
+		rw.router.TenantID = tenant.ID
+
 		var r models.Router
-		err := db.Where("name = ?", rw.router.Name).First(&r).Error
+		err := db.Where("tenant_id = ? AND name = ?", tenant.ID, rw.router.Name).First(&r).Error
 		if err == gorm.ErrRecordNotFound {
-			txErr := db.Transaction(func(tx *gorm.DB) error {
-				if err := tx.Create(&rw.router).Error; err != nil {
-					return err
-				}
-				rw.config.RouterID = rw.router.ID
-				return tx.Create(&rw.config).Error
-			})
-			if txErr != nil {
-				log.Printf("failed to create router %s: %v", rw.router.Name, txErr)
+			if err := db.Create(&rw.router).Error; err != nil {
+				log.Printf("failed to create router %s: %v", rw.router.Name, err)
 				summary.routersSkipped++
 				continue
 			}
@@ -341,7 +387,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 	for _, rw := range routers {
 		var dbR models.Router
-		if err := db.Where("name = ?", rw.router.Name).First(&dbR).Error; err != nil {
+		if err := db.Where("tenant_id = ? AND name = ?", rw.router.TenantID, rw.router.Name).First(&dbR).Error; err != nil {
 			continue
 		}
 
@@ -382,7 +428,9 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 				continue
 			}
 
+			rid := dbR.ID
 			sale := &models.VoucherSale{
+				TenantID:       dbR.TenantID,
 				SoldAt:         soldAt,
 				Username:       fields[2],
 				Price:          price,
@@ -390,7 +438,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 				MACAddress:     fields[5],
 				Validity:       fields[6],
 				ProfileName:    fields[7],
-				RouterID:       dbR.ID,
+				RouterID:       &rid,
 				IdempotencyKey: idempKey,
 			}
 			batch = append(batch, sale)

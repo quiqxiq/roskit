@@ -17,15 +17,17 @@ import (
 
 type TemplateRepository interface {
 	Create(ctx context.Context, t *models.PrintTemplate) error
-	GetByID(ctx context.Context, id uint) (*models.PrintTemplate, error)
-	List(ctx context.Context, routerID uint) ([]models.PrintTemplate, error)
+	GetByID(ctx context.Context, tenantID *uint, id uint) (*models.PrintTemplate, error)
+	List(ctx context.Context, tenantID uint) ([]models.PrintTemplate, error)
+	ListGlobal(ctx context.Context) ([]models.PrintTemplate, error)
 	Update(ctx context.Context, t *models.PrintTemplate) error
-	Delete(ctx context.Context, id uint) error
-	GetByRouterAndType(ctx context.Context, routerID uint, templateType string) ([]models.PrintTemplate, error)
+	Delete(ctx context.Context, tenantID *uint, id uint) error
+	GetByTenantAndType(ctx context.Context, tenantID uint, templateType string) ([]models.PrintTemplate, error)
+	GetGlobalByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error)
+	CountGlobal(ctx context.Context) (int64, error)
 }
 
 // VoucherTemplateVars holds all variables available inside a print template.
-// Template content uses Go html/template syntax, e.g. {{.Username}}.
 type VoucherTemplateVars struct {
 	Num         int
 	Username    string
@@ -40,25 +42,22 @@ type VoucherTemplateVars struct {
 	DNSName     string
 	Logo        string
 	Currency    string
-	UserMode    string        // "vc" (username=password) or "up" (separate username & password)
-	QR          string        // "yes" or "no"
-	QRCode      template.HTML // rendered <img> tag for QR code
+	UserMode    string
+	QR          string
+	QRCode      template.HTML
 	TimeStamp   string
 }
 
-// RenderedVoucher is the rendered HTML for a single voucher.
 type RenderedVoucher struct {
 	Num  int    `json:"num"`
 	HTML string `json:"html"`
 }
 
-// RenderParams carries per-batch context needed for rendering.
-// Profile-level fields (Validity, TimeLimit, etc.) are shared across all vouchers in one print batch.
 type RenderParams struct {
 	HotspotName string
 	DNSName     string
 	Logo        string
-	UserMode    string // "vc" or "up"
+	UserMode    string
 	Currency    string
 	Profile     string
 	Validity    string
@@ -94,13 +93,15 @@ func NewTemplateService(repo TemplateRepository) *TemplateService {
 	}
 }
 
-func (s *TemplateService) Create(ctx context.Context, routerID uint, req CreateTemplateRequest) (*models.PrintTemplate, error) {
+// Create inserts a template owned by a tenant. Pass tenantID=nil to create a global default
+// (only superadmin should ever do this).
+func (s *TemplateService) Create(ctx context.Context, tenantID *uint, req CreateTemplateRequest) (*models.PrintTemplate, error) {
 	t := &models.PrintTemplate{
+		TenantID: tenantID,
 		Name:     req.Name,
 		Type:     req.Type,
 		Part:     req.Part,
 		Content:  req.Content,
-		RouterID: routerID,
 	}
 	if err := s.repo.Create(ctx, t); err != nil {
 		return nil, fmt.Errorf("create template: %w", err)
@@ -108,16 +109,20 @@ func (s *TemplateService) Create(ctx context.Context, routerID uint, req CreateT
 	return t, nil
 }
 
-func (s *TemplateService) GetByID(ctx context.Context, id uint) (*models.PrintTemplate, error) {
-	return s.repo.GetByID(ctx, id)
+func (s *TemplateService) GetByID(ctx context.Context, tenantID *uint, id uint) (*models.PrintTemplate, error) {
+	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *TemplateService) List(ctx context.Context, routerID uint) ([]models.PrintTemplate, error) {
-	return s.repo.List(ctx, routerID)
+func (s *TemplateService) List(ctx context.Context, tenantID uint) ([]models.PrintTemplate, error) {
+	return s.repo.List(ctx, tenantID)
 }
 
-func (s *TemplateService) Update(ctx context.Context, id uint, req UpdateTemplateRequest) (*models.PrintTemplate, error) {
-	t, err := s.repo.GetByID(ctx, id)
+func (s *TemplateService) ListGlobal(ctx context.Context) ([]models.PrintTemplate, error) {
+	return s.repo.ListGlobal(ctx)
+}
+
+func (s *TemplateService) Update(ctx context.Context, tenantID *uint, id uint, req UpdateTemplateRequest) (*models.PrintTemplate, error) {
+	t, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -139,10 +144,12 @@ func (s *TemplateService) Update(ctx context.Context, id uint, req UpdateTemplat
 	return t, nil
 }
 
-func (s *TemplateService) Delete(ctx context.Context, id uint) error {
-	return s.repo.Delete(ctx, id)
+func (s *TemplateService) Delete(ctx context.Context, tenantID *uint, id uint) error {
+	return s.repo.Delete(ctx, tenantID, id)
 }
 
+// SeedDefaults seeds the global default templates (tenant_id IS NULL) from embedded files.
+// Idempotent — existing global templates are kept unless force=true.
 func (s *TemplateService) SeedDefaults(ctx context.Context) error {
 	return SeedGlobalDefaults(ctx, s.repo, false)
 }
@@ -151,21 +158,20 @@ func (s *TemplateService) ForceSeedDefaults(ctx context.Context) error {
 	return SeedGlobalDefaults(ctx, s.repo, true)
 }
 
-// Render renders a named template type for the given vouchers.
-// Templates are split into header/row/footer parts; each voucher gets header+row+footer assembled.
+// Render renders a named template type for the given vouchers, scoped to a tenant.
 func (s *TemplateService) Render(
 	ctx context.Context,
-	routerID uint,
+	tenantID uint,
 	templateType string,
 	vouchers []roskitservice.GeneratedVoucher,
 	params RenderParams,
 ) ([]RenderedVoucher, error) {
-	parts, err := s.repo.GetByRouterAndType(ctx, routerID, templateType)
+	parts, err := s.repo.GetByTenantAndType(ctx, tenantID, templateType)
 	if err != nil {
 		return nil, err
 	}
 	if len(parts) == 0 {
-		return nil, fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
+		return nil, fmt.Errorf("no template found for type %q on tenant %d", templateType, tenantID)
 	}
 
 	byPart := map[string]string{}
@@ -286,11 +292,9 @@ func buildVarsFromResolved(num int, v ResolvedVoucher, router RouterVoucherParam
 	}
 }
 
-// RenderFromUsers renders a full HTML print page: header once, one row per voucher, footer once.
-// Returns complete HTML ready to serve directly as text/html.
 func (s *TemplateService) RenderFromUsers(
 	ctx context.Context,
-	routerID uint,
+	tenantID uint,
 	templateType string,
 	vouchers []ResolvedVoucher,
 	router RouterVoucherParams,
@@ -298,19 +302,18 @@ func (s *TemplateService) RenderFromUsers(
 	if len(vouchers) == 0 {
 		return "", fmt.Errorf("no vouchers to render")
 	}
-	parts, err := s.repo.GetByRouterAndType(ctx, routerID, templateType)
+	parts, err := s.repo.GetByTenantAndType(ctx, tenantID, templateType)
 	if err != nil {
 		return "", err
 	}
 	if len(parts) == 0 {
-		return "", fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
+		return "", fmt.Errorf("no template found for type %q on tenant %d", templateType, tenantID)
 	}
 	byPart := map[string]string{}
 	for _, p := range parts {
 		byPart[p.Part] = p.Content
 	}
 
-	// Header and footer use shared page-level vars (hotspot name, currency, etc.)
 	pageVars := buildVarsFromResolved(1, vouchers[0], router)
 
 	var buf bytes.Buffer
@@ -351,11 +354,9 @@ func (s *TemplateService) RenderFromUsers(
 	return buf.String(), nil
 }
 
-// RenderPage renders a full HTML print page from cached generated vouchers.
-// Same architecture as RenderFromUsers: header once, one row per voucher, footer once.
 func (s *TemplateService) RenderPage(
 	ctx context.Context,
-	routerID uint,
+	tenantID uint,
 	templateType string,
 	vouchers []roskitservice.GeneratedVoucher,
 	params RenderParams,
@@ -363,12 +364,12 @@ func (s *TemplateService) RenderPage(
 	if len(vouchers) == 0 {
 		return "", fmt.Errorf("no vouchers to render")
 	}
-	parts, err := s.repo.GetByRouterAndType(ctx, routerID, templateType)
+	parts, err := s.repo.GetByTenantAndType(ctx, tenantID, templateType)
 	if err != nil {
 		return "", err
 	}
 	if len(parts) == 0 {
-		return "", fmt.Errorf("no template found for type %q on router %d", templateType, routerID)
+		return "", fmt.Errorf("no template found for type %q on tenant %d", templateType, tenantID)
 	}
 	byPart := map[string]string{}
 	for _, p := range parts {

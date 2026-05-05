@@ -27,21 +27,19 @@ var defaultTemplates = []defaultTemplateEntry{
 	{Name: "Thermal", Type: "thermal", Part: "footer", Path: "thermal/footer.html"},
 }
 
-// SeedGlobalDefaults seeds default templates (RouterID=0) from embedded files.
-// When force=false, existing templates are skipped.
+// SeedGlobalDefaults seeds default templates (tenant_id IS NULL) from embedded files.
+// When force=false, existing global templates are skipped.
 // When force=true, existing global templates are updated with current embedded content.
 func SeedGlobalDefaults(ctx context.Context, repo TemplateRepository, force bool) error {
-	existing, err := repo.List(ctx, 0)
+	existing, err := repo.ListGlobal(ctx)
 	if err != nil {
 		return fmt.Errorf("list global templates: %w", err)
 	}
 
 	seenByKey := map[string]*models.PrintTemplate{}
 	for i, t := range existing {
-		if t.RouterID == 0 {
-			key := t.Type + "|" + t.Part
-			seenByKey[key] = &existing[i]
-		}
+		key := t.Type + "|" + t.Part
+		seenByKey[key] = &existing[i]
 	}
 
 	for _, d := range defaultTemplates {
@@ -63,10 +61,11 @@ func SeedGlobalDefaults(ctx context.Context, repo TemplateRepository, force bool
 		}
 
 		t := &models.PrintTemplate{
-			Name:    d.Name,
-			Type:    d.Type,
-			Part:    d.Part,
-			Content: string(content),
+			TenantID: nil, // global default
+			Name:     d.Name,
+			Type:     d.Type,
+			Part:     d.Part,
+			Content:  string(content),
 		}
 		if err := repo.Create(ctx, t); err != nil {
 			return fmt.Errorf("seed template %s/%s/%s: %w", d.Type, d.Part, d.Name, err)

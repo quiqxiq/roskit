@@ -33,8 +33,10 @@ func NewStatusService(routerRepo *repository.RouterRepo, bridge *roskitservice.B
 	}
 }
 
-func (s *StatusService) GetUserStatus(ctx context.Context, routerName string, mac string) (*UserStatus, error) {
-	router, err := s.routerRepo.GetByName(ctx, routerName)
+// GetUserStatus is reachable by the on-login form-callback (no auth, public endpoint).
+// We resolve the router by name within a tenant-scope.
+func (s *StatusService) GetUserStatus(ctx context.Context, tenantID uint, routerName string, mac string) (*UserStatus, error) {
+	router, err := s.routerRepo.GetByName(ctx, tenantID, routerName)
 	if err != nil {
 		return nil, fmt.Errorf("router not found: %w", err)
 	}

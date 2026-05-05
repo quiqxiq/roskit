@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/api"
+	casbinx "github.com/quiqxiq/roskit/internal/casbin"
 	"github.com/quiqxiq/roskit/internal/config"
 	"github.com/quiqxiq/roskit/internal/repository"
-	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
+	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 	roskitcache "github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	roskitpubsub "github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 	roskittimeseries "github.com/quiqxiq/roskit/internal/roskit/pipeline/timeseries"
@@ -115,14 +116,42 @@ func main() {
 		roskitSubscriber = subscriber
 	}
 
+	// ===== Casbin =====
+	enforcer, err := casbinx.NewEnforcer(db)
+	if err != nil {
+		log.Fatalf("failed to init casbin enforcer: %v", err)
+	}
+	if err := casbinx.SeedPolicies(enforcer); err != nil {
+		logger.Warn("casbin policy seed failed", "error", err)
+	}
+
+	// ===== Repositories (top-level wiring) =====
+	tenantRepo := repository.NewTenantRepo(db)
+	tenantSettingsRepo := repository.NewTenantSettingsRepo(db)
+	userRepo := repository.NewUserRepo(db)
+	templateRepo := repository.NewTemplateRepo(db)
+	saleRepo := repository.NewSaleRepo(db)
+	profileRepo := repository.NewProfilePriceMappingRepo(db)
+
+	// ===== Services that auth depends on =====
+	tenantSvc := services.NewTenantService(db, tenantRepo, tenantSettingsRepo, templateRepo)
+	authSvc := services.NewAuthService(
+		userRepo,
+		tenantRepo,
+		enforcer,
+		cache,
+		[]byte(cfg.JWTSecret),
+		[]byte(cfg.JWTRefreshSecret),
+	)
+
 	var setupLoggingFn func(ctx context.Context, routerID string)
 	var syncTimezoneFn func(ctx context.Context, routerID string)
 
 	engine := orchestrator.New(orchestrator.Config{
-		Logger:          logger,
-		Cache:           roskitCache,
-		TimeSeries:      tsWriter,
-		PubSub:          roskitPubSub,
+		Logger:     logger,
+		Cache:      roskitCache,
+		TimeSeries: tsWriter,
+		PubSub:     roskitPubSub,
 		OnRouterConnect: func(ctx context.Context, routerID string) {
 			if setupLoggingFn != nil {
 				setupLoggingFn(ctx, routerID)
@@ -157,6 +186,7 @@ func main() {
 			logger.Warn("failed to save router timezone", "router_id", routerID, "error", err)
 		}
 	}
+
 	routerSvc := services.NewRouterService(routerRepo, engine, cache, cfg.AESEncKey)
 	routerSvc.SeedEngineFromDB(context.Background())
 
@@ -167,13 +197,14 @@ func main() {
 
 	go routerSvc.WatchAndSyncStatus(ctx)
 
-	saleRepo := repository.NewSaleRepo(db)
-	profileRepo := repository.NewProfilePriceMappingRepo(db)
-
 	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
 	go backgroundWorker.Start(ctx)
 
-	router := api.NewRouter(cfg, db, cache, bridge, routerSvc, tsReader, roskitSubscriber, profileRepo)
+	router := api.NewRouter(
+		cfg, db, cache, bridge,
+		routerSvc, tsReader, roskitSubscriber, profileRepo,
+		tenantRepo, tenantSettingsRepo, tenantSvc, authSvc, enforcer,
+	)
 
 	srv := &http.Server{
 		Addr:        fmt.Sprintf(":%d", cfg.Port),

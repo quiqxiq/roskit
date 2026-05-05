@@ -21,19 +21,28 @@ type EventHandler struct {
 	routerRepo   repository.RouterRepository
 	saleRepo     repository.SaleRepository
 	profileRepo  repository.ProfilePriceMappingRepository
+	settingsRepo repository.TenantSettingsRepository
 	bridge       *roskitservice.Bridge
 	cache        *appcache.Cache
 	logger       *slog.Logger
 }
 
-func NewEventHandler(routerRepo repository.RouterRepository, saleRepo repository.SaleRepository, profileRepo repository.ProfilePriceMappingRepository, bridge *roskitservice.Bridge, cache *appcache.Cache) *EventHandler {
+func NewEventHandler(
+	routerRepo repository.RouterRepository,
+	saleRepo repository.SaleRepository,
+	profileRepo repository.ProfilePriceMappingRepository,
+	settingsRepo repository.TenantSettingsRepository,
+	bridge *roskitservice.Bridge,
+	cache *appcache.Cache,
+) *EventHandler {
 	return &EventHandler{
-		routerRepo:  routerRepo,
-		saleRepo:    saleRepo,
-		profileRepo: profileRepo,
-		bridge:      bridge,
-		cache:       cache,
-		logger:      slog.Default().With("component", "event-handler"),
+		routerRepo:   routerRepo,
+		saleRepo:     saleRepo,
+		profileRepo:  profileRepo,
+		settingsRepo: settingsRepo,
+		bridge:       bridge,
+		cache:        cache,
+		logger:       slog.Default().With("component", "event-handler"),
 	}
 }
 
@@ -48,6 +57,11 @@ type OnLoginPayload struct {
 	Profile    string
 }
 
+// OnLoginEvent is a public (no-auth) endpoint hit by RouterOS /tool/fetch.
+// Tenant resolution flow:
+//   1. RouterOS posts X-Router-Token (or token form field)
+//   2. We look up TenantSettings by webhook_token to find tenant_id
+//   3. Then resolve router by (tenant_id, router_name)
 func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 	payload := OnLoginPayload{
 		RouterName: c.PostForm("router_name"),
@@ -65,30 +79,32 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
-	router, err := h.routerRepo.GetByName(c.Request.Context(), payload.RouterName)
-	if err != nil {
-		h.logger.Warn("on-login: router not found", "name", payload.RouterName, "error", err)
+	token := c.GetHeader("X-Router-Token")
+	if token == "" {
+		token = c.PostForm("token")
+	}
+	if token == "" {
+		h.logger.Warn("on-login: missing token", "name", payload.RouterName)
 		c.Status(http.StatusOK)
 		return
 	}
 
-	if router.HotspotConfig != nil && router.HotspotConfig.WebhookToken != "" {
-		token := c.GetHeader("X-Router-Token")
-		if token == "" {
-			token = c.PostForm("token")
-		}
-		if token != router.HotspotConfig.WebhookToken {
-			h.logger.Warn("on-login: invalid token", "name", payload.RouterName)
-			c.Status(http.StatusOK)
-			return
-		}
+	settings, err := h.settingsRepo.GetByWebhookToken(c.Request.Context(), token)
+	if err != nil || settings == nil {
+		h.logger.Warn("on-login: invalid token", "name", payload.RouterName)
+		c.Status(http.StatusOK)
+		return
 	}
 
-	tz := ""
-	if router.HotspotConfig != nil {
-		tz = router.HotspotConfig.Timezone
+	tenantID := settings.TenantID
+	router, err := h.routerRepo.GetByName(c.Request.Context(), tenantID, payload.RouterName)
+	if err != nil {
+		h.logger.Warn("on-login: router not found", "name", payload.RouterName, "tenant_id", tenantID, "error", err)
+		c.Status(http.StatusOK)
+		return
 	}
-	soldAt, _ := parseMikroTikDateTime(payload.Date, payload.Time, tz)
+
+	soldAt, _ := parseMikroTikDateTime(payload.Date, payload.Time, settings.Timezone)
 	if soldAt.IsZero() {
 		soldAt = time.Now()
 	}
@@ -106,11 +122,7 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
-	reportMode := "disable"
-	if router.HotspotConfig != nil {
-		reportMode = router.HotspotConfig.ReportMode
-	}
-	if reportMode == "disable" {
+	if settings.ReportMode == "" || settings.ReportMode == "disable" {
 		c.Status(http.StatusOK)
 		return
 	}
@@ -126,8 +138,10 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		}
 	}
 
+	rid := router.ID
 	sale := &models.VoucherSale{
-		RouterID:       router.ID,
+		TenantID:       tenantID,
+		RouterID:       &rid,
 		SoldAt:         soldAt,
 		Username:       payload.Username,
 		ProfileName:    payload.Profile,

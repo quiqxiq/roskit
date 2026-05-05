@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/quiqxiq/roskit/internal/services"
-	"github.com/quiqxiq/roskit/pkg/errors"
 )
 
 func AuthMiddleware(authSvc *services.AuthService) gin.HandlerFunc {
@@ -43,27 +42,11 @@ func AuthMiddleware(authSvc *services.AuthService) gin.HandlerFunc {
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
 		c.Set("tokenID", claims.TokenID)
-		c.Next()
-	}
-}
-
-func RequireRole(roles ...string) gin.HandlerFunc {
-	allowed := make(map[string]bool, len(roles))
-	for _, r := range roles {
-		allowed[r] = true
-	}
-	return func(c *gin.Context) {
-		role, exists := c.Get("role")
-		if !exists {
-			c.AbortWithStatusJSON(403, gin.H{"data": nil, "error": "role not found in context"})
-			return
+		// Tenant data from JWT (nil/empty for superadmin; TenantMiddleware can override slug via header).
+		if claims.TenantID != nil {
+			c.Set("jwtTenantID", *claims.TenantID)
 		}
-		roleStr, ok := role.(string)
-		if !ok || !allowed[roleStr] {
-			appErr := errors.NewForbidden("insufficient permissions")
-			c.AbortWithStatusJSON(appErr.HTTPStatus, gin.H{"data": nil, "error": appErr.Message})
-			return
-		}
+		c.Set("jwtTenantSlug", claims.TenantSlug)
 		c.Next()
 	}
 }
@@ -75,7 +58,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-Slug")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400")
 

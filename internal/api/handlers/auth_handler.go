@@ -9,20 +9,23 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/quiqxiq/roskit/internal/api/middleware"
+	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/quiqxiq/roskit/pkg/errors"
 )
 
 type AuthHandler struct {
-	svc   *services.AuthService
-	audit *middleware.AuditLogger
+	svc       *services.AuthService
+	tenantSvc *services.TenantService
+	audit     *middleware.AuditLogger
 }
 
-func NewAuthHandler(svc *services.AuthService, audit *middleware.AuditLogger) *AuthHandler {
-	return &AuthHandler{svc: svc, audit: audit}
+func NewAuthHandler(svc *services.AuthService, tenantSvc *services.TenantService, audit *middleware.AuditLogger) *AuthHandler {
+	return &AuthHandler{svc: svc, tenantSvc: tenantSvc, audit: audit}
 }
 
 type loginRequest struct {
+	Tenant   string `json:"tenant"`
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
@@ -41,8 +44,10 @@ type changePasswordRequest struct {
 }
 
 type setupRequest struct {
-	Username string `json:"username" binding:"required,min=3"`
-	Password string `json:"password" binding:"required,min=6"`
+	TenantName string `json:"tenant_name" binding:"required"`
+	TenantSlug string `json:"tenant_slug" binding:"required"`
+	Username   string `json:"username" binding:"required,min=3"`
+	Password   string `json:"password" binding:"required,min=6"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -52,13 +57,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
+	result, err := h.svc.Login(c.Request.Context(), req.Tenant, req.Username, req.Password)
 	if err != nil {
 		switch {
 		case stderrors.Is(err, services.ErrInvalidCredentials):
 			c.JSON(http.StatusUnauthorized, gin.H{"data": nil, "error": "invalid username or password"})
 		case stderrors.Is(err, services.ErrUserInactive):
 			c.JSON(http.StatusForbidden, gin.H{"data": nil, "error": err.Error()})
+		case stderrors.Is(err, services.ErrTenantSuspended):
+			c.JSON(http.StatusForbidden, gin.H{"data": nil, "error": err.Error()})
+		case stderrors.Is(err, services.ErrTenantNotFound):
+			c.JSON(http.StatusUnauthorized, gin.H{"data": nil, "error": "invalid username or password"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal error"})
 		}
@@ -110,16 +119,28 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	username, _ := c.Get("username")
 	role, _ := c.Get("role")
+	tenantSlug, _ := c.Get("tenantSlug")
 
 	uid, _ := userID.(uint)
 	uname, _ := username.(string)
-	r, _ := role.(string)
+	roleVal, _ := role.(models.UserRole)
+	slug, _ := tenantSlug.(string)
+
+	var tenantID *uint
+	if v, ok := c.Get("tenantID"); ok {
+		if id, ok := v.(uint); ok {
+			t := id
+			tenantID = &t
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": services.UserView{
-			ID:       uid,
-			Username: uname,
-			Role:     r,
+			ID:         uid,
+			Username:   uname,
+			Role:       roleVal,
+			TenantID:   tenantID,
+			TenantSlug: slug,
 		},
 		"error": nil,
 	})
@@ -170,7 +191,17 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.CreateUser(c.Request.Context(), req.Username, req.Password, "owner")
+	tenant, err := h.tenantSvc.Create(c.Request.Context(), services.CreateTenantRequest{
+		Name: req.TenantName,
+		Slug: req.TenantSlug,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	tid := tenant.ID
+	user, err := h.svc.CreateUser(c.Request.Context(), &tid, tenant.Slug, req.Username, req.Password, models.UserRoleOwner)
 	if err != nil {
 		switch err {
 		case services.ErrInvalidRole:
@@ -183,7 +214,7 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		return
 	}
 
-	loginResult, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
+	loginResult, err := h.svc.Login(c.Request.Context(), tenant.Slug, req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "auto-login after setup failed"})
 		return
@@ -191,6 +222,11 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"data": gin.H{
+			"tenant": gin.H{
+				"id":   tenant.ID,
+				"name": tenant.Name,
+				"slug": tenant.Slug,
+			},
 			"user": gin.H{
 				"id":       user.ID,
 				"username": user.Username,

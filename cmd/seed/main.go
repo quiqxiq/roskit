@@ -12,15 +12,26 @@ import (
 	"gorm.io/gorm"
 )
 
+var sampleTenant = struct {
+	Name        string
+	Slug        string
+	HotspotName string
+	DNSName     string
+	Currency    string
+}{
+	Name:        "Default Tenant",
+	Slug:        "default",
+	HotspotName: "Roskit Hotspot",
+	DNSName:     "roskit.local",
+	Currency:    "Rp",
+}
+
 var sampleRouters = []struct {
 	Name        string
 	IPAddress   string
 	APIPort     int
 	APIUsername string
 	Password    string
-	HotspotName string
-	DNSName     string
-	Currency    string
 }{
 	{
 		Name:        "router-alpha",
@@ -28,9 +39,6 @@ var sampleRouters = []struct {
 		APIPort:     8728,
 		APIUsername: "admin",
 		Password:    "",
-		HotspotName: "Alpha Hotspot",
-		DNSName:     "alpha.local",
-		Currency:    "Rp",
 	},
 	{
 		Name:        "router-beta",
@@ -38,9 +46,6 @@ var sampleRouters = []struct {
 		APIPort:     8728,
 		APIUsername: "admin",
 		Password:    "",
-		HotspotName: "Beta Hotspot",
-		DNSName:     "beta.local",
-		Currency:    "Rp",
 	},
 }
 
@@ -56,12 +61,18 @@ func main() {
 	}
 
 	ctx := context.Background()
-	seeded := 0
 
+	tenant, err := ensureTenant(ctx, db)
+	if err != nil {
+		log.Fatalf("failed to ensure tenant: %v", err)
+	}
+	fmt.Printf("  tenant: %s (id=%d, slug=%s)\n", tenant.Name, tenant.ID, tenant.Slug)
+
+	seeded := 0
 	for _, sr := range sampleRouters {
 		var existing models.Router
 		err := db.WithContext(ctx).
-			Where("name = ?", sr.Name).
+			Where("tenant_id = ? AND name = ?", tenant.ID, sr.Name).
 			First(&existing).Error
 
 		if err == nil {
@@ -84,34 +95,17 @@ func main() {
 			port = 8728
 		}
 
-		txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			router := &models.Router{
-				Name:                 sr.Name,
-				IPAddress:            sr.IPAddress,
-				APIPort:              port,
-				APIUsername:          sr.APIUsername,
-				APIPasswordEncrypted: encPass,
-				Status:               models.RouterStatusUnknown,
-			}
-			if err := tx.Create(router).Error; err != nil {
-				return err
-			}
-			currency := sr.Currency
-			if currency == "" {
-				currency = "Rp"
-			}
-			hotspotConfig := &models.HotspotConfig{
-				RouterID:    router.ID,
-				HotspotName: sr.HotspotName,
-				DNSName:     sr.DNSName,
-				Currency:    currency,
-				IdleTimeout: 30,
-				ReportMode:  "disable",
-			}
-			return tx.Create(hotspotConfig).Error
-		})
-		if txErr != nil {
-			log.Printf("  error creating %s: %v", sr.Name, txErr)
+		router := &models.Router{
+			TenantID:             tenant.ID,
+			Name:                 sr.Name,
+			IPAddress:            sr.IPAddress,
+			APIPort:              port,
+			APIUsername:          sr.APIUsername,
+			APIPasswordEncrypted: encPass,
+			Status:               models.RouterStatusUnknown,
+		}
+		if err := db.WithContext(ctx).Create(router).Error; err != nil {
+			log.Printf("  error creating %s: %v", sr.Name, err)
 			continue
 		}
 
@@ -120,8 +114,46 @@ func main() {
 	}
 
 	fmt.Println("  ═══════ Seed Summary ═══════")
+	fmt.Printf("  Tenant: %s\n", tenant.Slug)
 	fmt.Printf("  Total sample routers: %d\n", len(sampleRouters))
 	fmt.Printf("  Seeded: %d\n", seeded)
 	fmt.Printf("  Skipped: %d\n", len(sampleRouters)-seeded)
 	fmt.Println("  ════════════════════════════")
+}
+
+func ensureTenant(ctx context.Context, db *gorm.DB) (*models.Tenant, error) {
+	var existing models.Tenant
+	err := db.WithContext(ctx).Where("slug = ?", sampleTenant.Slug).First(&existing).Error
+	if err == nil {
+		return &existing, nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	tenant := &models.Tenant{
+		Name:   sampleTenant.Name,
+		Slug:   sampleTenant.Slug,
+		Plan:   models.TenantPlanFree,
+		Status: models.TenantStatusActive,
+	}
+
+	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(tenant).Error; err != nil {
+			return err
+		}
+		settings := &models.TenantSettings{
+			TenantID:    tenant.ID,
+			HotspotName: sampleTenant.HotspotName,
+			DNSName:     sampleTenant.DNSName,
+			Currency:    sampleTenant.Currency,
+			IdleTimeout: 30,
+			ReportMode:  "disable",
+		}
+		return tx.Create(settings).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return tenant, nil
 }

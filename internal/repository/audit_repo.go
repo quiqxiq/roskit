@@ -10,7 +10,8 @@ import (
 
 type AuditRepository interface {
 	Create(ctx context.Context, log *models.AuditLog) error
-	ListByUser(ctx context.Context, userID uint, limit int) ([]*models.AuditLog, error)
+	ListByTenant(ctx context.Context, tenantID uint, limit int) ([]*models.AuditLog, error)
+	ListByUser(ctx context.Context, tenantID uint, userID uint, limit int) ([]*models.AuditLog, error)
 }
 
 type auditRepo struct {
@@ -28,13 +29,26 @@ func (r *auditRepo) Create(ctx context.Context, log *models.AuditLog) error {
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-func (r *auditRepo) ListByUser(ctx context.Context, userID uint, limit int) ([]*models.AuditLog, error) {
+func (r *auditRepo) ListByTenant(ctx context.Context, tenantID uint, limit int) ([]*models.AuditLog, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 	var logs []*models.AuditLog
 	err := r.db.WithContext(ctx).
-		Where("user_id = ?", userID).
+		Where("tenant_id = ?", tenantID).
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&logs).Error
+	return logs, err
+}
+
+func (r *auditRepo) ListByUser(ctx context.Context, tenantID uint, userID uint, limit int) ([]*models.AuditLog, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	var logs []*models.AuditLog
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND user_id = ?", tenantID, userID).
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&logs).Error

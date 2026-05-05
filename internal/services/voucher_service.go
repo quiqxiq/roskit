@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/models"
+	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/pkg/mikrotik"
 	appcache "github.com/quiqxiq/roskit/pkg/redis"
@@ -69,22 +70,31 @@ type ResolvedVoucher struct {
 }
 
 type VoucherService struct {
-	bridge      *roskitservice.Bridge
-	saleRepo    SaleRepository
-	routerRepo  RouterRepository
-	profileRepo ProfilePriceMappingRepository
-	cache       *appcache.Cache
-	logger      *slog.Logger
+	bridge       *roskitservice.Bridge
+	saleRepo     SaleRepository
+	routerRepo   RouterRepository
+	profileRepo  ProfilePriceMappingRepository
+	settingsRepo repository.TenantSettingsRepository
+	cache        *appcache.Cache
+	logger       *slog.Logger
 }
 
-func NewVoucherService(bridge *roskitservice.Bridge, saleRepo SaleRepository, routerRepo RouterRepository, profileRepo ProfilePriceMappingRepository, cache *appcache.Cache) *VoucherService {
+func NewVoucherService(
+	bridge *roskitservice.Bridge,
+	saleRepo SaleRepository,
+	routerRepo RouterRepository,
+	profileRepo ProfilePriceMappingRepository,
+	settingsRepo repository.TenantSettingsRepository,
+	cache *appcache.Cache,
+) *VoucherService {
 	return &VoucherService{
-		bridge:      bridge,
-		saleRepo:    saleRepo,
-		routerRepo:  routerRepo,
-		profileRepo: profileRepo,
-		cache:       cache,
-		logger:      slog.Default().With("component", "voucher-svc"),
+		bridge:       bridge,
+		saleRepo:     saleRepo,
+		routerRepo:   routerRepo,
+		profileRepo:  profileRepo,
+		settingsRepo: settingsRepo,
+		cache:        cache,
+		logger:       slog.Default().With("component", "voucher-svc"),
 	}
 }
 
@@ -154,9 +164,8 @@ func (s *VoucherService) ResolveVoucherPrintData(
 	return result, nil
 }
 
-func (s *VoucherService) GenerateVoucher(ctx context.Context, routerID uint, params VoucherGenerateParams) (*VoucherGenerateResult, error) {
-	_, err := s.routerRepo.GetByID(ctx, routerID)
-	if err != nil {
+func (s *VoucherService) GenerateVoucher(ctx context.Context, tenantID, routerID uint, params VoucherGenerateParams) (*VoucherGenerateResult, error) {
+	if _, err := s.routerRepo.GetByID(ctx, tenantID, routerID); err != nil {
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
 
@@ -228,7 +237,7 @@ func (s *VoucherService) GetCachedVouchers(ctx context.Context, routerID uint, g
 	return &result, nil
 }
 
-func (s *VoucherService) RecordSale(ctx context.Context, routerID uint, params RecordSaleParams) error {
+func (s *VoucherService) RecordSale(ctx context.Context, tenantID, routerID uint, params RecordSaleParams) error {
 	key := mikrotik.MakeSaleIdempotencyKey(routerID, params.Username, params.SoldAt)
 	exists, err := s.saleRepo.ExistsByIdempotencyKey(ctx, key)
 	if err != nil {
@@ -238,8 +247,10 @@ func (s *VoucherService) RecordSale(ctx context.Context, routerID uint, params R
 		return nil
 	}
 
+	rid := routerID
 	sale := &models.VoucherSale{
-		RouterID:       routerID,
+		TenantID:       tenantID,
+		RouterID:       &rid,
 		SoldAt:         params.SoldAt,
 		Username:       params.Username,
 		ProfileName:    params.ProfileName,
@@ -258,15 +269,17 @@ func (s *VoucherService) RecordSale(ctx context.Context, routerID uint, params R
 	return nil
 }
 
-func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID uint) (*ImportResult, error) {
-	router, err := s.routerRepo.GetByID(ctx, routerID)
+func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, tenantID, routerID uint) (*ImportResult, error) {
+	router, err := s.routerRepo.GetByID(ctx, tenantID, routerID)
 	if err != nil {
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
 
 	tz := ""
-	if router.HotspotConfig != nil {
-		tz = router.HotspotConfig.Timezone
+	if s.settingsRepo != nil {
+		if settings, err := s.settingsRepo.GetByTenantID(ctx, tenantID); err == nil && settings != nil {
+			tz = settings.Timezone
+		}
 	}
 	loc := mikrotik.ResolveLocation(tz)
 
@@ -300,8 +313,10 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 
 		price, _ := strconv.ParseInt(rec.Price, 10, 64)
 
+		rid := routerID
 		sale := &models.VoucherSale{
-			RouterID:       routerID,
+			TenantID:       tenantID,
+			RouterID:       &rid,
 			SoldAt:         soldAt,
 			Username:       rec.Username,
 			ProfileName:    rec.Profile,
@@ -326,6 +341,7 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID u
 
 	s.logger.Info("sales import complete",
 		"router", router.Name,
+		"tenant_id", tenantID,
 		"total", result.Total,
 		"imported", result.Imported,
 		"skipped", result.Skipped,
@@ -346,7 +362,6 @@ func (s *VoucherService) invalidateSalesCache(ctx context.Context, routerID uint
 	)
 }
 
-func (s *VoucherService) GetRouterInfo(ctx context.Context, routerID uint) (*models.Router, error) {
-	return s.routerRepo.GetByID(ctx, routerID)
+func (s *VoucherService) GetRouterInfo(ctx context.Context, tenantID, routerID uint) (*models.Router, error) {
+	return s.routerRepo.GetByID(ctx, tenantID, routerID)
 }
-

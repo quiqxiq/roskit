@@ -26,14 +26,25 @@ func (a *AuditLogger) Log(c *gin.Context, action, entity, entityID, details stri
 	if a == nil || a.repo == nil {
 		return
 	}
-	userID := uint(0)
+
+	var userID *uint
 	if v, ok := c.Get("userID"); ok {
 		if id, ok := v.(uint); ok {
-			userID = id
+			u := id
+			userID = &u
+		}
+	}
+
+	var tenantID *uint
+	if v, ok := c.Get("tenantID"); ok {
+		if id, ok := v.(uint); ok {
+			t := id
+			tenantID = &t
 		}
 	}
 
 	entry := &models.AuditLog{
+		TenantID:  tenantID,
 		UserID:    userID,
 		Action:    action,
 		Entity:    entity,
@@ -64,4 +75,12 @@ func (a *AuditLogger) LogVoucher(c *gin.Context, action string, routerID uint, d
 
 func (a *AuditLogger) LogSales(c *gin.Context, action string, routerID uint, details string) {
 	a.Log(c, action, "sales", fmt.Sprintf("%d", routerID), details)
+}
+
+func (a *AuditLogger) LogTenant(c *gin.Context, action string, tenantID uint, name string) {
+	a.Log(c, action, "tenant", fmt.Sprintf("%d", tenantID), name)
+}
+
+func (a *AuditLogger) LogUser(c *gin.Context, action string, userID uint, username string) {
+	a.Log(c, action, "user", fmt.Sprintf("%d", userID), username)
 }

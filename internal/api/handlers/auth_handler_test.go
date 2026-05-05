@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
-	apitesthelpers "github.com/quiqxiq/roskit/internal/api/testhelpers"
 	"github.com/quiqxiq/roskit/internal/api/handlers"
+	apitesthelpers "github.com/quiqxiq/roskit/internal/api/testhelpers"
 	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +23,7 @@ func init() {
 }
 
 func newAuthService(repo services.UserRepository) *services.AuthService {
-	return services.NewAuthService(repo, nil, []byte("test-secret"), []byte("refresh-secret"))
+	return services.NewAuthService(repo, nil, nil, nil, []byte("test-secret"), []byte("refresh-secret"))
 }
 
 func hashedPassword(t *testing.T, plain string) string {
@@ -33,18 +33,18 @@ func hashedPassword(t *testing.T, plain string) string {
 	return string(h)
 }
 
-func TestAuthHandler_Login_Success(t *testing.T) {
+func TestAuthHandler_Login_Superadmin_Success(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{
-		User: &models.SystemUser{
+		User: &models.User{
 			ID:           1,
 			Username:     "admin",
 			PasswordHash: hashedPassword(t, "password123"),
-			Role:         "owner",
+			Role:         models.UserRoleSuperAdmin,
 			Active:       true,
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
+	h := handlers.NewAuthHandler(svc, nil, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -66,16 +66,16 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 
 func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{
-		User: &models.SystemUser{
+		User: &models.User{
 			ID:           1,
 			Username:     "admin",
 			PasswordHash: hashedPassword(t, "correct"),
-			Role:         "owner",
+			Role:         models.UserRoleSuperAdmin,
 			Active:       true,
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
+	h := handlers.NewAuthHandler(svc, nil, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -92,7 +92,7 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 func TestAuthHandler_Login_MissingBody(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
+	h := handlers.NewAuthHandler(svc, nil, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -107,16 +107,16 @@ func TestAuthHandler_Login_MissingBody(t *testing.T) {
 
 func TestAuthHandler_Login_InactiveUser(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{
-		User: &models.SystemUser{
+		User: &models.User{
 			ID:           2,
 			Username:     "disabled",
 			PasswordHash: hashedPassword(t, "pass"),
-			Role:         "admin",
+			Role:         models.UserRoleSuperAdmin,
 			Active:       false,
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
+	h := handlers.NewAuthHandler(svc, nil, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -133,13 +133,14 @@ func TestAuthHandler_Login_InactiveUser(t *testing.T) {
 func TestAuthHandler_Me(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
+	h := handlers.NewAuthHandler(svc, nil, nil)
 
 	router := gin.New()
 	router.GET("/me", func(c *gin.Context) {
 		c.Set("userID", uint(1))
 		c.Set("username", "admin")
-		c.Set("role", "owner")
+		c.Set("role", models.UserRoleOwner)
+		c.Set("tenantSlug", "default")
 		h.Me(c)
 	})
 
@@ -153,47 +154,4 @@ func TestAuthHandler_Me(t *testing.T) {
 	data := resp["data"].(map[string]any)
 	assert.Equal(t, "admin", data["username"])
 	assert.Equal(t, "owner", data["role"])
-}
-
-func TestAuthHandler_Setup_FirstTime(t *testing.T) {
-	repo := &apitesthelpers.MockUserRepository{
-		UserCount: 0,
-		User: &models.SystemUser{
-			ID:           1,
-			Username:     "owner",
-			PasswordHash: hashedPassword(t, "pass1234"),
-			Role:         "owner",
-			Active:       true,
-		},
-	}
-	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
-
-	router := gin.New()
-	router.POST("/setup", h.Setup)
-
-	body := `{"username":"owner","password":"pass1234"}`
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/setup", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
-
-func TestAuthHandler_Setup_AlreadyDone(t *testing.T) {
-	repo := &apitesthelpers.MockUserRepository{UserCount: 1}
-	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil)
-
-	router := gin.New()
-	router.POST("/setup", h.Setup)
-
-	body := `{"username":"owner","password":"pass1234"}`
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/setup", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
 }

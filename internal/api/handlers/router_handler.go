@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,15 +23,6 @@ func parseRouterID(c *gin.Context) (uint, error) {
 	return uint(id), nil
 }
 
-// routerLogoURL converts a stored LogoPath to a web-accessible URL.
-// Returns empty string if no logo is configured.
-func routerLogoURL(routerID uint, logoPath string) string {
-	if logoPath == "" {
-		return ""
-	}
-	return fmt.Sprintf("/api/v1/routers/%d/logo", routerID)
-}
-
 type RouterHandler struct {
 	svc *services.RouterService
 }
@@ -43,13 +32,18 @@ func NewRouterHandler(svc *services.RouterService) *RouterHandler {
 }
 
 func (h *RouterHandler) Create(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
+
 	var req services.CreateRouterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	result, err := h.svc.CreateRouter(c.Request.Context(), req)
+	result, err := h.svc.CreateRouter(c.Request.Context(), tenantID, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -59,13 +53,17 @@ func (h *RouterHandler) Create(c *gin.Context) {
 }
 
 func (h *RouterHandler) Get(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
 		return
 	}
 
-	result, err := h.svc.GetRouter(c.Request.Context(), uint(id))
+	result, err := h.svc.GetRouter(c.Request.Context(), tenantID, uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return
@@ -75,7 +73,11 @@ func (h *RouterHandler) Get(c *gin.Context) {
 }
 
 func (h *RouterHandler) List(c *gin.Context) {
-	results, err := h.svc.ListRouters(c.Request.Context())
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
+	results, err := h.svc.ListRouters(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list routers"})
 		return
@@ -85,6 +87,10 @@ func (h *RouterHandler) List(c *gin.Context) {
 }
 
 func (h *RouterHandler) Update(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
@@ -97,7 +103,7 @@ func (h *RouterHandler) Update(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.UpdateRouter(c.Request.Context(), uint(id), req)
+	result, err := h.svc.UpdateRouter(c.Request.Context(), tenantID, uint(id), req)
 	if err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
@@ -111,13 +117,17 @@ func (h *RouterHandler) Update(c *gin.Context) {
 }
 
 func (h *RouterHandler) Delete(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
 		return
 	}
 
-	if err := h.svc.DeleteRouter(c.Request.Context(), uint(id)); err != nil {
+	if err := h.svc.DeleteRouter(c.Request.Context(), tenantID, uint(id)); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return
 	}
@@ -157,86 +167,22 @@ func (h *RouterHandler) TestConnection(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
 }
 
-func (h *RouterHandler) UploadLogo(c *gin.Context) {
-	routerID, err := parseRouterID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
-		return
-	}
-	file, err := c.FormFile("logo")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "logo file required"})
-		return
-	}
-	if file.Size > 1<<20 {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "file too large, max 1MB"})
-		return
-	}
-	f, err := file.Open()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to read file"})
-		return
-	}
-	defer f.Close()
-	data, err := io.ReadAll(f)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to read file"})
-		return
-	}
-	if !isAllowedImageMIME(data) {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "only PNG, JPEG, or WebP images are allowed"})
-		return
-	}
-	if err := h.svc.UploadLogo(c.Request.Context(), routerID, data, file.Filename); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to upload logo"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logo uploaded"}, "error": nil})
-}
-
-func isAllowedImageMIME(data []byte) bool {
-	if len(data) < 4 {
-		return false
-	}
-	if bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4E, 0x47}) {
-		return true
-	}
-	if bytes.HasPrefix(data, []byte{0xFF, 0xD8, 0xFF}) {
-		return true
-	}
-	if len(data) >= 12 && bytes.Equal(data[8:12], []byte("WEBP")) {
-		return true
-	}
-	return false
-}
-
-
-func (h *RouterHandler) GetLogo(c *gin.Context) {
-	routerID, err := parseRouterID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
-		return
-	}
-	path, err := h.svc.GetLogoPath(c.Request.Context(), routerID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "logo not found"})
-		return
-	}
-	c.File(path)
-}
-
 type migrateRequest struct {
 	FilePath string `json:"file_path" binding:"required"`
 }
 
 func (h *RouterHandler) MigrateConfig(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
 	var req migrateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "file_path is required"})
 		return
 	}
 
-	result, err := h.svc.MigrateFromConfigPHP(c.Request.Context(), req.FilePath)
+	result, err := h.svc.MigrateFromConfigPHP(c.Request.Context(), tenantID, req.FilePath)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
