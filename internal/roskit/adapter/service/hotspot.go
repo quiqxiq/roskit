@@ -25,11 +25,7 @@ func (b *Bridge) GetHotspotUserCount(ctx context.Context, routerID string) (int,
 	if err != nil {
 		return 0, err
 	}
-	count := len(users)
-	if count > 1 {
-		return count - 1, nil
-	}
-	return 0, nil
+	return len(users), nil
 }
 
 func (b *Bridge) AddHotspotUser(ctx context.Context, routerID string, params map[string]string) (string, error) {
@@ -70,13 +66,15 @@ func (b *Bridge) RemoveHotspotUserWithCleanup(ctx context.Context, routerID, id 
 	if err == nil && len(data) > 0 {
 		user := data["name"]
 		if user != "" {
-			script, err := b.FindScriptByName(ctx, routerID, user)
-			if err == nil && script[".id"] != "" {
-				b.Mutate(ctx, routerID, "system/script/remove", "=.id="+script[".id"])
+			script, sErr := b.FindScriptByName(ctx, routerID, user)
+			if sErr == nil && script[".id"] != "" {
+				_, mErr := b.Mutate(ctx, routerID, "system/script/remove", "=.id="+script[".id"])
+				b.logCleanupErr(ctx, routerID, "system/script/remove", script[".id"], mErr, "user", user)
 			}
-			scheduler, err := b.FindSchedulerByName(ctx, routerID, user)
-			if err == nil && scheduler[".id"] != "" {
-				b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+scheduler[".id"])
+			scheduler, sErr := b.FindSchedulerByName(ctx, routerID, user)
+			if sErr == nil && scheduler[".id"] != "" {
+				_, mErr := b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+scheduler[".id"])
+				b.logCleanupErr(ctx, routerID, "system/scheduler/remove", scheduler[".id"], mErr, "user", user)
 			}
 		}
 	}
@@ -116,7 +114,8 @@ func (b *Bridge) DisconnectUser(ctx context.Context, routerID, activeID string) 
 	if err == nil {
 		for _, c := range cookies {
 			if c["user"] == user && c[".id"] != "" {
-				b.Mutate(ctx, routerID, "ip/hotspot/cookie/remove", "=.id="+c[".id"])
+				_, mErr := b.Mutate(ctx, routerID, "ip/hotspot/cookie/remove", "=.id="+c[".id"])
+				b.logCleanupErr(ctx, routerID, "ip/hotspot/cookie/remove", c[".id"], mErr, "user", user)
 				break
 			}
 		}
@@ -155,11 +154,12 @@ func (b *Bridge) RemoveHotspotProfile(ctx context.Context, routerID, id string) 
 }
 
 func (b *Bridge) RemoveHotspotProfileWithCleanup(ctx context.Context, routerID, id, profileName string) error {
-	scheduler, err := b.FindSchedulerByName(ctx, routerID, profileName)
-	if err == nil && scheduler[".id"] != "" {
-		b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+scheduler[".id"])
+	scheduler, sErr := b.FindSchedulerByName(ctx, routerID, profileName)
+	if sErr == nil && scheduler[".id"] != "" {
+		_, mErr := b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+scheduler[".id"])
+		b.logCleanupErr(ctx, routerID, "system/scheduler/remove", scheduler[".id"], mErr, "profile", profileName)
 	}
-	_, err = b.Mutate(ctx, routerID, "ip/hotspot/user/profile/remove", "=.id="+id)
+	_, err := b.Mutate(ctx, routerID, "ip/hotspot/user/profile/remove", "=.id="+id)
 	return err
 }
 
@@ -194,24 +194,28 @@ func (b *Bridge) RemoveIPBindingWithCleanup(ctx context.Context, routerID, id, m
 	}
 
 	if mac != "" {
-		queue, err := b.FindQueueByName(ctx, routerID, mac)
-		if err == nil && queue[".id"] != "" {
-			b.Mutate(ctx, routerID, "queue/simple/remove", "=.id="+queue[".id"])
+		queue, qErr := b.FindQueueByName(ctx, routerID, mac)
+		if qErr == nil && queue[".id"] != "" {
+			_, mErr := b.Mutate(ctx, routerID, "queue/simple/remove", "=.id="+queue[".id"])
+			b.logCleanupErr(ctx, routerID, "queue/simple/remove", queue[".id"], mErr, "mac", mac)
 		}
-		scheduler, err := b.FindSchedulerByName(ctx, routerID, mac)
-		if err == nil && scheduler[".id"] != "" {
-			b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+scheduler[".id"])
+		scheduler, sErr := b.FindSchedulerByName(ctx, routerID, mac)
+		if sErr == nil && scheduler[".id"] != "" {
+			_, mErr := b.Mutate(ctx, routerID, "system/scheduler/remove", "=.id="+scheduler[".id"])
+			b.logCleanupErr(ctx, routerID, "system/scheduler/remove", scheduler[".id"], mErr, "mac", mac)
 		}
 	}
 
 	if addr != "" {
-		arp, err := b.FindARPByAddress(ctx, routerID, addr)
-		if err == nil && arp[".id"] != "" {
-			b.Mutate(ctx, routerID, "ip/arp/remove", "=.id="+arp[".id"])
+		arp, aErr := b.FindARPByAddress(ctx, routerID, addr)
+		if aErr == nil && arp[".id"] != "" {
+			_, mErr := b.Mutate(ctx, routerID, "ip/arp/remove", "=.id="+arp[".id"])
+			b.logCleanupErr(ctx, routerID, "ip/arp/remove", arp[".id"], mErr, "addr", addr)
 		}
-		lease, err := b.FindDHCPLeaseByAddress(ctx, routerID, addr)
-		if err == nil && lease[".id"] != "" {
-			b.Mutate(ctx, routerID, "ip/dhcp-server/lease/remove", "=.id="+lease[".id"])
+		lease, lErr := b.FindDHCPLeaseByAddress(ctx, routerID, addr)
+		if lErr == nil && lease[".id"] != "" {
+			_, mErr := b.Mutate(ctx, routerID, "ip/dhcp-server/lease/remove", "=.id="+lease[".id"])
+			b.logCleanupErr(ctx, routerID, "ip/dhcp-server/lease/remove", lease[".id"], mErr, "addr", addr)
 		}
 	}
 

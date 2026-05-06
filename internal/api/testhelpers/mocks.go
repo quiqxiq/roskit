@@ -30,6 +30,19 @@ func (m *MockUserRepository) GetByID(_ context.Context, _ uint) (*models.User, e
 	return m.User, m.Err
 }
 
+func (m *MockUserRepository) GetByTenantID(_ context.Context, tenantID, _ uint) (*models.User, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+	if m.User == nil {
+		return nil, ErrNotFound
+	}
+	if m.User.TenantID == nil || *m.User.TenantID != tenantID {
+		return nil, ErrNotFound
+	}
+	return m.User, nil
+}
+
 func (m *MockUserRepository) GetByTenantUsername(_ context.Context, _ *uint, _ string) (*models.User, error) {
 	return m.User, m.Err
 }

@@ -12,19 +12,59 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 )
 
-const defaultQueueSize = 500
+// Defaults applied when WorkerConfig fields are zero.
+const (
+	DefaultQueueSize        = 500
+	DefaultBackoffBase      = 5 * time.Second
+	DefaultBackoffMax       = 30 * time.Second
+	DefaultBackoffShiftCap  = 5
+)
+
+// WorkerConfig tunes the stream Worker. All fields are optional; zero values
+// fall back to the Default* constants above so callers can override only what
+// they need.
+type WorkerConfig struct {
+	QueueSize       int           // RouterOS reply channel buffer; default 500
+	BackoffBase     time.Duration // initial reconnect delay; default 5s
+	BackoffMax      time.Duration // reconnect delay cap; default 30s
+	BackoffShiftCap int           // exponent cap for shift; default 5 (5s<<5 = 160s pre-cap)
+}
+
+func (c WorkerConfig) withDefaults() WorkerConfig {
+	if c.QueueSize <= 0 {
+		c.QueueSize = DefaultQueueSize
+	}
+	if c.BackoffBase <= 0 {
+		c.BackoffBase = DefaultBackoffBase
+	}
+	if c.BackoffMax <= 0 {
+		c.BackoffMax = DefaultBackoffMax
+	}
+	if c.BackoffShiftCap <= 0 {
+		c.BackoffShiftCap = DefaultBackoffShiftCap
+	}
+	return c
+}
 
 type Worker struct {
 	pool   *execution.Pool
 	sink   behavior.StreamSink
 	logger *slog.Logger
+	cfg    WorkerConfig
 }
 
+// NewWorker constructs a Worker with default config.
 func NewWorker(pool *execution.Pool, sink behavior.StreamSink, logger *slog.Logger) *Worker {
+	return NewWorkerWithConfig(pool, sink, logger, WorkerConfig{})
+}
+
+// NewWorkerWithConfig constructs a Worker with explicit tuning. Pass a zero
+// WorkerConfig{} to get the defaults; or override individual fields.
+func NewWorkerWithConfig(pool *execution.Pool, sink behavior.StreamSink, logger *slog.Logger, cfg WorkerConfig) *Worker {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Worker{pool: pool, sink: sink, logger: logger}
+	return &Worker{pool: pool, sink: sink, logger: logger, cfg: cfg.withDefaults()}
 }
 
 func (w *Worker) Start(ctx context.Context, routerID string, meta *command.CommandMeta) error {
@@ -59,12 +99,12 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 			)
 
 			shift := attempt
-			if shift > 5 {
-				shift = 5
+			if shift > w.cfg.BackoffShiftCap {
+				shift = w.cfg.BackoffShiftCap
 			}
-			delay := 5 * time.Second << uint(shift)
-			if delay > 30*time.Second {
-				delay = 30 * time.Second
+			delay := w.cfg.BackoffBase << uint(shift)
+			if delay > w.cfg.BackoffMax {
+				delay = w.cfg.BackoffMax
 			}
 
 			select {
@@ -94,7 +134,7 @@ func (w *Worker) acquireAndStream(ctx context.Context, routerID string, meta *co
 
 func (w *Worker) runStream(ctx context.Context, routerID string, meta *command.CommandMeta, streamConn *execution.PersistentConn) error {
 	sentence := command.BuildStreamSentence(meta)
-	reply, err := streamConn.ListenArgsQueueContext(ctx, sentence, defaultQueueSize)
+	reply, err := streamConn.ListenArgsQueueContext(ctx, sentence, w.cfg.QueueSize)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", meta.Measurement, err)
 	}

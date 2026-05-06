@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-routeros/routeros/v3"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
@@ -13,10 +14,29 @@ import (
 type Bridge struct {
 	dispatcher *orchestrator.Dispatcher
 	cache      cache.Repository
+	logger     *slog.Logger
 }
 
 func NewBridge(dispatcher *orchestrator.Dispatcher, c cache.Repository) *Bridge {
-	return &Bridge{dispatcher: dispatcher, cache: c}
+	return &Bridge{dispatcher: dispatcher, cache: c, logger: slog.Default()}
+}
+
+// logCleanupErr is a helper for best-effort cleanup mutations whose failures
+// should be observable but never propagated to the caller. Cleanup is by
+// definition non-fatal; orphaned MikroTik resources surface here so operators
+// can investigate without breaking the primary user flow.
+func (b *Bridge) logCleanupErr(ctx context.Context, routerID, op, targetID string, err error, kv ...any) {
+	if err == nil {
+		return
+	}
+	attrs := []any{
+		"router_id", routerID,
+		"operation", op,
+		"target_id", targetID,
+		"error", err,
+	}
+	attrs = append(attrs, kv...)
+	b.logger.WarnContext(ctx, "roskit cleanup mutate failed", attrs...)
 }
 
 func (b *Bridge) Query(ctx context.Context, routerID, path string, filters ...string) ([]map[string]string, error) {

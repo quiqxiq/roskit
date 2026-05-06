@@ -69,6 +69,9 @@ type cacheVoucherRequest struct {
 }
 
 func (h *VoucherHandler) CacheVoucher(c *gin.Context) {
+	if _, ok := tenantIDFromCtx(c); !ok {
+		return
+	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})

@@ -9,7 +9,13 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
+	// GetByID returns a user by primary key without tenant scoping.
+	// Engine-only (e.g. JWT claim resolution); HTTP handlers MUST use
+	// GetByTenantID to prevent cross-tenant data exposure.
 	GetByID(ctx context.Context, id uint) (*models.User, error)
+	// GetByTenantID returns a user only if it belongs to the given tenant,
+	// otherwise gorm.ErrRecordNotFound. Use this from HTTP handlers.
+	GetByTenantID(ctx context.Context, tenantID, id uint) (*models.User, error)
 	GetByTenantUsername(ctx context.Context, tenantID *uint, username string) (*models.User, error)
 	GetSuperAdminByUsername(ctx context.Context, username string) (*models.User, error)
 	List(ctx context.Context, tenantID uint) ([]*models.User, error)
@@ -36,6 +42,18 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 func (r *UserRepo) GetByID(ctx context.Context, id uint) (*models.User, error) {
 	var user models.User
 	if err := r.db.WithContext(ctx).First(&user, id).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetByTenantID returns a user only if it belongs to the given tenant.
+// Returns gorm.ErrRecordNotFound otherwise — never leaks cross-tenant rows.
+func (r *UserRepo) GetByTenantID(ctx context.Context, tenantID, id uint) (*models.User, error) {
+	var user models.User
+	if err := r.db.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		First(&user, id).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil

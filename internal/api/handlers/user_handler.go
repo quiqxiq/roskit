@@ -93,12 +93,8 @@ func (h *UserHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid user id"})
 		return
 	}
-	user, err := h.userRepo.GetByID(c.Request.Context(), uint(id))
+	user, err := h.userRepo.GetByTenantID(c.Request.Context(), tenantID, uint(id))
 	if err != nil || user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
-		return
-	}
-	if user.TenantID == nil || *user.TenantID != tenantID {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
 		return
 	}
@@ -118,8 +114,8 @@ func (h *UserHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid user id"})
 		return
 	}
-	user, err := h.userRepo.GetByID(c.Request.Context(), uint(id))
-	if err != nil || user == nil || user.TenantID == nil || *user.TenantID != tenantID {
+	user, err := h.userRepo.GetByTenantID(c.Request.Context(), tenantID, uint(id))
+	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
 		return
 	}
@@ -175,8 +171,8 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid user id"})
 		return
 	}
-	user, err := h.userRepo.GetByID(c.Request.Context(), uint(id))
-	if err != nil || user == nil || user.TenantID == nil || *user.TenantID != tenantID {
+	user, err := h.userRepo.GetByTenantID(c.Request.Context(), tenantID, uint(id))
+	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
 		return
 	}
