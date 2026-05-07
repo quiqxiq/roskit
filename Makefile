@@ -13,7 +13,8 @@ API_URL     := http://localhost:8080
         run docker-up docker-down docker-logs docker-build docker-clean \
         migrate-up migrate-import sync-profiles seed seed-docker \
         test test-mikrotik test-redis test-influxdb test-integration \
-        clean env curl-health curl-setup curl-login
+        clean env curl-health curl-setup curl-login \
+        docs-up docs-down docs-logs docs-bundle docs-lint
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,28 @@ test-influxdb:
 test-integration:
 	@echo "Running all integration tests..."
 	set -a && source .env.test && set +a && go test -race -tags 'mikrotik redis influxdb' -count=1 -v ./...
+
+# ── OpenAPI / Swagger docs ───────────────────────────────────────────────────
+
+docs-up:
+	$(COMPOSE) --profile docs up -d redocly-preview swagger-ui
+	@echo "Redocly preview : http://localhost:8082"
+	@echo "Swagger UI      : http://localhost:8083"
+
+docs-down:
+	$(COMPOSE) --profile docs stop redocly-preview swagger-ui openapi-bundler
+	$(COMPOSE) --profile docs rm -f redocly-preview swagger-ui openapi-bundler
+
+docs-logs:
+	$(COMPOSE) --profile docs logs -f redocly-preview swagger-ui
+
+docs-bundle:
+	$(COMPOSE) --profile docs run --rm openapi-bundler
+	@echo "Bundle written to volume 'bundled-spec'. Restart swagger-ui to pick up changes:"
+	@echo "  $(COMPOSE) --profile docs restart swagger-ui"
+
+docs-lint:
+	npx --yes @redocly/cli@latest lint docs/openapi/openapi.yaml
 
 # ── Curl helpers ─────────────────────────────────────────────────────────────
 

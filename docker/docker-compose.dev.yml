@@ -73,7 +73,48 @@ services:
       JWT_REFRESH_SECRET: dev-jwt-refresh-secret-change-in-production
       AES_ENCRYPTION_KEY: "/hMHA8gmJHT3z1YxEfmkRBlVNyNx3I/z2GqegQr5xFw="
 
+  redocly-preview:
+    image: redocly/cli:latest
+    profiles: ["docs"]
+    command: preview-docs /spec/openapi.yaml --host 0.0.0.0 --port 8080
+    working_dir: /spec
+    ports:
+      - "8082:8080"
+    volumes:
+      - ../docs/openapi:/spec:ro
+    restart: unless-stopped
+
+  openapi-bundler:
+    image: redocly/cli:latest
+    profiles: ["docs"]
+    command: bundle /spec/openapi.yaml -o /output/openapi.yaml
+    working_dir: /spec
+    volumes:
+      - ../docs/openapi:/spec:ro
+      - bundled-spec:/output
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    profiles: ["docs"]
+    depends_on:
+      openapi-bundler:
+        condition: service_completed_successfully
+    ports:
+      - "8083:8080"
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+      BASE_URL: /
+      DEEP_LINKING: "true"
+      DISPLAY_OPERATION_ID: "true"
+      DOC_EXPANSION: list
+      DEFAULT_MODELS_EXPAND_DEPTH: "1"
+      TRY_IT_OUT_ENABLED: "true"
+    volumes:
+      - bundled-spec:/spec:ro
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
   influxdata:
+  bundled-spec:

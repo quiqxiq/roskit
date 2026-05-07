@@ -52,6 +52,8 @@ security schemes are likewise split for review-friendly diffs.
 
 ## Render locally
 
+### Option A — local CLI
+
 ```bash
 # Lint (zero error required)
 npx @redocly/cli lint docs/openapi/openapi.yaml
@@ -61,11 +63,51 @@ npx @redocly/cli preview-docs docs/openapi/openapi.yaml --port 8081
 
 # Static bundle (single file, useful for CI artifacts)
 npx @redocly/cli bundle docs/openapi/openapi.yaml -o docs/openapi/_bundled.yaml
+```
 
-# Swagger UI via Docker (alternative)
+### Option B — Docker Compose (recommended)
+
+The dev compose stack ships a `docs` profile with three services:
+
+| Service           | URL                       | Renderer                | Notes                           |
+|-------------------|---------------------------|-------------------------|---------------------------------|
+| `redocly-preview` | http://localhost:8082     | Redocly preview-docs    | Multi-file `$ref`, hot reload   |
+| `swagger-ui`      | http://localhost:8083     | Swagger UI              | Uses bundled spec, "Try it out" |
+| `openapi-bundler` | (one-shot, no port)       | Redocly CLI bundle      | Produces single-file spec       |
+
+```bash
+# Start both renderers
+make docs-up
+
+# Tail logs
+make docs-logs
+
+# Re-bundle after editing the spec, then restart Swagger UI
+make docs-bundle
+docker compose -f docker/docker-compose.dev.yml --profile docs restart swagger-ui
+
+# Stop and remove
+make docs-down
+
+# Lint locally (CI-equivalent)
+make docs-lint
+```
+
+The same profile is available in `docker/docker-compose.yml` (prod compose) and
+respects `DOCS_REDOCLY_PORT` / `DOCS_SWAGGER_PORT` env vars if you need to bind
+to ports other than 8082/8083.
+
+### Option C — single-shot Swagger UI (no compose)
+
+For ad-hoc use without bringing the stack up, the bundled spec is required
+because Swagger UI does not resolve multi-file `$ref`:
+
+```bash
+npx @redocly/cli bundle docs/openapi/openapi.yaml -o docs/openapi/_bundled.yaml
 docker run --rm -p 8082:8080 \
-  -e SWAGGER_JSON=/spec/openapi.yaml \
-  -v $(pwd)/docs/openapi:/spec swaggerapi/swagger-ui
+  -e SWAGGER_JSON=/spec/_bundled.yaml \
+  -v "$(pwd)/docs/openapi:/spec:ro" \
+  swaggerapi/swagger-ui
 ```
 
 ## Adding a new endpoint

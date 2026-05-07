@@ -71,7 +71,48 @@ services:
     environment:
       VITE_API_URL: http://localhost:${PORT:-8080}
 
+  redocly-preview:
+    image: redocly/cli:latest
+    profiles: ["docs"]
+    command: preview-docs /spec/openapi.yaml --host 0.0.0.0 --port 8080
+    working_dir: /spec
+    ports:
+      - "${DOCS_REDOCLY_PORT:-8082}:8080"
+    volumes:
+      - ../docs/openapi:/spec:ro
+    restart: unless-stopped
+
+  openapi-bundler:
+    image: redocly/cli:latest
+    profiles: ["docs"]
+    command: bundle /spec/openapi.yaml -o /output/openapi.yaml
+    working_dir: /spec
+    volumes:
+      - ../docs/openapi:/spec:ro
+      - bundled-spec:/output
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    profiles: ["docs"]
+    depends_on:
+      openapi-bundler:
+        condition: service_completed_successfully
+    ports:
+      - "${DOCS_SWAGGER_PORT:-8083}:8080"
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+      BASE_URL: /
+      DEEP_LINKING: "true"
+      DISPLAY_OPERATION_ID: "true"
+      DOC_EXPANSION: list
+      DEFAULT_MODELS_EXPAND_DEPTH: "1"
+      TRY_IT_OUT_ENABLED: "true"
+    volumes:
+      - bundled-spec:/spec:ro
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
   influxdata:
+  bundled-spec:
