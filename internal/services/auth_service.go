@@ -377,5 +377,16 @@ func (s *AuthService) UserCount(ctx context.Context) (int64, error) {
 	return s.userRepo.Count(ctx)
 }
 
+// HashPassword exposes the same bcrypt cost AuthService uses internally so
+// callers (e.g. tenant bootstrap flows) can pre-hash a password outside a
+// DB transaction without duplicating the cost constant.
+func (s *AuthService) HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return "", fmt.Errorf("hash password: %w", err)
+	}
+	return string(hash), nil
+}
+
 // Enforcer returns the bound Casbin enforcer (may be nil).
 func (s *AuthService) Enforcer() *casbin.Enforcer { return s.enforcer }

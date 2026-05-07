@@ -35,6 +35,7 @@ func NewRouter(
 	tenantSvc *services.TenantService,
 	authSvc *services.AuthService,
 	enforcer *casbin.Enforcer,
+	auditLogger *middleware.AuditLogger,
 ) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Recovery(), middleware.LoggerMiddleware(), middleware.CORSMiddleware())
@@ -54,9 +55,6 @@ func NewRouter(
 	if err := templateSvc.SeedDefaults(context.Background()); err != nil {
 		slog.Default().Warn("template seed defaults failed", "error", err)
 	}
-
-	auditRepo := repository.NewAuditRepo(db)
-	auditLogger := middleware.NewAuditLogger(auditRepo)
 
 	routerH := handlers.NewRouterHandler(routerSvc)
 	hotspotH := handlers.NewHotspotHandler(hotspotSvc)

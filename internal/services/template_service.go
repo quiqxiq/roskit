@@ -68,17 +68,17 @@ type RenderParams struct {
 }
 
 type CreateTemplateRequest struct {
-	Name    string `json:"name" binding:"required"`
-	Type    string `json:"type" binding:"required"`
+	Name    string `json:"name" binding:"required,min=1,max=100"`
+	Type    string `json:"type" binding:"required,oneof=default small thermal"`
 	Part    string `json:"part" binding:"required,oneof=header row footer"`
-	Content string `json:"content" binding:"required"`
+	Content string `json:"content" binding:"required,min=1,max=65536"` // 64KB cap on template body
 }
 
 type UpdateTemplateRequest struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
+	Name    string `json:"name" binding:"omitempty,min=1,max=100"`
+	Type    string `json:"type" binding:"omitempty,oneof=default small thermal"`
 	Part    string `json:"part" binding:"omitempty,oneof=header row footer"`
-	Content string `json:"content"`
+	Content string `json:"content" binding:"omitempty,max=65536"`
 }
 
 type TemplateService struct {

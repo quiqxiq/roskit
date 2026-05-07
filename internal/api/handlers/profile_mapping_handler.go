@@ -33,10 +33,10 @@ func (h *ProfileMappingHandler) List(c *gin.Context) {
 }
 
 type updateMappingRequest struct {
-	Price        int64  `json:"price"`
-	SellingPrice int64  `json:"selling_price"`
-	Validity     string `json:"validity"`
-	ExpMode      string `json:"exp_mode"`
+	Price        int64  `json:"price" binding:"omitempty,min=0"`
+	SellingPrice int64  `json:"selling_price" binding:"omitempty,min=0"`
+	Validity     string `json:"validity" binding:"omitempty,max=64"`
+	ExpMode      string `json:"exp_mode" binding:"omitempty,max=32"`
 	LockUser     *bool  `json:"lock_user"`
 	LockServer   *bool  `json:"lock_server"`
 }

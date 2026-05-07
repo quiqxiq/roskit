@@ -168,7 +168,7 @@ func (h *RouterHandler) TestConnection(c *gin.Context) {
 }
 
 type migrateRequest struct {
-	FilePath string `json:"file_path" binding:"required"`
+	FilePath string `json:"file_path" binding:"required,min=1,max=512"`
 }
 
 func (h *RouterHandler) MigrateConfig(c *gin.Context) {

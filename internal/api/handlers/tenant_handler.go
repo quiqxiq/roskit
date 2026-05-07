@@ -35,7 +35,7 @@ func (h *TenantHandler) GetSelf(c *gin.Context) {
 }
 
 type updateTenantNameRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name string `json:"name" binding:"required,min=2,max=100"`
 }
 
 func (h *TenantHandler) UpdateSelfName(c *gin.Context) {

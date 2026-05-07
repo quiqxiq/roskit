@@ -150,7 +150,7 @@ func (h *SystemHandler) GetExpireMonitor(c *gin.Context) {
 }
 
 type deployMonitorRequest struct {
-	Interval string `json:"interval" binding:"required"`
+	Interval string `json:"interval" binding:"required,min=1,max=64"`
 }
 
 func (h *SystemHandler) DeployExpireMonitor(c *gin.Context) {

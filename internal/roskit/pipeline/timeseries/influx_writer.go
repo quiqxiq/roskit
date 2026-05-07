@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	defaultBatchSize    = 500
+	defaultBatchSize     = 500
 	defaultFlushInterval = 5 * time.Second
+	defaultFlushTimeout  = 10 * time.Second
+	defaultShutdownGrace = 10 * time.Second
 )
 
 type InfluxWriterConfig struct {
@@ -32,6 +34,12 @@ type InfluxWriter struct {
 	buf     bytes.Buffer
 	flushCh chan struct{}
 	done    chan struct{}
+
+	// bgCtx scopes background flushes to the writer's lifetime; bgCancel is
+	// invoked during Shutdown so any in-flight Flush propagates cancellation.
+	bgCtx     context.Context
+	bgCancel  context.CancelFunc
+	closeOnce sync.Once
 }
 
 func NewInfluxWriter(cfg InfluxWriterConfig, logger *slog.Logger) (*InfluxWriter, error) {
@@ -41,12 +49,15 @@ func NewInfluxWriter(cfg InfluxWriterConfig, logger *slog.Logger) (*InfluxWriter
 	if cfg.Database == "" {
 		cfg.Database = "mikhmon"
 	}
+	bgCtx, bgCancel := context.WithCancel(context.Background())
 	w := &InfluxWriter{
-		cfg:     cfg,
-		client:  &http.Client{Timeout: 10 * time.Second},
-		logger:  logger,
-		flushCh: make(chan struct{}, 1),
-		done:    make(chan struct{}),
+		cfg:      cfg,
+		client:   &http.Client{Timeout: 10 * time.Second},
+		logger:   logger,
+		flushCh:  make(chan struct{}, 1),
+		done:     make(chan struct{}),
+		bgCtx:    bgCtx,
+		bgCancel: bgCancel,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -56,6 +67,7 @@ func NewInfluxWriter(cfg InfluxWriterConfig, logger *slog.Logger) (*InfluxWriter
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	resp, err := w.client.Do(req)
 	if err != nil {
+		bgCancel()
 		return nil, fmt.Errorf("influxdb writer: health check %s: %w", cfg.URL, err)
 	}
 	resp.Body.Close()
@@ -100,12 +112,25 @@ func (w *InfluxWriter) Flush(ctx context.Context) error {
 	return w.write(ctx, data)
 }
 
+// Close stops the background flusher and drains buffered writes with a
+// default grace period. Idempotent — safe to call from multiple defer chains.
 func (w *InfluxWriter) Close() error {
-	close(w.done)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultShutdownGrace)
 	defer cancel()
-	_ = w.Flush(ctx)
-	return nil
+	return w.Shutdown(ctx)
+}
+
+// Shutdown stops the background flusher, drains buffered writes within the
+// given context, then cancels the writer's background context so any
+// in-flight flush observes the cancellation. Idempotent.
+func (w *InfluxWriter) Shutdown(ctx context.Context) error {
+	var flushErr error
+	w.closeOnce.Do(func() {
+		close(w.done)
+		flushErr = w.Flush(ctx)
+		w.bgCancel()
+	})
+	return flushErr
 }
 
 var reservedFields = map[string]bool{
@@ -184,12 +209,20 @@ func (w *InfluxWriter) backgroundFlush() {
 	ticker := time.NewTicker(defaultFlushInterval)
 	defer ticker.Stop()
 
+	flushOnce := func() {
+		ctx, cancel := context.WithTimeout(w.bgCtx, defaultFlushTimeout)
+		defer cancel()
+		if err := w.Flush(ctx); err != nil && w.bgCtx.Err() == nil {
+			w.logger.Warn("influxdb background flush failed", "error", err)
+		}
+	}
+
 	for {
 		select {
 		case <-ticker.C:
-			_ = w.Flush(context.Background())
+			flushOnce()
 		case <-w.flushCh:
-			_ = w.Flush(context.Background())
+			flushOnce()
 		case <-w.done:
 			return
 		}

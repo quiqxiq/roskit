@@ -55,21 +55,21 @@ type ConnectionTestResult struct {
 }
 
 type CreateRouterRequest struct {
-	Name        string `json:"name" binding:"required"`
-	IPAddress   string `json:"ip_address" binding:"required"`
-	APIPort     int    `json:"api_port"`
-	APIUsername string `json:"api_username" binding:"required"`
-	Password    string `json:"password" binding:"required"`
-	Notes       string `json:"notes"`
+	Name        string `json:"name" binding:"required,min=1,max=100"`
+	IPAddress   string `json:"ip_address" binding:"required,max=255"` // accepts IP, host, or host:port — service layer normalises
+	APIPort     int    `json:"api_port" binding:"omitempty,min=1,max=65535"`
+	APIUsername string `json:"api_username" binding:"required,min=1,max=64"`
+	Password    string `json:"password" binding:"required,min=1,max=128"`
+	Notes       string `json:"notes" binding:"max=500"`
 }
 
 type UpdateRouterRequest struct {
-	Name        string `json:"name"`
-	IPAddress   string `json:"ip_address"`
-	APIPort     int    `json:"api_port"`
-	APIUsername string `json:"api_username"`
-	Password    string `json:"password"`
-	Notes       string `json:"notes"`
+	Name        string `json:"name" binding:"omitempty,min=1,max=100"`
+	IPAddress   string `json:"ip_address" binding:"omitempty,max=255"`
+	APIPort     int    `json:"api_port" binding:"omitempty,min=1,max=65535"`
+	APIUsername string `json:"api_username" binding:"omitempty,min=1,max=64"`
+	Password    string `json:"password" binding:"omitempty,min=1,max=128"`
+	Notes       string `json:"notes" binding:"max=500"`
 }
 
 type MigrationResult struct {

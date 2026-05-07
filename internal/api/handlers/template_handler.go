@@ -153,17 +153,17 @@ func (h *TemplateHandler) SeedDefaults(c *gin.Context) {
 }
 
 type renderRequest struct {
-	Gencode      string `json:"gencode" binding:"required"`
-	TemplateType string `json:"template_type" binding:"required"`
-	Profile      string `json:"profile"`
-	Validity     string `json:"validity"`
-	TimeLimit    string `json:"time_limit"`
-	DataLimit    string `json:"data_limit"`
-	Price        string `json:"price"`
-	Comment      string `json:"comment"`
-	UserMode     string `json:"user_mode"`
-	Logo         string `json:"logo"`
-	RouterID     uint   `json:"router_id" binding:"required"`
+	Gencode      string `json:"gencode" binding:"required,min=4,max=64"`
+	TemplateType string `json:"template_type" binding:"required,oneof=default small thermal"`
+	Profile      string `json:"profile" binding:"omitempty,max=64"`
+	Validity     string `json:"validity" binding:"omitempty,max=64"`
+	TimeLimit    string `json:"time_limit" binding:"omitempty,max=64"`
+	DataLimit    string `json:"data_limit" binding:"omitempty,max=64"`
+	Price        string `json:"price" binding:"omitempty,max=64"`
+	Comment      string `json:"comment" binding:"omitempty,max=200"`
+	UserMode     string `json:"user_mode" binding:"omitempty,max=32"`
+	Logo         string `json:"logo" binding:"omitempty,max=255"`
+	RouterID     uint   `json:"router_id" binding:"required,min=1"`
 }
 
 // Render renders a template type against cached vouchers identified by gencode.

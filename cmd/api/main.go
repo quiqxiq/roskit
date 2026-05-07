@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/api"
+	"github.com/quiqxiq/roskit/internal/api/middleware"
 	casbinx "github.com/quiqxiq/roskit/internal/casbin"
 	"github.com/quiqxiq/roskit/internal/config"
 	"github.com/quiqxiq/roskit/internal/repository"
@@ -200,10 +201,14 @@ func main() {
 	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
 	go backgroundWorker.Start(ctx)
 
+	auditRepo := repository.NewAuditRepo(db)
+	auditLogger := middleware.NewAuditLogger(auditRepo)
+
 	router := api.NewRouter(
 		cfg, db, cache, bridge,
 		routerSvc, tsReader, roskitSubscriber, profileRepo,
 		tenantRepo, tenantSettingsRepo, tenantSvc, authSvc, enforcer,
+		auditLogger,
 	)
 
 	srv := &http.Server{
@@ -232,6 +237,12 @@ func main() {
 
 	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
+	}
+
+	// Drain buffered audit entries before exiting. Bounded by shutCtx so a
+	// stuck DB cannot block the process from terminating.
+	if err := auditLogger.Shutdown(shutCtx); err != nil {
+		log.Printf("audit logger shutdown: %v", err)
 	}
 
 	log.Println("server exited")

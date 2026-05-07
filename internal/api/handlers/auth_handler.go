@@ -4,11 +4,13 @@ import (
 	stderrors "errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/quiqxiq/roskit/internal/api/middleware"
+	casbinx "github.com/quiqxiq/roskit/internal/casbin"
 	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/quiqxiq/roskit/pkg/errors"
@@ -25,29 +27,29 @@ func NewAuthHandler(svc *services.AuthService, tenantSvc *services.TenantService
 }
 
 type loginRequest struct {
-	Tenant   string `json:"tenant"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Tenant   string `json:"tenant" binding:"omitempty,max=100"`
+	Username string `json:"username" binding:"required,min=1,max=64"`
+	Password string `json:"password" binding:"required,min=1,max=128"`
 }
 
 type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
+	RefreshToken string `json:"refresh_token" binding:"required,min=10,max=4096"`
 }
 
 type logoutRequest struct {
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token" binding:"omitempty,max=4096"`
 }
 
 type changePasswordRequest struct {
-	OldPassword string `json:"old_password" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=6"`
+	OldPassword string `json:"old_password" binding:"required,min=1,max=128"`
+	NewPassword string `json:"new_password" binding:"required,min=6,max=128"`
 }
 
 type setupRequest struct {
-	TenantName string `json:"tenant_name" binding:"required"`
-	TenantSlug string `json:"tenant_slug" binding:"required"`
-	Username   string `json:"username" binding:"required,min=3"`
-	Password   string `json:"password" binding:"required,min=6"`
+	TenantName string `json:"tenant_name" binding:"required,min=2,max=100"`
+	TenantSlug string `json:"tenant_slug" binding:"required,min=2,max=100"`
+	Username   string `json:"username" binding:"required,min=3,max=64"`
+	Password   string `json:"password" binding:"required,min=6,max=128"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -175,7 +177,9 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 }
 
 func (h *AuthHandler) Setup(c *gin.Context) {
-	count, err := h.svc.UserCount(c.Request.Context())
+	ctx := c.Request.Context()
+
+	count, err := h.svc.UserCount(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal error"})
 		return
@@ -191,30 +195,46 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		return
 	}
 
-	tenant, err := h.tenantSvc.Create(c.Request.Context(), services.CreateTenantRequest{
-		Name: req.TenantName,
-		Slug: req.TenantSlug,
-	})
+	// Hash before opening the transaction — bcrypt is slow (~100ms) and
+	// holding a connection through it under load wastes pool capacity.
+	pwHash, err := h.svc.HashPassword(req.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal error"})
 		return
 	}
 
-	tid := tenant.ID
-	user, err := h.svc.CreateUser(c.Request.Context(), &tid, tenant.Slug, req.Username, req.Password, models.UserRoleOwner)
+	result, err := h.tenantSvc.SetupTenantWithOwner(ctx, services.SetupTenantWithOwnerParams{
+		TenantName:   req.TenantName,
+		TenantSlug:   req.TenantSlug,
+		Username:     req.Username,
+		PasswordHash: pwHash,
+	})
 	if err != nil {
-		switch err {
-		case services.ErrInvalidRole:
-			c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
-		case services.ErrUserAlreadyExists:
-			c.JSON(http.StatusConflict, gin.H{"data": nil, "error": err.Error()})
+		// Map known error shapes from SetupTenantWithOwner. Anything else
+		// surfaces as 500 with the original message stripped.
+		msg := err.Error()
+		switch {
+		case stderrors.Is(err, services.ErrUserAlreadyExists),
+			containsAny(msg, "user already exists", "duplicate", "unique"):
+			c.JSON(http.StatusConflict, gin.H{"data": nil, "error": "user already exists"})
+		case containsAny(msg, "invalid slug", "reserved"):
+			c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": msg})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "internal error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "setup failed"})
 		}
 		return
 	}
 
-	loginResult, err := h.svc.Login(c.Request.Context(), tenant.Slug, req.Username, req.Password)
+	// Casbin role grant lives outside the DB transaction because the
+	// enforcer is in-memory; failure here is rare and recoverable.
+	if enforcer := h.svc.Enforcer(); enforcer != nil {
+		if err := casbinx.AssignRole(enforcer, result.User.ID, result.Tenant.Slug, models.UserRoleOwner); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "role assignment failed"})
+			return
+		}
+	}
+
+	loginResult, err := h.svc.Login(ctx, result.Tenant.Slug, req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "auto-login after setup failed"})
 		return
@@ -223,14 +243,14 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"data": gin.H{
 			"tenant": gin.H{
-				"id":   tenant.ID,
-				"name": tenant.Name,
-				"slug": tenant.Slug,
+				"id":   result.Tenant.ID,
+				"name": result.Tenant.Name,
+				"slug": result.Tenant.Slug,
 			},
 			"user": gin.H{
-				"id":       user.ID,
-				"username": user.Username,
-				"role":     user.Role,
+				"id":       result.User.ID,
+				"username": result.User.Username,
+				"role":     result.User.Role,
 			},
 			"access_token":  loginResult.AccessToken,
 			"refresh_token": loginResult.RefreshToken,
@@ -239,4 +259,18 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		"error": nil,
 	})
 	h.audit.LogAuth(c, "auth.setup", req.Username)
+}
+
+// containsAny returns true when the lower-cased haystack contains any of the
+// given lower-cased needles. Used to recognise wrapped error messages
+// returned from gorm/postgres without imposing a custom error sentinel
+// throughout the service layer.
+func containsAny(haystack string, needles ...string) bool {
+	lower := strings.ToLower(haystack)
+	for _, n := range needles {
+		if strings.Contains(lower, n) {
+			return true
+		}
+	}
+	return false
 }

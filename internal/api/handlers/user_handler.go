@@ -24,14 +24,14 @@ func NewUserHandler(authSvc *services.AuthService, userRepo repository.UserRepos
 }
 
 type createUserRequest struct {
-	Username string          `json:"username" binding:"required,min=3"`
-	Password string          `json:"password" binding:"required,min=6"`
+	Username string          `json:"username" binding:"required,min=3,max=64"`
+	Password string          `json:"password" binding:"required,min=6,max=128"`
 	Role     models.UserRole `json:"role" binding:"required"`
 }
 
 type updateUserRequest struct {
-	Username *string          `json:"username"`
-	Password *string          `json:"password" binding:"omitempty,min=6"`
+	Username *string          `json:"username" binding:"omitempty,min=3,max=64"`
+	Password *string          `json:"password" binding:"omitempty,min=6,max=128"`
 	Role     *models.UserRole `json:"role"`
 	Active   *bool            `json:"active"`
 }

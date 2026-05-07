@@ -16,17 +16,17 @@ import (
 )
 
 type VoucherGenerateParams struct {
-	Qty        int    `json:"qty"`
-	Server     string `json:"server"`
-	UserType   string `json:"user_type"`
-	NameLength int    `json:"name_length"`
-	Prefix     string `json:"prefix"`
-	CharSet    string `json:"char_set"`
-	Profile    string `json:"profile"`
-	TimeLimit  string `json:"time_limit"`
-	DataLimit  int64  `json:"data_limit"`
-	Comment    string `json:"comment"`
-	Gencode    string `json:"gencode"`
+	Qty        int    `json:"qty" binding:"required,min=1,max=1000"`
+	Server     string `json:"server" binding:"omitempty,max=64"`
+	UserType   string `json:"user_type" binding:"omitempty,max=32"`
+	NameLength int    `json:"name_length" binding:"omitempty,min=3,max=32"`
+	Prefix     string `json:"prefix" binding:"omitempty,max=16"`
+	CharSet    string `json:"char_set" binding:"omitempty,max=64"`
+	Profile    string `json:"profile" binding:"required,min=1,max=64"`
+	TimeLimit  string `json:"time_limit" binding:"omitempty,max=64"`
+	DataLimit  int64  `json:"data_limit" binding:"omitempty,min=0"`
+	Comment    string `json:"comment" binding:"omitempty,max=200"`
+	Gencode    string `json:"gencode" binding:"omitempty,max=64"`
 }
 
 type VoucherGenerateResult struct {
@@ -37,12 +37,12 @@ type VoucherGenerateResult struct {
 }
 
 type RecordSaleParams struct {
-	Username    string    `json:"username"`
-	ProfileName string    `json:"profile_name"`
-	Price       int64     `json:"price"`
-	Server      string    `json:"server"`
-	IPAddress   string    `json:"ip_address"`
-	MACAddress  string    `json:"mac_address"`
+	Username    string    `json:"username" binding:"required,min=1,max=64"`
+	ProfileName string    `json:"profile_name" binding:"omitempty,max=64"`
+	Price       int64     `json:"price" binding:"omitempty,min=0"`
+	Server      string    `json:"server" binding:"omitempty,max=64"`
+	IPAddress   string    `json:"ip_address" binding:"omitempty,max=45"` // IPv6 max length
+	MACAddress  string    `json:"mac_address" binding:"omitempty,max=17"`
 	SoldAt      time.Time `json:"sold_at"`
 }
 

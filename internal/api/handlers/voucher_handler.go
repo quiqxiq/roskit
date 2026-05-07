@@ -65,7 +65,7 @@ func (h *VoucherHandler) Generate(c *gin.Context) {
 }
 
 type cacheVoucherRequest struct {
-	Gencode string `json:"gencode" binding:"required"`
+	Gencode string `json:"gencode" binding:"required,min=4,max=64"`
 }
 
 func (h *VoucherHandler) CacheVoucher(c *gin.Context) {
@@ -184,9 +184,9 @@ func (h *VoucherHandler) PrintData(c *gin.Context) {
 }
 
 type printVouchersRequest struct {
-	Usernames    []string `json:"usernames"`
-	Comment      string   `json:"comment"`
-	TemplateType string   `json:"template_type"`
+	Usernames    []string `json:"usernames" binding:"omitempty,max=500,dive,min=1,max=64"`
+	Comment      string   `json:"comment" binding:"omitempty,max=200"`
+	TemplateType string   `json:"template_type" binding:"omitempty,oneof=default small thermal"`
 }
 
 func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
