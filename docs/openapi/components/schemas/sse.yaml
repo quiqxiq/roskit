@@ -1,0 +1,44 @@
+# SSE event schemas. Source:
+#   internal/api/handlers/sse/telemetry_sse_handler.go
+#   internal/api/handlers/sse/log_sse_handler.go
+#
+# All SSE endpoints set `Content-Type: text/event-stream`. The body is a
+# stream of `data: <json>\n\n` lines plus periodic `: keep-alive\n\n`
+# comments. The schemas below describe ONE event payload (one `data:`
+# line), not the full stream.
+#
+# OpenAPI 3.x has no native streaming primitive — we mark these
+# operations with `x-sse: true` and document the per-event JSON shape.
+
+TelemetryEvent:
+  type: object
+  required: [measurement, tags]
+  description: |
+    A single telemetry event multiplexed via Redis pub-sub. Clients
+    filter by `measurement`; the SPA also filters by `tags.interface`
+    or `tags.name` for per-interface streams.
+  properties:
+    measurement:
+      type: string
+      description: 'One of the telemetry topics — see the per-endpoint description.'
+      example: hotspot_user
+    tags:
+      type: object
+      additionalProperties: { type: string }
+      description: 'RouterOS-style tags propagated by the pipeline (`router_id`, `name`, `profile`, `interface`, …).'
+    fields:
+      type: object
+      additionalProperties: true
+      description: 'Numeric/boolean payload (e.g. `bytes_in`, `cpu_load`). Shape varies per measurement.'
+    timestamp:
+      type: string
+      format: date-time
+
+LogEvent:
+  type: object
+  description: One row from the RouterOS log stream.
+  properties:
+    time:    { type: string, example: 'apr/30 10:11:12' }
+    topics:  { type: string, example: 'hotspot,info' }
+    message: { type: string }
+    router_id: { type: string }

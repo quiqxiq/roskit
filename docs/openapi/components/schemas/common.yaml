@@ -1,0 +1,116 @@
+# Shared response/data envelope and error shapes.
+#
+# Source of truth: `pkg/httpresp/respond.go` (Envelope + APIError) and
+# `pkg/errors/errors.go` (legacy AppError codes still surfaced by some
+# handlers). All success responses fill `data` and set `error: null`; all
+# failure responses set `data: null` and fill `error`.
+#
+# Note: OpenAPI 3.1 follows JSON Schema 2020-12 — `nullable: true` is
+# replaced by including `'null'` in the type union or wrapping in oneOf.
+
+Envelope:
+  type: object
+  required: [data, error]
+  description: Universal response shape. Exactly one of `data` / `error` is non-null.
+  properties:
+    data:
+      description: Operation payload, or null on error.
+    error:
+      oneOf:
+        - $ref: '#/APIError'
+        - type: 'null'
+
+APIError:
+  type: object
+  required: [code, message]
+  description: |
+    Error envelope. `code` is a stable identifier (clients may pattern-match);
+    `message` is human-readable English; `details` carries optional
+    structured context (e.g. per-field validation errors).
+  properties:
+    code:
+      type: string
+      example: invalid_input
+    message:
+      type: string
+      example: name is required
+    details:
+      description: Optional structured context (per-field validation, etc.)
+
+ErrorEnvelope:
+  type: object
+  required: [data, error]
+  description: Convenience alias — same shape as Envelope but with `data` always null.
+  properties:
+    data:
+      type: 'null'
+      example: null
+    error:
+      $ref: '#/APIError'
+
+PaginationMeta:
+  type: object
+  required: [total, page, limit]
+  properties:
+    total:
+      type: integer
+      format: int64
+      minimum: 0
+      example: 142
+    page:
+      type: integer
+      minimum: 1
+      example: 1
+    limit:
+      type: integer
+      minimum: 1
+      example: 50
+
+EmptyOK:
+  type: object
+  required: [data, error]
+  description: Generic success body with a single `message` field.
+  properties:
+    data:
+      type: object
+      properties:
+        message:
+          type: string
+          example: ok
+    error:
+      type: 'null'
+      example: null
+
+RouterOSRecord:
+  type: object
+  additionalProperties:
+    type: string
+  description: |
+    A RouterOS sentence rendered as a flat string→string map. Keys are
+    the original MikroTik names with hyphens preserved (`mac-address`,
+    `bytes-in`, `dst-host`, …). The `.id` key is the RouterOS-internal
+    identifier (e.g. `*A1`) and is stable across calls. Extra keys not
+    listed in the property hints below may appear depending on the
+    RouterOS version.
+  properties:
+    .id:
+      type: string
+      description: RouterOS internal identifier.
+      example: '*A1'
+
+CountResponse:
+  type: object
+  required: [data, error]
+  description: Reusable shape for `GET .../count` style endpoints.
+  properties:
+    data:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+          format: int64
+          minimum: 0
+    error:
+      type: 'null'
+      example: null

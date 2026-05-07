@@ -1,0 +1,138 @@
+# /users/* — tenant-scoped user management.
+# Source: internal/api/handlers/user_handler.go.
+
+list:
+  get:
+    operationId: listUsers
+    summary: List users in the active tenant
+    tags: [users]
+    responses:
+      '200':
+        description: Array of users.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+            example:
+              data:
+                - id: 1
+                  tenant_id: 3
+                  username: owner
+                  role: owner
+                  active: true
+                  last_login_at: '2026-04-30T10:11:12Z'
+                  created_at: '2026-04-01T00:00:00Z'
+                  updated_at: '2026-04-30T10:11:12Z'
+              error: null
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+create:
+  post:
+    operationId: createUser
+    summary: Create a user inside the active tenant
+    tags: [users]
+    description: |
+      Owners and admins may create users. Role `superadmin` is rejected
+      from this scope (use platform-level provisioning instead).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/user.yaml#/CreateUserRequest' }
+          example:
+            username: bob
+            password: secret123
+            role: staff
+    responses:
+      '201':
+        description: User created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+get:
+  get:
+    operationId: getUser
+    summary: Get a single user by ID (tenant-scoped)
+    tags: [users]
+    parameters:
+      - $ref: '../components/parameters.yaml#/UserId'
+    responses:
+      '200':
+        description: User found.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+update:
+  put:
+    operationId: updateUser
+    summary: Update a tenant user (partial)
+    tags: [users]
+    description: |
+      Updates the named fields. Changing `role` rewires Casbin role
+      bindings transparently. Cross-tenant users cannot be reached
+      (404 mask).
+    parameters:
+      - $ref: '../components/parameters.yaml#/UserId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/user.yaml#/UpdateUserRequest' }
+    responses:
+      '200':
+        description: Updated user.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+delete:
+  delete:
+    operationId: deleteUser
+    summary: Delete a tenant user (soft delete)
+    tags: [users]
+    parameters:
+      - $ref: '../components/parameters.yaml#/UserId'
+    responses:
+      '200':
+        description: User deleted; Casbin role grants revoked.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: user deleted }
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }

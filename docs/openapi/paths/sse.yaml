@@ -1,0 +1,254 @@
+# Server-Sent Events (text/event-stream) for logs + telemetry.
+#
+# Source:
+#   internal/api/handlers/sse/log_sse_handler.go
+#   internal/api/handlers/sse/telemetry_sse_handler.go
+#
+# Each operation is marked `x-sse: true` and returns `text/event-stream`.
+# The schema describes ONE event payload (one `data:` line). Browsers
+# using EventSource cannot send custom headers, so these endpoints also
+# accept the JWT via `?token=<access_token>` query string.
+
+logsAll:
+  get:
+    operationId: streamRouterLogsAll
+    summary: SSE stream of all RouterOS log lines for one router
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+        description: Access JWT for clients that cannot send the `Authorization` header (EventSource).
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema:
+              description: 'Each `data:` frame contains a `LogEvent`.'
+              $ref: '../components/schemas/sse.yaml#/LogEvent'
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+logsHotspot:
+  get:
+    operationId: streamRouterLogsHotspot
+    summary: SSE stream of hotspot-only log lines
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/LogEvent' }
+
+logsPPP:
+  get:
+    operationId: streamRouterLogsPPP
+    summary: SSE stream of PPP-only log lines
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/LogEvent' }
+
+# --- telemetry topics --------------------------------------------------------
+# Each topic streams `TelemetryEvent` filtered to a fixed measurement.
+
+hotspotUsers:
+  get:
+    operationId: streamHotspotUsersTelemetry
+    summary: 'SSE — telemetry for measurement `hotspot_user`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+hotspotActive:
+  get:
+    operationId: streamHotspotActiveTelemetry
+    summary: 'SSE — telemetry for measurement `hotspot_active`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+hotspotInactive:
+  get:
+    operationId: streamHotspotInactiveTelemetry
+    summary: 'SSE — telemetry for measurement `hotspot_inactive`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+bindings:
+  get:
+    operationId: streamIPBindingsTelemetry
+    summary: 'SSE — telemetry for measurement `ip_binding`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+pppSecrets:
+  get:
+    operationId: streamPPPSecretsTelemetry
+    summary: 'SSE — telemetry for measurement `ppp_secret`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+pppActive:
+  get:
+    operationId: streamPPPActiveTelemetry
+    summary: 'SSE — telemetry for measurement `ppp_active`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+pppInactive:
+  get:
+    operationId: streamPPPInactiveTelemetry
+    summary: 'SSE — telemetry for measurement `ppp_inactive`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+systemResource:
+  get:
+    operationId: streamSystemResourceTelemetry
+    summary: 'SSE — telemetry for measurement `system_resource`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+interfaceTraffic:
+  get:
+    operationId: streamInterfaceTrafficTelemetry
+    summary: 'SSE — per-interface traffic (filtered by `iface`)'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/InterfaceName'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens — only events whose `tags.interface` (or `tags.name`) matches `iface` are emitted.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }
+
+dhcpLeases:
+  get:
+    operationId: streamDHCPLeasesTelemetry
+    summary: 'SSE — telemetry for measurement `dhcp_lease`'
+    tags: [sse]
+    x-sse: true
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: token
+        schema: { type: string }
+    responses:
+      '200':
+        description: Stream opens.
+        content:
+          text/event-stream:
+            schema: { $ref: '../components/schemas/sse.yaml#/TelemetryEvent' }

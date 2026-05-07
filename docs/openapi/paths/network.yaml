@@ -1,0 +1,159 @@
+# /routers/{routerId}/network/* operations.
+# Source: internal/api/handlers/network_handler.go.
+
+listInterfaces:
+  get:
+    operationId: listInterfaces
+    summary: List router interfaces
+    tags: [network]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Interfaces.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/network.yaml#/InterfaceRecord' }
+                error: { type: 'null' }
+            example:
+              data:
+                - .id: '*1'
+                  name: ether1
+                  type: ether
+                  mtu: '1500'
+                  running: 'true'
+                  disabled: 'false'
+              error: null
+
+getInterfaceTraffic:
+  get:
+    operationId: getInterfaceTraffic
+    summary: Get current traffic rate for a single interface
+    tags: [network]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/InterfaceName'
+    responses:
+      '200':
+        description: Live RX/TX snapshot.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data: { $ref: '../components/schemas/network.yaml#/InterfaceTraffic' }
+                error: { type: 'null' }
+            example:
+              data:
+                iface: ether1
+                rx: 152340
+                tx: 84211
+                rx_packets: 245
+                tx_packets: 198
+                timestamp: '2026-04-30T10:11:12Z'
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+listPools:
+  get:
+    operationId: listIPPools
+    summary: List IP pools
+    tags: [network]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Pools.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/network.yaml#/PoolRecord' }
+                error: { type: 'null' }
+
+listQueues:
+  get:
+    operationId: listSimpleQueues
+    summary: List simple queues
+    tags: [network]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Queues.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/network.yaml#/QueueRecord' }
+                error: { type: 'null' }
+
+listNATRules:
+  get:
+    operationId: listNATRules
+    summary: List firewall NAT rules
+    tags: [network]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: NAT rules.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/network.yaml#/NATRuleRecord' }
+                error: { type: 'null' }
+
+listDHCPLeases:
+  get:
+    operationId: listDHCPLeases
+    summary: List DHCP server leases
+    tags: [network]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Leases.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/network.yaml#/DHCPLeaseRecord' }
+                error: { type: 'null' }
+
+releaseDHCPLease:
+  delete:
+    operationId: releaseDHCPLease
+    summary: Release a DHCP lease (remove the binding)
+    tags: [network]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Lease released.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: lease released }
+              error: null

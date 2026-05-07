@@ -1,0 +1,71 @@
+# Network domain schemas. Source:
+#   internal/roskit/core/model/network.go (cache shape)
+#   internal/api/handlers/network_handler.go.
+
+InterfaceRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:        { type: string, example: ether1 }
+        type:        { type: string, example: ether }
+        mtu:         { type: string, example: '1500' }
+        mac-address: { type: string }
+        running:     { type: string, enum: ['true', 'false'] }
+        disabled:    { type: string, enum: ['true', 'false'] }
+
+InterfaceTraffic:
+  type: object
+  required: [iface, rx, tx]
+  description: |
+    Snapshot or rolling-window of an interface's RX/TX rate.
+    `rx` / `tx` are bits-per-second; `rx_packets` / `tx_packets` are
+    packets-per-second.
+  properties:
+    iface:      { type: string, example: ether1 }
+    rx:         { type: integer, format: int64 }
+    tx:         { type: integer, format: int64 }
+    rx_packets: { type: integer, format: int64 }
+    tx_packets: { type: integer, format: int64 }
+    timestamp:  { type: string, format: date-time }
+
+PoolRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:   { type: string, example: hs-pool-1 }
+        ranges: { type: string, example: '10.5.50.2-10.5.50.254' }
+
+QueueRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:        { type: string }
+        target:      { type: string, example: '10.5.50.23/32' }
+        max-limit:   { type: string, example: '1M/2M' }
+        burst-limit: { type: string }
+        disabled:    { type: string, enum: ['true', 'false'] }
+
+NATRuleRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        chain:      { type: string, example: srcnat }
+        action:     { type: string, example: masquerade }
+        out-interface: { type: string, example: ether1 }
+        comment:    { type: string }
+        disabled:   { type: string, enum: ['true', 'false'] }
+
+DHCPLeaseRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        address:     { type: string, example: 10.5.50.23 }
+        mac-address: { type: string, example: '00:11:22:33:44:55' }
+        host-name:   { type: string }
+        server:      { type: string, example: dhcp1 }
+        status:     { type: string, enum: [bound, waiting, busy, offered, expired] }

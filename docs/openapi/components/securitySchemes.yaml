@@ -1,0 +1,35 @@
+# Security schemes used across the Roskit API.
+#
+# Most endpoints require `bearerAuth`. Public endpoints (health, status,
+# auth/login, auth/setup, auth/refresh) declare empty `security: []`.
+# The webhook endpoint `/events/on-login` uses `webhookToken` instead.
+# Superadmin tenant override lives in the optional `X-Tenant-Slug` header
+# (modelled as an apiKey scheme so OpenAPI tooling can offer it as input).
+
+bearerAuth:
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description: |
+    JWT access token issued by `POST /auth/login`. Send as
+    `Authorization: Bearer <token>`. SSE endpoints additionally accept
+    `?token=<token>` since EventSource cannot set custom headers.
+
+webhookToken:
+  type: apiKey
+  in: header
+  name: X-Router-Token
+  description: |
+    Per-tenant secret minted at tenant creation
+    (`tenant_settings.webhook_token`). Required by `/events/on-login`.
+    May also be supplied as a `token` form field for legacy MikroTik
+    schedulers.
+
+tenantSlugHeader:
+  type: apiKey
+  in: header
+  name: X-Tenant-Slug
+  description: |
+    Optional. Superadmins (`role=superadmin`) MAY use this header to act on
+    behalf of a tenant other than their JWT default `__platform__`. Ignored
+    for non-superadmin users.

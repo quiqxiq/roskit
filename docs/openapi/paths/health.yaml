@@ -1,0 +1,94 @@
+# Operations for the /api/v1/health route.
+#
+# Source: internal/api/handlers/health_handler.go.
+
+check:
+  get:
+    operationId: checkHealth
+    summary: Liveness and dependency health probe
+    tags: [health]
+    security: []
+    description: |
+      Returns the health of Postgres, Redis, and the MikroTik connection
+      pool. `data.status` is `ok` when all dependencies are healthy and
+      `degraded` otherwise. HTTP status mirrors that: 200 on `ok`, 503 on
+      `degraded`. Use this for Kubernetes readiness probes.
+    responses:
+      '200':
+        description: All dependencies healthy.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  $ref: '#/HealthStatus'
+                error:
+                  type: 'null'
+            example:
+              data:
+                status: ok
+                services:
+                  postgres: ok
+                  redis: ok
+                  engine:
+                    routers_total: 4
+                    routers_connected: 4
+              error: null
+      '503':
+        description: At least one dependency is unavailable. Body still uses the standard envelope.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  $ref: '#/HealthStatus'
+                error:
+                  type: 'null'
+            example:
+              data:
+                status: degraded
+                services:
+                  postgres: ok
+                  redis: unavailable
+                  engine:
+                    routers_total: 4
+                    routers_connected: 1
+              error: null
+
+# --- inline schemas (only referenced from this file) -------------------------
+# Kept inline because nothing else needs them. If they ever leak elsewhere,
+# promote to components/schemas/health.yaml.
+
+HealthStatus:
+  type: object
+  required: [status, services]
+  properties:
+    status:
+      type: string
+      enum: [ok, degraded]
+    services:
+      type: object
+      required: [postgres, redis, engine]
+      properties:
+        postgres:
+          type: string
+          enum: [ok, unavailable]
+        redis:
+          type: string
+          enum: [ok, unavailable]
+        engine:
+          type: object
+          required: [routers_total, routers_connected]
+          properties:
+            routers_total:
+              type: integer
+              minimum: 0
+              example: 4
+            routers_connected:
+              type: integer
+              minimum: 0
+              example: 4

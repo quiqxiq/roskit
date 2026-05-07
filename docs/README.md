@@ -2,6 +2,11 @@
 
 This document provides a deep dive into the architecture, design patterns, and internal workings of the Roskit backend.
 
+> **HTTP API contract:** every public endpoint is described in
+> [`docs/openapi/`](./openapi/README.md) (OpenAPI 3.1, hand-written YAML).
+> Lint with `npx @redocly/cli lint docs/openapi/openapi.yaml --config docs/openapi/redocly.yaml`,
+> or render live via `npx @redocly/cli preview-docs docs/openapi/openapi.yaml`.
+
 ---
 
 ## Architecture Overview
@@ -259,7 +264,9 @@ RouterOS calls `/api/v1/events/on-login` via `/tool/fetch` (form-encoded, not JS
 This means **every tenant has one webhook token** shared across its routers. Rotate via `PUT /tenant/settings`.
 
 ### Hotspot User Count
-Returns `count - 1` to exclude the admin user, mirroring legacy PHP behavior.
+Returns `len(users)` directly. (Earlier versions subtracted 1 to mirror
+a legacy PHP quirk; that has been removed since RouterOS sentence parsing
+already excludes the protocol's `!done` row.)
 
 ### Legacy Migrations
 The legacy XOR `"128"` cycled base64 encryption is decoded by `cmd/migrate import`. It auto-creates one tenant per session in the legacy `config.php` (slug = sanitized session name) and tags routers + sales with that tenant.

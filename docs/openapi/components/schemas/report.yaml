@@ -1,0 +1,63 @@
+# Report schemas. Source: internal/services/report_service.go.
+
+DailySummaryRow:
+  type: object
+  required: [day, count, total]
+  properties:
+    day:   { type: string, format: date, example: '2026-04-30' }
+    count: { type: integer, format: int64 }
+    total: { type: integer, format: int64 }
+
+MonthSummaryRow:
+  type: object
+  required: [month, count, total]
+  properties:
+    month: { type: integer, minimum: 1, maximum: 12 }
+    count: { type: integer, format: int64 }
+    total: { type: integer, format: int64 }
+
+DailyReport:
+  type: object
+  required: [date, sales, total, count]
+  properties:
+    date:  { type: string, format: date }
+    sales:
+      type: array
+      items: { $ref: 'voucher.yaml#/VoucherSale' }
+    total: { type: integer, format: int64 }
+    count: { type: integer }
+
+MonthlyReport:
+  type: object
+  required: [year, month, daily, total, count]
+  properties:
+    year:  { type: integer }
+    month: { type: integer, minimum: 1, maximum: 12 }
+    daily:
+      type: array
+      items: { $ref: '#/DailySummaryRow' }
+    total: { type: integer, format: int64 }
+    count: { type: integer, format: int64 }
+
+ResumeReport:
+  type: object
+  required: [year, months, total, count]
+  properties:
+    year:   { type: integer }
+    months:
+      type: array
+      items: { $ref: '#/MonthSummaryRow' }
+    total:  { type: integer, format: int64 }
+    count:  { type: integer, format: int64 }
+
+RevenueSummary:
+  type: object
+  required: [today_count, today_sum, month_count, month_sum]
+  description: |
+    Top-of-page revenue tiles for the SPA. Distinct from
+    `system.yaml#/DashboardSummary` which carries router CPU / memory.
+  properties:
+    today_count: { type: integer, format: int64 }
+    today_sum:   { type: integer, format: int64 }
+    month_count: { type: integer, format: int64 }
+    month_sum:   { type: integer, format: int64 }

@@ -1,0 +1,196 @@
+# /routers/{routerId}/ppp/* operations.
+# Source: internal/api/handlers/ppp_handler.go.
+
+listSecrets:
+  get:
+    operationId: listPPPSecrets
+    summary: List PPP secrets
+    tags: [ppp]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: PPP secrets.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/ppp.yaml#/PPPSecretRecord' }
+                error: { type: 'null' }
+            example:
+              data:
+                - .id: '*1'
+                  name: alice@vpn
+                  service: pppoe
+                  profile: default
+                  disabled: 'false'
+              error: null
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+addSecret:
+  post:
+    operationId: addPPPSecret
+    summary: Create a PPP secret
+    tags: [ppp]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              name: alice@vpn
+              password: hunter2
+              service: pppoe
+              profile: default
+    responses:
+      '201':
+        description: PPP secret added.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'PPP secret added' }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+updateSecret:
+  put:
+    operationId: updatePPPSecret
+    summary: Update a PPP secret (partial)
+    tags: [ppp]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'PPP secret updated' }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+removeSecret:
+  delete:
+    operationId: removePPPSecret
+    summary: Delete a PPP secret
+    tags: [ppp]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'PPP secret removed' }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+listActive:
+  get:
+    operationId: listPPPActive
+    summary: List active PPP sessions
+    tags: [ppp]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Active sessions.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/ppp.yaml#/PPPActiveRecord' }
+                error: { type: 'null' }
+
+disconnectActive:
+  delete:
+    operationId: disconnectPPPActive
+    summary: Forcibly disconnect a PPP active session
+    tags: [ppp]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Disconnected.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'PPP active session disconnected' }
+              error: null
+
+listInactive:
+  get:
+    operationId: listInactivePPPSecrets
+    summary: List PPP secrets without an active session
+    tags: [ppp]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Inactive secrets.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/ppp.yaml#/PPPSecretRecord' }
+                error: { type: 'null' }
+
+getInactiveCount:
+  get:
+    operationId: getInactivePPPCount
+    summary: Count PPP secrets without an active session
+    tags: [ppp]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Count.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/CountResponse' }
+
+listProfiles:
+  get:
+    operationId: listPPPProfiles
+    summary: List PPP profiles
+    tags: [ppp]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Profiles.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/ppp.yaml#/PPPProfileRecord' }
+                error: { type: 'null' }
