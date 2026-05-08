@@ -72,7 +72,9 @@ services:
       VITE_API_URL: http://localhost:${PORT:-8080}
 
   redocly-preview:
-    image: redocly/cli:latest
+    # Pinned to 1.x — v2.x removed `preview-docs` (renamed to `preview` with
+    # different project-based workflow). See: https://redocly.com/docs/cli/guides/migrate-to-v2
+    image: redocly/cli:1.34.13
     profiles: ["docs"]
     command: preview-docs /spec/openapi.yaml --host 0.0.0.0 --port 8080
     working_dir: /spec
@@ -83,7 +85,7 @@ services:
     restart: unless-stopped
 
   openapi-bundler:
-    image: redocly/cli:latest
+    image: redocly/cli:1.34.13
     profiles: ["docs"]
     command: bundle /spec/openapi.yaml -o /output/openapi.yaml
     working_dir: /spec
