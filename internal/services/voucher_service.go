@@ -40,6 +40,7 @@ type RecordSaleParams struct {
 	Username    string    `json:"username" binding:"required,min=1,max=64"`
 	ProfileName string    `json:"profile_name" binding:"omitempty,max=64"`
 	Price       int64     `json:"price" binding:"omitempty,min=0"`
+	Validity    string    `json:"validity" binding:"omitempty,max=20"`
 	Server      string    `json:"server" binding:"omitempty,max=64"`
 	IPAddress   string    `json:"ip_address" binding:"omitempty,max=45"` // IPv6 max length
 	MACAddress  string    `json:"mac_address" binding:"omitempty,max=17"`
@@ -103,6 +104,9 @@ func (s *VoucherService) resolveProfilePrice(ctx context.Context, routerID uint,
 		if m, err := s.profileRepo.FindByRouterAndProfile(ctx, routerID, profileName); err == nil && m != nil {
 			return m.Price, m.SellingPrice, m.Validity
 		}
+	}
+	if profileName == "" {
+		return 0, 0, ""
 	}
 	profiles, err := s.bridge.Query(ctx, fmt.Sprintf("%d", routerID), "ip/hotspot/user/profile/print", "?name="+profileName)
 	if err != nil || len(profiles) == 0 {
@@ -255,6 +259,7 @@ func (s *VoucherService) RecordSale(ctx context.Context, tenantID, routerID uint
 		Username:       params.Username,
 		ProfileName:    params.ProfileName,
 		Price:          params.Price,
+		Validity:       params.Validity,
 		Server:         params.Server,
 		IPAddress:      params.IPAddress,
 		MACAddress:     params.MACAddress,

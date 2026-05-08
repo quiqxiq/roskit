@@ -154,7 +154,7 @@ func (h *HotspotHandler) ListInactive(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.ListInactiveHotspotUsers(c.Request.Context(), fmt.Sprintf("%d", routerID))
+	result, err := h.svc.ListInactiveHotspotUsers(c.Request.Context(), routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list inactive hotspot users"})
 		return
@@ -173,7 +173,7 @@ func (h *HotspotHandler) GetInactiveCount(c *gin.Context) {
 		return
 	}
 
-	count, err := h.svc.GetInactiveHotspotUserCount(c.Request.Context(), fmt.Sprintf("%d", routerID))
+	count, err := h.svc.GetInactiveHotspotUserCount(c.Request.Context(), routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get inactive hotspot user count"})
 		return

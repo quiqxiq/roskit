@@ -206,11 +206,13 @@ func (s *ReportService) GetDashboardSummary(ctx context.Context, tenantID uint, 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() (*DashboardSummary, error) {
 		today, err := s.saleRepo.TodayTotal(ctx, tenantID, routerID)
 		if err != nil {
-			s.logger.Warn("failed to get today total", "error", err)
+			s.logger.Error("failed to get today total", "error", err)
+			return nil, err
 		}
 		month, err := s.saleRepo.MonthTotal(ctx, tenantID, routerID)
 		if err != nil {
-			s.logger.Warn("failed to get month total", "error", err)
+			s.logger.Error("failed to get month total", "error", err)
+			return nil, err
 		}
 		return &DashboardSummary{
 			TodayCount: today.Count,
@@ -313,6 +315,8 @@ func (s *ReportService) fetchSalesForRange(ctx context.Context, tenantID uint, r
 	for day := fromDay; day.Before(toDay); day = day.Add(24 * time.Hour) {
 		daySales, err := s.saleRepo.GetByDay(ctx, tenantID, routerID, day)
 		if err != nil {
+			s.logger.Warn("fetchSalesForRange: failed to fetch day, skipping",
+				"date", day.Format("2006-01-02"), "error", err)
 			continue
 		}
 		all = append(all, daySales...)

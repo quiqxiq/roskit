@@ -12,7 +12,6 @@ import (
 	routeros "github.com/go-routeros/routeros/v3"
 
 	"github.com/quiqxiq/roskit/internal/models"
-	"github.com/quiqxiq/roskit/internal/repository"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 	"github.com/quiqxiq/roskit/pkg/encrypt"
@@ -95,7 +94,6 @@ type RouterRepository interface {
 
 type RouterService struct {
 	repo   RouterRepository
-	db     repository.RouterRepository
 	engine *orchestrator.Engine
 	cache  *appcache.Cache
 	logger *slog.Logger
@@ -112,16 +110,6 @@ func NewRouterService(repo RouterRepository, engine *orchestrator.Engine, cache 
 	}
 }
 
-func NewRouterServiceWithDB(repo RouterRepository, dbRepo repository.RouterRepository, engine *orchestrator.Engine, cache *appcache.Cache, aesKey string) *RouterService {
-	return &RouterService{
-		repo:   repo,
-		db:     dbRepo,
-		engine: engine,
-		cache:  cache,
-		logger: slog.Default().With("component", "router-svc"),
-		aesKey: aesKey,
-	}
-}
 
 func (s *RouterService) WatchAndSyncStatus(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)

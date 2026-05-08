@@ -120,7 +120,7 @@ func (r *SaleRepo) GetByDay(ctx context.Context, tenantID uint, routerID *uint, 
 }
 
 func (r *SaleRepo) GetByMonth(ctx context.Context, tenantID uint, routerID *uint, year int, month time.Month) ([]*models.VoucherSale, error) {
-	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.Local)
 	to := from.AddDate(0, 1, 0)
 
 	var sales []*models.VoucherSale

@@ -199,7 +199,7 @@ func (h *TemplateHandler) Render(c *gin.Context) {
 
 	logo := req.Logo
 	if logo == "" {
-		logo = tenantLogoURL(tenantID, settings.LogoPath)
+		logo = tenantLogoURL(settings.LogoPath)
 	}
 
 	params := services.RenderParams{

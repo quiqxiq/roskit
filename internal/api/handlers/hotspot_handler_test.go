@@ -55,3 +55,18 @@ func TestHotspotHandler_GetUserCount_InvalidRouterID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+func TestHotspotHandler_SyncProfiles_InvalidRouterID(t *testing.T) {
+	h := newNilHotspotHandler()
+	router := gin.New()
+	router.POST("/routers/:routerId/hotspot/profiles/sync", func(c *gin.Context) {
+		c.Set("tenantID", uint(1))
+		h.SyncProfiles(c)
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/routers/bad/hotspot/profiles/sync", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}

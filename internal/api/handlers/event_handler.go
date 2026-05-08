@@ -122,6 +122,10 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
+	// NOTE: idempotency check intentionally happens BEFORE the report-mode guard.
+	// If we skipped idempotency when report_mode=disable, the key would never be
+	// stored. Activating report_mode later would re-process the same event and
+	// create a duplicate sale record. The check here prevents that future replay.
 	if settings.ReportMode == "" || settings.ReportMode == "disable" {
 		c.Status(http.StatusOK)
 		return
@@ -193,6 +197,9 @@ func (h *EventHandler) fetchProfilePrice(ctx context.Context, routerID uint, pro
 		}, nil
 	}
 
+	if profileName == "" {
+		return &profilePrice{Price: 0}, nil
+	}
 	rID := fmt.Sprintf("%d", routerID)
 	profiles, err := h.bridge.Query(ctx, rID, "ip/hotspot/user/profile/print", "?name="+profileName)
 	if err != nil || len(profiles) == 0 {

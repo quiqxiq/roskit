@@ -130,13 +130,13 @@ func (h *ReportHandler) GetDailySummary(c *gin.Context) {
 	}
 
 	monthStr := c.DefaultQuery("month", time.Now().Format("2006-01"))
-	_, err := time.Parse("2006-01", monthStr)
+	parsedMonth, err := time.Parse("2006-01", monthStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid month format, use YYYY-MM"})
 		return
 	}
 
-	result, err := h.svc.GetResumeReport(c.Request.Context(), tenantID, routerID, time.Now().Year())
+	result, err := h.svc.GetResumeReport(c.Request.Context(), tenantID, routerID, parsedMonth.Year())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get daily summary"})
 		return
@@ -204,7 +204,7 @@ func (h *ReportHandler) ExportExcel(c *gin.Context) {
 }
 
 func parseDateRange(c *gin.Context) (time.Time, time.Time, error) {
-	fromStr := c.DefaultQuery("from", time.Now().Format("2006-01-01"))
+	fromStr := c.DefaultQuery("from", time.Now().Format("2006-01-02"))
 	toStr := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
 
 	from, err := time.Parse("2006-01-02", fromStr)

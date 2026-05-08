@@ -23,20 +23,17 @@ func NewProfilePriceMappingRepo(db *gorm.DB) ProfilePriceMappingRepository {
 }
 
 func (r *profilePriceMappingRepo) Upsert(ctx context.Context, mapping *models.ProfilePriceMapping) error {
-	var existing models.ProfilePriceMapping
-	err := r.db.WithContext(ctx).
-		Where("profile_name = ? AND router_id = ?", mapping.ProfileName, mapping.RouterID).
-		First(&existing).Error
-
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return r.db.WithContext(ctx).Create(mapping).Error
-		}
-		return err
-	}
-
-	mapping.ID = existing.ID
-	return r.db.WithContext(ctx).Save(mapping).Error
+	return r.db.WithContext(ctx).
+		Where(models.ProfilePriceMapping{RouterID: mapping.RouterID, ProfileName: mapping.ProfileName}).
+		Assign(models.ProfilePriceMapping{
+			Price:        mapping.Price,
+			SellingPrice: mapping.SellingPrice,
+			Validity:     mapping.Validity,
+			ExpMode:      mapping.ExpMode,
+			LockUser:     mapping.LockUser,
+			LockServer:   mapping.LockServer,
+		}).
+		FirstOrCreate(mapping).Error
 }
 
 func (r *profilePriceMappingRepo) FindByRouterAndProfile(ctx context.Context, routerID uint, profileName string) (*models.ProfilePriceMapping, error) {

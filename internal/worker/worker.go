@@ -108,8 +108,11 @@ func (w *Worker) voucherSessionCleanup(ctx context.Context) {
 					}
 				}
 				if len(toDelete) > 0 {
-					client.Del(ctx, toDelete...)
-					deleted += len(toDelete)
+					if err := client.Del(ctx, toDelete...).Err(); err != nil {
+						slog.Error("VoucherSessionCleanup delete failed", "error", err)
+					} else {
+						deleted += len(toDelete)
+					}
 				}
 			}
 		}

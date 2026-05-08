@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -76,6 +78,7 @@ type SyncProfilesResult struct {
 	MappingsSynced  int `json:"mappings_synced"`
 	ScriptsUpdated  int `json:"scripts_updated"`
 	ScriptsSkipped  int `json:"scripts_skipped"`
+	ScriptsFailed   int `json:"scripts_failed"`
 }
 
 type HotspotService struct {
@@ -144,12 +147,12 @@ func (s *HotspotService) GetUserCount(ctx context.Context, routerID uint, profil
 	return s.bridge.GetHotspotUserCount(ctx, routerIDStr(routerID))
 }
 
-func (s *HotspotService) ListInactiveHotspotUsers(ctx context.Context, routerID string) ([]map[string]string, error) {
-	return s.bridge.ListInactiveHotspotUsers(ctx, routerID)
+func (s *HotspotService) ListInactiveHotspotUsers(ctx context.Context, routerID uint) ([]map[string]string, error) {
+	return s.bridge.ListInactiveHotspotUsers(ctx, routerIDStr(routerID))
 }
 
-func (s *HotspotService) GetInactiveHotspotUserCount(ctx context.Context, routerID string) (int, error) {
-	return s.bridge.GetInactiveHotspotUserCount(ctx, routerID)
+func (s *HotspotService) GetInactiveHotspotUserCount(ctx context.Context, routerID uint) (int, error) {
+	return s.bridge.GetInactiveHotspotUserCount(ctx, routerIDStr(routerID))
 }
 
 func (s *HotspotService) AddUser(ctx context.Context, routerID uint, params map[string]string) (map[string]string, error) {
@@ -340,22 +343,26 @@ func (s *HotspotService) SyncProfiles(ctx context.Context, tenantID, routerID ui
 	}
 
 	for _, prof := range profiles {
+		result.ProfilesScanned++
+
 		onLogin := prof["on-login"]
 		if onLogin == "" {
+			s.logger.Debug("sync-profiles: skipping profile with no on-login script",
+				"profile", prof["name"])
 			continue
 		}
 
 		meta := roskitservice.ParseOnLoginPut(onLogin)
 		if meta == nil {
+			s.logger.Debug("sync-profiles: skipping profile with unparseable on-login script",
+				"profile", prof["name"])
 			continue
 		}
-
-		result.ProfilesScanned++
 
 		price, _ := strconv.ParseInt(meta.Price, 10, 64)
 		sprice, _ := strconv.ParseInt(meta.SellingPrice, 10, 64)
 		lockUser := meta.LockUser == "Enable"
-		lockServer := meta.LockServer != "Disable" && meta.LockServer != ""
+		lockServer := meta.LockServer == "Enable"
 
 		if s.profileRepo != nil {
 			mapping := &models.ProfilePriceMapping{
@@ -390,12 +397,15 @@ func (s *HotspotService) SyncProfiles(ctx context.Context, tenantID, routerID ui
 		})
 
 		if newScript == onLogin {
+			s.logger.Debug("sync-profiles: script already up to date", "profile", prof["name"])
 			result.ScriptsSkipped++
 			continue
 		}
 
 		profID := prof[".id"]
 		if profID == "" {
+			s.logger.Warn("sync-profiles: profile missing .id, cannot update script",
+				"profile", prof["name"])
 			result.ScriptsSkipped++
 			continue
 		}
@@ -405,14 +415,17 @@ func (s *HotspotService) SyncProfiles(ctx context.Context, tenantID, routerID ui
 		}); err != nil {
 			s.logger.Warn("sync-profiles: failed to update script",
 				"profile", prof["name"], "error", err)
+			result.ScriptsFailed++
 		} else {
+			s.logger.Info("sync-profiles: script updated", "profile", prof["name"])
 			result.ScriptsUpdated++
 		}
 	}
 
 	s.logger.Info("sync-profiles complete",
 		"router_id", routerID, "scanned", result.ProfilesScanned,
-		"synced", result.MappingsSynced, "updated", result.ScriptsUpdated)
+		"synced", result.MappingsSynced, "updated", result.ScriptsUpdated,
+		"skipped", result.ScriptsSkipped, "failed", result.ScriptsFailed)
 
 	return result, nil
 }
@@ -594,14 +607,20 @@ func (s *HotspotService) ExportUsers(ctx context.Context, routerID uint, profile
 		return sb.String(), nil
 
 	case "csv":
-		var sb strings.Builder
-		sb.WriteString("name,password,profile,mac-address,server,comment,disabled\n")
+		var buf bytes.Buffer
+		w := csv.NewWriter(&buf)
+		_ = w.Write([]string{"name", "password", "profile", "mac-address", "server", "comment", "disabled"})
 		for _, u := range users {
-			sb.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s\n",
+			_ = w.Write([]string{
 				u["name"], u["password"], u["profile"],
-				u["mac-address"], u["server"], u["comment"], u["disabled"]))
+				u["mac-address"], u["server"], u["comment"], u["disabled"],
+			})
 		}
-		return sb.String(), nil
+		w.Flush()
+		if err := w.Error(); err != nil {
+			return "", fmt.Errorf("csv flush: %w", err)
+		}
+		return buf.String(), nil
 
 	default:
 		return "", fmt.Errorf("unsupported export format: %s (use 'script' or 'csv')", format)

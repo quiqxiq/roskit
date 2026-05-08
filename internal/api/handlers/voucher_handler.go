@@ -30,11 +30,10 @@ func NewVoucherHandler(
 	}
 }
 
-func tenantLogoURL(tenantID uint, logoPath string) string {
+func tenantLogoURL(logoPath string) string {
 	if logoPath == "" {
 		return ""
 	}
-	_ = tenantID
 	return "/api/v1/tenant/logo"
 }
 
@@ -247,7 +246,7 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 	routerParams := services.RouterVoucherParams{
 		HotspotName: settings.HotspotName,
 		DNSName:     settings.DNSName,
-		Logo:        tenantLogoURL(tenantID, settings.LogoPath),
+		Logo:        tenantLogoURL(settings.LogoPath),
 		Currency:    settings.Currency,
 	}
 
