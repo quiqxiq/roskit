@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v3"
 	"github.com/gin-gonic/gin"
 
 	casbinx "github.com/quiqxiq/roskit/internal/casbin"
