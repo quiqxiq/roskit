@@ -343,6 +343,60 @@ removeProfile:
               data: { message: profile removed }
               error: null
 
+syncProfiles:
+  post:
+    operationId: syncHotspotProfiles
+    summary: Sync on-login scripts from MikroTik to database
+    description: |
+      Reads all hotspot profiles from the router, parses pricing metadata
+      from each on-login script, upserts the data into the
+      `profile_price_mappings` table, and replaces the on-login script
+      with the current multi-tenant format (API URL, webhook token,
+      router name). Scripts that are already up-to-date are skipped.
+
+      **Route:** `POST /routers/{routerId}/hotspot/profiles/sync`
+    tags: [hotspot]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Sync completed successfully.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  required: [profiles_scanned, mappings_synced, scripts_updated, scripts_skipped]
+                  properties:
+                    profiles_scanned:
+                      type: integer
+                      description: Profiles with a parseable on-login script.
+                      example: 5
+                    mappings_synced:
+                      type: integer
+                      description: Profile-price mappings upserted to the database.
+                      example: 5
+                    scripts_updated:
+                      type: integer
+                      description: On-login scripts replaced on the router.
+                      example: 3
+                    scripts_skipped:
+                      type: integer
+                      description: Scripts already up-to-date (no change needed).
+                      example: 2
+                error: { type: 'null' }
+            example:
+              data:
+                profiles_scanned: 5
+                mappings_synced: 5
+                scripts_updated: 3
+                scripts_skipped: 2
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
 # ===== Active sessions ========================================================
 
 listActive:

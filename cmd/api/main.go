@@ -198,7 +198,7 @@ func main() {
 
 	go routerSvc.WatchAndSyncStatus(ctx)
 
-	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
+	backgroundWorker := worker.New(db, cache, saleRepo)
 	go backgroundWorker.Start(ctx)
 
 	auditRepo := repository.NewAuditRepo(db)

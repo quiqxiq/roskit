@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/quiqxiq/roskit/internal/config"
+	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	appcache "github.com/quiqxiq/roskit/pkg/redis"
@@ -70,12 +71,20 @@ func enrichProfile(data map[string]string, meta *roskitservice.OnLoginMetadata) 
 	return p
 }
 
+type SyncProfilesResult struct {
+	ProfilesScanned int `json:"profiles_scanned"`
+	MappingsSynced  int `json:"mappings_synced"`
+	ScriptsUpdated  int `json:"scripts_updated"`
+	ScriptsSkipped  int `json:"scripts_skipped"`
+}
+
 type HotspotService struct {
 	bridge       *roskitservice.Bridge
 	cache        *appcache.Cache
 	cfg          *config.Config
 	settingsRepo repository.TenantSettingsRepository
 	routerRepo   RouterRepository
+	profileRepo  repository.ProfilePriceMappingRepository
 	logger       *slog.Logger
 }
 
@@ -85,6 +94,7 @@ func NewHotspotService(
 	cfg *config.Config,
 	settingsRepo repository.TenantSettingsRepository,
 	routerRepo RouterRepository,
+	profileRepo repository.ProfilePriceMappingRepository,
 ) *HotspotService {
 	return &HotspotService{
 		bridge:       bridge,
@@ -92,6 +102,7 @@ func NewHotspotService(
 		cfg:          cfg,
 		settingsRepo: settingsRepo,
 		routerRepo:   routerRepo,
+		profileRepo:  profileRepo,
 		logger:       slog.Default().With("component", "hotspot-svc"),
 	}
 }
@@ -298,6 +309,112 @@ func (s *HotspotService) RemoveProfile(ctx context.Context, routerID uint, id st
 	}
 	profileName := profile["name"]
 	return s.bridge.RemoveHotspotProfileWithCleanup(ctx, routerIDStr(routerID), id, profileName)
+}
+
+func (s *HotspotService) SyncProfiles(ctx context.Context, tenantID, routerID uint) (*SyncProfilesResult, error) {
+	rID := routerIDStr(routerID)
+	result := &SyncProfilesResult{}
+
+	profiles, err := s.bridge.ListHotspotProfiles(ctx, rID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch profiles: %w", err)
+	}
+
+	var webhookToken string
+	var routerName string
+
+	if s.settingsRepo != nil {
+		if settings, err := s.settingsRepo.GetByTenantID(ctx, tenantID); err == nil && settings != nil {
+			webhookToken = settings.WebhookToken
+		}
+	}
+	if s.routerRepo != nil {
+		if router, err := s.routerRepo.GetByID(ctx, tenantID, routerID); err == nil && router != nil {
+			routerName = router.Name
+		}
+	}
+
+	var apiURL string
+	if s.cfg != nil {
+		apiURL = s.cfg.PublicAPIURL
+	}
+
+	for _, prof := range profiles {
+		onLogin := prof["on-login"]
+		if onLogin == "" {
+			continue
+		}
+
+		meta := roskitservice.ParseOnLoginPut(onLogin)
+		if meta == nil {
+			continue
+		}
+
+		result.ProfilesScanned++
+
+		price, _ := strconv.ParseInt(meta.Price, 10, 64)
+		sprice, _ := strconv.ParseInt(meta.SellingPrice, 10, 64)
+		lockUser := meta.LockUser == "Enable"
+		lockServer := meta.LockServer != "Disable" && meta.LockServer != ""
+
+		if s.profileRepo != nil {
+			mapping := &models.ProfilePriceMapping{
+				RouterID:     routerID,
+				ProfileName:  prof["name"],
+				Price:        price,
+				SellingPrice: sprice,
+				Validity:     meta.Validity,
+				ExpMode:      meta.ExpMode,
+				LockUser:     lockUser,
+				LockServer:   lockServer,
+			}
+			if err := s.profileRepo.Upsert(ctx, mapping); err != nil {
+				s.logger.Warn("sync-profiles: failed to upsert mapping",
+					"profile", prof["name"], "error", err)
+			} else {
+				result.MappingsSynced++
+			}
+		}
+
+		newScript := roskitservice.GenerateOnLoginScript(roskitservice.OnLoginParams{
+			ExpMode:      meta.ExpMode,
+			Price:        meta.Price,
+			SellingPrice: meta.SellingPrice,
+			Validity:     meta.Validity,
+			ProfileName:  prof["name"],
+			LockUser:     meta.LockUser,
+			LockServer:   meta.LockServer,
+			APIURL:       apiURL,
+			WebhookToken: webhookToken,
+			RouterName:   routerName,
+		})
+
+		if newScript == onLogin {
+			result.ScriptsSkipped++
+			continue
+		}
+
+		profID := prof[".id"]
+		if profID == "" {
+			result.ScriptsSkipped++
+			continue
+		}
+
+		if err := s.bridge.SetHotspotProfile(ctx, rID, profID, map[string]string{
+			"on-login": newScript,
+		}); err != nil {
+			s.logger.Warn("sync-profiles: failed to update script",
+				"profile", prof["name"], "error", err)
+		} else {
+			result.ScriptsUpdated++
+		}
+	}
+
+	s.logger.Info("sync-profiles complete",
+		"router_id", routerID, "scanned", result.ProfilesScanned,
+		"synced", result.MappingsSynced, "updated", result.ScriptsUpdated)
+
+	return result, nil
 }
 
 func (s *HotspotService) ListActive(ctx context.Context, routerID uint, server string) ([]map[string]string, error) {

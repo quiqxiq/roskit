@@ -12,7 +12,6 @@ import (
 	"github.com/quiqxiq/roskit/internal/config"
 	"github.com/quiqxiq/roskit/internal/repository"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
-	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	roskitcache "github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/quiqxiq/roskit/internal/worker"
@@ -61,17 +60,14 @@ func main() {
 	routerSvc := services.NewRouterService(routerRepo, engine, cache, cfg.AESEncKey)
 	routerSvc.SeedEngineFromDB(context.Background())
 
-	bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitCache)
-
 	saleRepo := repository.NewSaleRepo(db)
-	profileRepo := repository.NewProfilePriceMappingRepo(db)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	engine.Start(ctx)
 
-	backgroundWorker := worker.New(db, cache, bridge, saleRepo, profileRepo, cfg)
+	backgroundWorker := worker.New(db, cache, saleRepo)
 	backgroundWorker.Start(ctx)
 
 	log.Println("worker started, waiting for events...")

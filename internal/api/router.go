@@ -48,7 +48,7 @@ func NewRouter(
 	templateRepo := repository.NewTemplateRepo(db)
 
 	systemSvc := services.NewSystemService(bridge, tsReader, routerRepo, cache)
-	hotspotSvc := services.NewHotspotService(bridge, cache, cfg, tenantSettingsRepo, routerRepo)
+	hotspotSvc := services.NewHotspotService(bridge, cache, cfg, tenantSettingsRepo, routerRepo, profileRepo)
 	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, tenantSettingsRepo, cache)
 	reportSvc := services.NewReportService(saleRepo, cache)
 	templateSvc := services.NewTemplateService(templateRepo)
@@ -190,6 +190,7 @@ func NewRouter(
 				routerOne.POST("/hotspot/profiles", hotspotH.AddProfile)
 				routerOne.PUT("/hotspot/profiles/:id", hotspotH.UpdateProfile)
 				routerOne.DELETE("/hotspot/profiles/:id", hotspotH.RemoveProfile)
+				routerOne.POST("/hotspot/profiles/sync", hotspotH.SyncProfiles)
 
 				routerOne.GET("/hotspot/active", hotspotH.ListActive)
 				routerOne.DELETE("/hotspot/active/:id", hotspotH.RemoveActive)

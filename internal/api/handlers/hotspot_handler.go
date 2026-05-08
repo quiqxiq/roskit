@@ -288,6 +288,26 @@ func (h *HotspotHandler) RemoveProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "profile removed"}, "error": nil})
 }
 
+func (h *HotspotHandler) SyncProfiles(c *gin.Context) {
+	tenantID, ok := tenantIDFromCtx(c)
+	if !ok {
+		return
+	}
+	routerID, err := parseRouterID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	result, err := h.svc.SyncProfiles(c.Request.Context(), tenantID, routerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to sync profiles"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
+}
+
 func (h *HotspotHandler) ListActive(c *gin.Context) {
 	routerID, err := parseRouterID(c)
 	if err != nil {
