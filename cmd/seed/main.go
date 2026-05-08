@@ -2,128 +2,179 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+
+	casbinx "github.com/quiqxiq/roskit/internal/casbin"
 	"github.com/quiqxiq/roskit/internal/config"
 	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/pkg/database"
 	"github.com/quiqxiq/roskit/pkg/encrypt"
-	"gorm.io/gorm"
 )
 
-var sampleTenant = struct {
+// ─── Seed data ────────────────────────────────────────────────────────────────
+
+var seedTenants = []struct {
 	Name        string
 	Slug        string
 	HotspotName string
 	DNSName     string
 	Currency    string
+	Plan        models.TenantPlan
+	Routers     []seedRouter
+	Users       []seedUser
 }{
-	Name:        "Default Tenant",
-	Slug:        "default",
-	HotspotName: "Roskit Hotspot",
-	DNSName:     "roskit.local",
-	Currency:    "Rp",
+	{
+		Name:        "Tenant Alpha",
+		Slug:        "alpha",
+		HotspotName: "Alpha Hotspot",
+		DNSName:     "alpha.roskit.local",
+		Currency:    "Rp",
+		Plan:        models.TenantPlanStarter,
+		Routers: []seedRouter{
+			{Name: "router-alpha", IPAddress: "192.168.233.1", APIPort: 8728, APIUsername: "admin", Password: "r00t"},
+		},
+		Users: []seedUser{
+			{Username: "owner.alpha", Password: "ownerpass", Role: models.UserRoleOwner},
+			{Username: "admin.alpha", Password: "adminpass", Role: models.UserRoleAdmin},
+			{Username: "staff.alpha", Password: "staffpass", Role: models.UserRoleStaff},
+		},
+	},
+	{
+		Name:        "Tenant Beta",
+		Slug:        "beta",
+		HotspotName: "Beta Hotspot",
+		DNSName:     "beta.roskit.local",
+		Currency:    "Rp",
+		Plan:        models.TenantPlanFree,
+		Routers: []seedRouter{
+			{Name: "router-beta", IPAddress: "192.168.230.2", APIPort: 8728, APIUsername: "admin", Password: "r00t"},
+		},
+		Users: []seedUser{
+			{Username: "owner.beta", Password: "ownerpass", Role: models.UserRoleOwner},
+			{Username: "admin.beta", Password: "adminpass", Role: models.UserRoleAdmin},
+			{Username: "staff.beta", Password: "staffpass", Role: models.UserRoleStaff},
+		},
+	},
 }
 
-var sampleRouters = []struct {
+// Superadmin lives in the platform pseudo-tenant (tenantID = nil).
+var seedSuperAdmin = seedUser{
+	Username: "superadmin",
+	Password: "superadminpass",
+	Role:     models.UserRoleSuperAdmin,
+}
+
+type seedRouter struct {
 	Name        string
 	IPAddress   string
 	APIPort     int
 	APIUsername string
 	Password    string
-}{
-	{
-		Name:        "router-alpha",
-		IPAddress:   "192.168.233.1",
-		APIPort:     8728,
-		APIUsername: "admin",
-		Password:    "",
-	},
-	{
-		Name:        "router-beta",
-		IPAddress:   "192.168.230.2",
-		APIPort:     8728,
-		APIUsername: "admin",
-		Password:    "",
-	},
 }
+
+type seedUser struct {
+	Username string
+	Password string
+	Role     models.UserRole
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		log.Fatalf("config: %v", err)
 	}
 
 	db, err := database.Connect(cfg.PostgresDSN())
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		log.Fatalf("database: %v", err)
 	}
+
+	enforcer, err := casbinx.NewEnforcer(db)
+	if err != nil {
+		log.Fatalf("casbin enforcer: %v", err)
+	}
+	if err := casbinx.SeedPolicies(enforcer); err != nil {
+		log.Fatalf("seed casbin policies: %v", err)
+	}
+	fmt.Println("✔ Casbin policies seeded")
 
 	ctx := context.Background()
 
-	tenant, err := ensureTenant(ctx, db)
+	// ── 1. Superadmin (platform scope, no tenant) ─────────────────────────────
+	fmt.Println("\n── Platform superadmin ──────────────────────────────────────")
+	sa, created, err := ensureUser(ctx, db, nil, seedSuperAdmin)
 	if err != nil {
-		log.Fatalf("failed to ensure tenant: %v", err)
+		log.Fatalf("superadmin: %v", err)
 	}
-	fmt.Printf("  tenant: %s (id=%d, slug=%s)\n", tenant.Name, tenant.ID, tenant.Slug)
+	printUser(sa, created)
+	if err := casbinx.AssignRole(enforcer, sa.ID, models.PlatformTenantSlug, models.UserRoleSuperAdmin); err != nil {
+		log.Printf("  WARN assign casbin superadmin: %v", err)
+	}
 
-	seeded := 0
-	for _, sr := range sampleRouters {
-		var existing models.Router
-		err := db.WithContext(ctx).
-			Where("tenant_id = ? AND name = ?", tenant.ID, sr.Name).
-			First(&existing).Error
+	// ── 2. Tenants ────────────────────────────────────────────────────────────
+	for _, st := range seedTenants {
+		fmt.Printf("\n── Tenant: %s (%s) ─────────────────────────────────────────\n", st.Name, st.Slug)
 
-		if err == nil {
-			fmt.Printf("  skip: %s (already exists, id=%d)\n", sr.Name, existing.ID)
-			continue
-		}
-		if err != gorm.ErrRecordNotFound {
-			log.Printf("  error checking %s: %v", sr.Name, err)
-			continue
-		}
-
-		encPass, err := encrypt.Encrypt(sr.Password, cfg.AESEncKey)
+		tenant, err := ensureTenant(ctx, db, st.Slug, st.Name, st.Plan, st.HotspotName, st.DNSName, st.Currency)
 		if err != nil {
-			log.Printf("  error encrypting password for %s: %v", sr.Name, err)
-			continue
+			log.Fatalf("tenant %s: %v", st.Slug, err)
+		}
+		fmt.Printf("  tenant id=%d  slug=%s\n", tenant.ID, tenant.Slug)
+
+		// Routers
+		fmt.Println("  [routers]")
+		for _, sr := range st.Routers {
+			r, created, err := ensureRouter(ctx, db, tenant.ID, sr, cfg.AESEncKey)
+			if err != nil {
+				log.Printf("  WARN router %s: %v", sr.Name, err)
+				continue
+			}
+			printRouter(r, created)
 		}
 
-		port := sr.APIPort
-		if port == 0 {
-			port = 8728
+		// Users + Casbin
+		fmt.Println("  [users]")
+		for _, su := range st.Users {
+			u, created, err := ensureUser(ctx, db, &tenant.ID, su)
+			if err != nil {
+				log.Printf("  WARN user %s: %v", su.Username, err)
+				continue
+			}
+			printUser(u, created)
+			if err := casbinx.AssignRole(enforcer, u.ID, tenant.Slug, su.Role); err != nil {
+				log.Printf("  WARN assign casbin role %s -> %s: %v", su.Username, su.Role, err)
+			}
 		}
-
-		router := &models.Router{
-			TenantID:             tenant.ID,
-			Name:                 sr.Name,
-			IPAddress:            sr.IPAddress,
-			APIPort:              port,
-			APIUsername:          sr.APIUsername,
-			APIPasswordEncrypted: encPass,
-			Status:               models.RouterStatusUnknown,
-		}
-		if err := db.WithContext(ctx).Create(router).Error; err != nil {
-			log.Printf("  error creating %s: %v", sr.Name, err)
-			continue
-		}
-
-		seeded++
-		fmt.Printf("  created: %s (ip=%s)\n", sr.Name, sr.IPAddress)
 	}
 
-	fmt.Println("  ═══════ Seed Summary ═══════")
-	fmt.Printf("  Tenant: %s\n", tenant.Slug)
-	fmt.Printf("  Total sample routers: %d\n", len(sampleRouters))
-	fmt.Printf("  Seeded: %d\n", seeded)
-	fmt.Printf("  Skipped: %d\n", len(sampleRouters)-seeded)
-	fmt.Println("  ════════════════════════════")
+	fmt.Println("\n════════════════════════════════════════")
+	fmt.Println("  Seed complete ✔")
+	fmt.Println("════════════════════════════════════════")
+	fmt.Println()
+	fmt.Println("  Default credentials (CHANGE in production):")
+	fmt.Printf("  %-16s  %-12s  %s\n", "Username", "Password", "Role")
+	fmt.Printf("  %-16s  %-12s  %s\n", "────────────────", "────────────", "──────────")
+	fmt.Printf("  %-16s  %-12s  %s\n", "superadmin", "superadminpass", "superadmin")
+	for _, st := range seedTenants {
+		for _, u := range st.Users {
+			fmt.Printf("  %-16s  %-12s  %s (%s)\n", u.Username, u.Password, u.Role, st.Slug)
+		}
+	}
 }
 
-func ensureTenant(ctx context.Context, db *gorm.DB) (*models.Tenant, error) {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+func ensureTenant(ctx context.Context, db *gorm.DB, slug, name string, plan models.TenantPlan, hotspotName, dnsName, currency string) (*models.Tenant, error) {
 	var existing models.Tenant
-	err := db.WithContext(ctx).Where("slug = ?", sampleTenant.Slug).First(&existing).Error
+	err := db.WithContext(ctx).Where("slug = ?", slug).First(&existing).Error
 	if err == nil {
 		return &existing, nil
 	}
@@ -132,28 +183,128 @@ func ensureTenant(ctx context.Context, db *gorm.DB) (*models.Tenant, error) {
 	}
 
 	tenant := &models.Tenant{
-		Name:   sampleTenant.Name,
-		Slug:   sampleTenant.Slug,
-		Plan:   models.TenantPlanFree,
+		Name:   name,
+		Slug:   slug,
+		Plan:   plan,
 		Status: models.TenantStatusActive,
 	}
 
-	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(tenant).Error; err != nil {
-			return err
+			return fmt.Errorf("create tenant: %w", err)
 		}
 		settings := &models.TenantSettings{
-			TenantID:    tenant.ID,
-			HotspotName: sampleTenant.HotspotName,
-			DNSName:     sampleTenant.DNSName,
-			Currency:    sampleTenant.Currency,
-			IdleTimeout: 30,
-			ReportMode:  "disable",
+			TenantID:     tenant.ID,
+			HotspotName:  hotspotName,
+			DNSName:      dnsName,
+			Currency:     currency,
+			IdleTimeout:  30,
+			ReportMode:   "disable",
+			WebhookToken: generateToken(),
 		}
 		return tx.Create(settings).Error
 	})
-	if err != nil {
-		return nil, err
+	if txErr != nil {
+		return nil, txErr
 	}
 	return tenant, nil
+}
+
+func ensureRouter(ctx context.Context, db *gorm.DB, tenantID uint, sr seedRouter, aesKey string) (*models.Router, bool, error) {
+	var existing models.Router
+	err := db.WithContext(ctx).
+		Where("tenant_id = ? AND name = ?", tenantID, sr.Name).
+		First(&existing).Error
+	if err == nil {
+		return &existing, false, nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return nil, false, err
+	}
+
+	encPass, err := encrypt.Encrypt(sr.Password, aesKey)
+	if err != nil {
+		return nil, false, fmt.Errorf("encrypt password: %w", err)
+	}
+
+	port := sr.APIPort
+	if port == 0 {
+		port = 8728
+	}
+
+	router := &models.Router{
+		TenantID:             tenantID,
+		Name:                 sr.Name,
+		IPAddress:            sr.IPAddress,
+		APIPort:              port,
+		APIUsername:          sr.APIUsername,
+		APIPasswordEncrypted: encPass,
+		Status:               models.RouterStatusUnknown,
+	}
+	if err := db.WithContext(ctx).Create(router).Error; err != nil {
+		return nil, false, err
+	}
+	return router, true, nil
+}
+
+func ensureUser(ctx context.Context, db *gorm.DB, tenantID *uint, su seedUser) (*models.User, bool, error) {
+	var existing models.User
+	q := db.WithContext(ctx).Where("username = ?", su.Username)
+	if tenantID != nil {
+		q = q.Where("tenant_id = ?", *tenantID)
+	} else {
+		q = q.Where("tenant_id IS NULL")
+	}
+	err := q.First(&existing).Error
+	if err == nil {
+		return &existing, false, nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return nil, false, err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(su.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, false, fmt.Errorf("hash password: %w", err)
+	}
+
+	user := &models.User{
+		TenantID:     tenantID,
+		Username:     su.Username,
+		PasswordHash: string(hash),
+		Role:         su.Role,
+		Active:       true,
+	}
+	if err := db.WithContext(ctx).Create(user).Error; err != nil {
+		return nil, false, err
+	}
+	return user, true, nil
+}
+
+func printUser(u *models.User, created bool) {
+	action := "skip"
+	if created {
+		action = "created"
+	}
+	tenantStr := "platform"
+	if u.TenantID != nil {
+		tenantStr = fmt.Sprintf("tenant=%d", *u.TenantID)
+	}
+	fmt.Printf("    [%s] user %-20s  role=%-12s  %s (id=%d)\n",
+		action, u.Username, u.Role, tenantStr, u.ID)
+}
+
+func printRouter(r *models.Router, created bool) {
+	action := "skip"
+	if created {
+		action = "created"
+	}
+	fmt.Printf("    [%s] router %-20s  ip=%-18s  (id=%d)\n",
+		action, r.Name, r.IPAddress, r.ID)
+}
+
+func generateToken() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
