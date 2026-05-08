@@ -17,7 +17,7 @@ import (
 
 func newNilHotspotHandler() *handlers.HotspotHandler {
 	// nil bridge is safe as long as handler returns before calling svc methods
-	return handlers.NewHotspotHandler(services.NewHotspotService(nil, nil))
+	return handlers.NewHotspotHandler(services.NewHotspotService(nil, nil, nil, nil, nil))
 }
 
 func TestHotspotHandler_ListUsers_InvalidRouterID(t *testing.T) {

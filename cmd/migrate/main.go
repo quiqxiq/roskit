@@ -102,6 +102,24 @@ func main() {
 
 		runSyncProfiles(db, pool, bridge, *routerName, cfg)
 
+	case "sync-scripts":
+		syncCmd := flag.NewFlagSet("sync-scripts", flag.ExitOnError)
+		routerName := syncCmd.String("router", "", "Specific router name to sync (optional)")
+		dryRun := syncCmd.Bool("dry-run", false, "Preview changes without modifying routers")
+		syncCmd.Parse(os.Args[2:])
+
+		logger := slog.Default()
+		pool := execution.NewPool(logger)
+		engine := orchestrator.New(orchestrator.Config{Logger: logger})
+		bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitcache.NoopRepository{})
+
+		db, err := database.Connect(cfg.PostgresDSN())
+		if err != nil {
+			log.Fatalf("failed to connect database: %v", err)
+		}
+
+		runSyncScripts(db, pool, bridge, *routerName, *dryRun, cfg)
+
 	default:
 		printUsage()
 		os.Exit(1)
@@ -112,7 +130,8 @@ func printUsage() {
 	fmt.Println(`Usage:
   ./migrate up
   ./migrate import --config-file=/data/config.php [--dry-run] [--router=name]
-  ./migrate sync-profiles [--router=name]`)
+  ./migrate sync-profiles [--router=name]
+  ./migrate sync-scripts [--router=name] [--dry-run]`)
 }
 
 type ImportArgs struct {
@@ -571,4 +590,167 @@ func runSyncProfiles(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Br
 
 	pool.Stop()
 	printSummary(summary)
+}
+
+func runSyncScripts(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, routerName string, dryRun bool, cfg *config.Config) {
+	if dryRun {
+		fmt.Println("Starting sync-scripts (DRY RUN)...")
+	} else {
+		fmt.Println("Starting sync-scripts...")
+	}
+	ctx := context.Background()
+
+	var routers []models.Router
+	if routerName != "" {
+		if err := db.Where("name = ?", routerName).Find(&routers).Error; err != nil {
+			log.Fatalf("failed to find router: %v", err)
+		}
+	} else {
+		if err := db.Find(&routers).Error; err != nil {
+			log.Fatalf("failed to find routers: %v", err)
+		}
+	}
+
+	for _, r := range routers {
+		cleartextPassword, err := encrypt.Decrypt(r.APIPasswordEncrypted, cfg.AESEncKey)
+		if err != nil {
+			continue
+		}
+		port := r.APIPort
+		if port == 0 {
+			port = 8728
+		}
+		pool.Register(execution.ConnConfig{
+			RouterID: fmt.Sprintf("%d", r.ID),
+			Address:  fmt.Sprintf("%s:%d", r.IPAddress, port),
+			Username: r.APIUsername,
+			Password: cleartextPassword,
+		})
+	}
+
+	ctxStart, cancelStart := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelStart()
+	pool.Start(ctxStart)
+
+	profileRepo := repository.NewProfilePriceMappingRepo(db)
+	settingsRepo := repository.NewTenantSettingsRepo(db)
+
+	var totalProfiles, updatedProfiles, skippedProfiles, syncedMappings int
+
+	for _, r := range routers {
+		rID := fmt.Sprintf("%d", r.ID)
+		time.Sleep(1 * time.Second)
+
+		profiles, err := bridge.ListHotspotProfiles(ctx, rID)
+		if err != nil {
+			log.Printf("failed to fetch profiles for router %s: %v", r.Name, err)
+			continue
+		}
+
+		var webhookToken string
+		if settings, err := settingsRepo.GetByTenantID(ctx, r.TenantID); err == nil && settings != nil {
+			webhookToken = settings.WebhookToken
+		}
+
+		fmt.Printf("\nRouter: %s (ID: %d, Tenant: %d)\n", r.Name, r.ID, r.TenantID)
+
+		for _, prof := range profiles {
+			totalProfiles++
+			onLogin := prof["on-login"]
+			if onLogin == "" {
+				continue
+			}
+
+			meta := roskitservice.ParseOnLoginPut(onLogin)
+			if meta == nil {
+				continue
+			}
+
+			price, _ := strconv.ParseInt(meta.Price, 10, 64)
+			sprice, _ := strconv.ParseInt(meta.SellingPrice, 10, 64)
+			lockUser := meta.LockUser == "Enable"
+			lockServer := meta.LockServer != "Disable" && meta.LockServer != ""
+
+			fmt.Printf("  Profile %q — expmode=%s, price=%d, validity=%s\n",
+				prof["name"], meta.ExpMode, price, meta.Validity)
+
+			mapping := &models.ProfilePriceMapping{
+				RouterID:     r.ID,
+				ProfileName:  prof["name"],
+				Price:        price,
+				SellingPrice: sprice,
+				Validity:     meta.Validity,
+				ExpMode:      meta.ExpMode,
+				LockUser:     lockUser,
+				LockServer:   lockServer,
+			}
+
+			if dryRun {
+				fmt.Printf("    > ProfilePriceMapping: WILL UPSERT\n")
+			} else {
+				if err := profileRepo.Upsert(ctx, mapping); err != nil {
+					log.Printf("    warning: failed to upsert profile %s: %v", prof["name"], err)
+				} else {
+					syncedMappings++
+				}
+			}
+
+			newScript := roskitservice.GenerateOnLoginScript(roskitservice.OnLoginParams{
+				ExpMode:      meta.ExpMode,
+				Price:        meta.Price,
+				SellingPrice: meta.SellingPrice,
+				Validity:     meta.Validity,
+				ProfileName:  prof["name"],
+				LockUser:     meta.LockUser,
+				LockServer:   meta.LockServer,
+				APIURL:       cfg.PublicAPIURL,
+				WebhookToken: webhookToken,
+				RouterName:   r.Name,
+			})
+
+			if newScript == onLogin {
+				fmt.Printf("    > On-login script: ALREADY UP TO DATE\n")
+				skippedProfiles++
+				continue
+			}
+
+			if dryRun {
+				if strings.Contains(onLogin, "API_URL") || strings.Contains(onLogin, "router_session") {
+					fmt.Printf("    > On-login script: WILL REPLACE (legacy placeholder detected)\n")
+				} else if strings.Contains(onLogin, "/system script add") {
+					fmt.Printf("    > On-login script: WILL REPLACE (legacy sales recording detected)\n")
+				} else {
+					fmt.Printf("    > On-login script: WILL REPLACE\n")
+				}
+			} else {
+				profID := prof[".id"]
+				if profID == "" {
+					log.Printf("    warning: profile %s has no .id, skipping script replacement", prof["name"])
+					skippedProfiles++
+					continue
+				}
+				if err := bridge.SetHotspotProfile(ctx, rID, profID, map[string]string{
+					"on-login": newScript,
+				}); err != nil {
+					log.Printf("    error: failed to update profile %s: %v", prof["name"], err)
+				} else {
+					updatedProfiles++
+					fmt.Printf("    > On-login script: REPLACED\n")
+				}
+			}
+		}
+	}
+
+	pool.Stop()
+
+	fmt.Println("\n  ======= Sync-Scripts Summary =======")
+	fmt.Printf("  Routers:              %d\n", len(routers))
+	fmt.Printf("  Profiles scanned:     %d\n", totalProfiles)
+	fmt.Printf("  Scripts replaced:     %d\n", updatedProfiles)
+	fmt.Printf("  Scripts up-to-date:   %d\n", skippedProfiles)
+	fmt.Printf("  Profile mappings:     %d synced\n", syncedMappings)
+	if dryRun {
+		fmt.Println("  Mode:                 DRY RUN (no changes made)")
+	}
+	fmt.Println("  ===================================")
 }

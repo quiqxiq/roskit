@@ -13,6 +13,9 @@ type OnLoginParams struct {
 	ProfileName  string
 	LockUser     string
 	LockServer   string
+	APIURL       string
+	WebhookToken string
+	RouterName   string
 }
 
 type OnLoginMetadata struct {
@@ -36,7 +39,6 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 		sprice = "0"
 	}
 	validity := strings.ToLower(params.Validity)
-	name := params.ProfileName
 	lockuser := params.LockUser
 	lockserver := params.LockServer
 
@@ -60,20 +62,11 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 	}
 
 	var mode string
-	var hasRecord bool
 	switch expmode {
-	case "ntf":
+	case "ntf", "ntfc":
 		mode = "N"
-		hasRecord = false
-	case "ntfc":
-		mode = "N"
-		hasRecord = true
-	case "rem":
+	case "rem", "remc":
 		mode = "X"
-		hasRecord = false
-	case "remc":
-		mode = "X"
-		hasRecord = true
 	default:
 		return ""
 	}
@@ -82,17 +75,14 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 		expmode, price, validity, sprice, lockuser, lockserver)
 
 	fetch := ""
-	if expmode != "" || price != "0" {
-		fetch = `/tool/fetch mode=http url="API_URL/events/on-login" http-data="router_session=SESSION&server=$server&username=$user&mac=$mac-address&ip=$address&date=$date&time=$time&profile=[/ip hotspot user get [find where name=$user] profile]" as-value output=no; `
-	}
-
-	record := ""
-	if hasRecord {
-		record = fmt.Sprintf(
-			`; :local mac $"mac-address"; :local time [/system clock get time ]; `+
-				`/system script add name="$date-|-$time-|-$user-|-%s-|-$address-|-$mac-|-%s-|-%s-|-$comment" `+
-				`owner="$month$year" source=$date comment=mikhmon`,
-			price, validity, name,
+	if params.APIURL != "" && params.WebhookToken != "" && params.RouterName != "" {
+		fetch = fmt.Sprintf(
+			`/tool/fetch mode=http url="%s/events/on-login" `+
+				`http-data="token=%s&router_name=%s&server=$server&username=$user`+
+				`&mac=$\"mac-address\"&ip=$address&date=$date&time=$time`+
+				`&profile=[/ip hotspot user get [find where name=$user] profile]" `+
+				`as-value output=no; `,
+			params.APIURL, params.WebhookToken, params.RouterName,
 		)
 	}
 
@@ -119,7 +109,7 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 		mode, validity,
 	)
 
-	script := fmt.Sprintf(`%s %s %s %s}%s%s`, fetch, put, expiry, record, lock, slock)
+	script := fmt.Sprintf(`%s %s %s}%s%s`, fetch, put, expiry, lock, slock)
 	script = strings.ReplaceAll(script, "\n", " ")
 	return script
 }

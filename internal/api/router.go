@@ -48,7 +48,7 @@ func NewRouter(
 	templateRepo := repository.NewTemplateRepo(db)
 
 	systemSvc := services.NewSystemService(bridge, tsReader, routerRepo, cache)
-	hotspotSvc := services.NewHotspotService(bridge, cache)
+	hotspotSvc := services.NewHotspotService(bridge, cache, cfg, tenantSettingsRepo, routerRepo)
 	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, tenantSettingsRepo, cache)
 	reportSvc := services.NewReportService(saleRepo, cache)
 	templateSvc := services.NewTemplateService(templateRepo)

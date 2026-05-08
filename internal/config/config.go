@@ -28,6 +28,9 @@ type Config struct {
 	InfluxToken    string
 	InfluxDatabase string
 
+	// Public URL
+	PublicAPIURL string
+
 	// Security
 	JWTSecret        string
 	JWTRefreshSecret string
@@ -54,6 +57,8 @@ func Load() (*Config, error) {
 		InfluxURL:      getEnv("INFLUXDB_URL", ""),
 		InfluxToken:    getEnv("INFLUXDB_TOKEN", ""),
 		InfluxDatabase: getEnv("INFLUXDB_DATABASE", "mikhmon"),
+
+		PublicAPIURL: getEnv("PUBLIC_API_URL", ""),
 
 		JWTSecret:        getEnv("JWT_SECRET", ""),
 		JWTRefreshSecret: getEnv("JWT_REFRESH_SECRET", ""),

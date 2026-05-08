@@ -123,25 +123,54 @@ func TestGenerateOnLoginScript_NoExpiry(t *testing.T) {
 
 func TestGenerateOnLoginScript_NtfMode(t *testing.T) {
 	params := service.OnLoginParams{
-		ExpMode:  "ntf",
-		Price:    "5000",
-		Validity: "30d",
+		ExpMode:      "ntf",
+		Price:        "5000",
+		Validity:     "30d",
+		APIURL:       "https://roskit.example.com/api/v1",
+		WebhookToken: "tok123",
+		RouterName:   "MyRouter",
 	}
 	result := service.GenerateOnLoginScript(params)
 	assert.NotEmpty(t, result)
-	assert.Contains(t, result, "API_URL/events/on-login")
+	assert.Contains(t, result, "https://roskit.example.com/api/v1/events/on-login")
+	assert.Contains(t, result, "token=tok123")
+	assert.Contains(t, result, "router_name=MyRouter")
+	assert.NotContains(t, result, "API_URL")
+	assert.NotContains(t, result, "SESSION")
+	assert.NotContains(t, result, "/system script add")
 	assert.True(t, strings.Contains(result, "ntf") || strings.Contains(result, `"N"`))
+}
+
+func TestGenerateOnLoginScript_NtfcMode(t *testing.T) {
+	params := service.OnLoginParams{
+		ExpMode:      "ntfc",
+		Price:        "5000",
+		Validity:     "30d",
+		ProfileName:  "30days",
+		APIURL:       "https://roskit.example.com/api/v1",
+		WebhookToken: "tok123",
+		RouterName:   "MyRouter",
+	}
+	result := service.GenerateOnLoginScript(params)
+	assert.NotEmpty(t, result)
+	assert.Contains(t, result, "token=tok123")
+	assert.NotContains(t, result, "/system script add", "ntfc should no longer write sales to MikroTik scripts")
 }
 
 func TestGenerateOnLoginScript_RemMode(t *testing.T) {
 	params := service.OnLoginParams{
-		ExpMode:  "rem",
-		Price:    "3000",
-		Validity: "7d",
+		ExpMode:      "rem",
+		Price:        "3000",
+		Validity:     "7d",
+		APIURL:       "https://roskit.example.com/api/v1",
+		WebhookToken: "tok456",
+		RouterName:   "Router2",
 	}
 	result := service.GenerateOnLoginScript(params)
 	assert.NotEmpty(t, result)
 	assert.Contains(t, result, `"X"`)
+	assert.Contains(t, result, "token=tok456")
+	assert.NotContains(t, result, "/system script add")
 }
 
 func TestGenerateOnLoginScript_UnknownMode(t *testing.T) {
@@ -152,3 +181,15 @@ func TestGenerateOnLoginScript_UnknownMode(t *testing.T) {
 	result := service.GenerateOnLoginScript(params)
 	assert.Empty(t, result, "unknown expmode should return empty string")
 }
+
+func TestGenerateOnLoginScript_NoCallbackWithoutMultiTenantParams(t *testing.T) {
+	params := service.OnLoginParams{
+		ExpMode:  "ntf",
+		Price:    "5000",
+		Validity: "30d",
+	}
+	result := service.GenerateOnLoginScript(params)
+	assert.NotEmpty(t, result)
+	assert.NotContains(t, result, "/tool/fetch", "without APIURL/Token/RouterName, no callback should be generated")
+}
+

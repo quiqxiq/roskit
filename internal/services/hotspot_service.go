@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/quiqxiq/roskit/internal/config"
+	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	appcache "github.com/quiqxiq/roskit/pkg/redis"
 )
@@ -69,16 +71,28 @@ func enrichProfile(data map[string]string, meta *roskitservice.OnLoginMetadata) 
 }
 
 type HotspotService struct {
-	bridge *roskitservice.Bridge
-	cache  *appcache.Cache
-	logger *slog.Logger
+	bridge       *roskitservice.Bridge
+	cache        *appcache.Cache
+	cfg          *config.Config
+	settingsRepo repository.TenantSettingsRepository
+	routerRepo   RouterRepository
+	logger       *slog.Logger
 }
 
-func NewHotspotService(bridge *roskitservice.Bridge, cache *appcache.Cache) *HotspotService {
+func NewHotspotService(
+	bridge *roskitservice.Bridge,
+	cache *appcache.Cache,
+	cfg *config.Config,
+	settingsRepo repository.TenantSettingsRepository,
+	routerRepo RouterRepository,
+) *HotspotService {
 	return &HotspotService{
-		bridge: bridge,
-		cache:  cache,
-		logger: slog.Default().With("component", "hotspot-svc"),
+		bridge:       bridge,
+		cache:        cache,
+		cfg:          cfg,
+		settingsRepo: settingsRepo,
+		routerRepo:   routerRepo,
+		logger:       slog.Default().With("component", "hotspot-svc"),
 	}
 }
 
@@ -176,16 +190,9 @@ func (s *HotspotService) GetProfile(ctx context.Context, routerID uint, idOrName
 	return &enriched, nil
 }
 
-func (s *HotspotService) AddProfile(ctx context.Context, routerID uint, params ProfileParams) (*ProfileWithMeta, error) {
-	onLogin := roskitservice.GenerateOnLoginScript(roskitservice.OnLoginParams{
-		ExpMode:      params.ExpireMode,
-		Price:        strconv.FormatInt(params.Price, 10),
-		SellingPrice: strconv.FormatInt(params.SellingPrice, 10),
-		Validity:     params.Validity,
-		ProfileName:  params.Name,
-		LockUser:     params.LockUser,
-		LockServer:   params.LockServer,
-	})
+func (s *HotspotService) AddProfile(ctx context.Context, tenantID, routerID uint, params ProfileParams) (*ProfileWithMeta, error) {
+	olParams := s.resolveOnLoginParams(ctx, tenantID, routerID, params)
+	onLogin := roskitservice.GenerateOnLoginScript(olParams)
 
 	rosParams := map[string]string{
 		"name":     params.Name,
@@ -218,16 +225,9 @@ func (s *HotspotService) AddProfile(ctx context.Context, routerID uint, params P
 	return &enriched, nil
 }
 
-func (s *HotspotService) UpdateProfile(ctx context.Context, routerID uint, id string, params ProfileParams) (*ProfileWithMeta, error) {
-	onLogin := roskitservice.GenerateOnLoginScript(roskitservice.OnLoginParams{
-		ExpMode:      params.ExpireMode,
-		Price:        strconv.FormatInt(params.Price, 10),
-		SellingPrice: strconv.FormatInt(params.SellingPrice, 10),
-		Validity:     params.Validity,
-		ProfileName:  params.Name,
-		LockUser:     params.LockUser,
-		LockServer:   params.LockServer,
-	})
+func (s *HotspotService) UpdateProfile(ctx context.Context, tenantID, routerID uint, id string, params ProfileParams) (*ProfileWithMeta, error) {
+	olParams := s.resolveOnLoginParams(ctx, tenantID, routerID, params)
+	onLogin := roskitservice.GenerateOnLoginScript(olParams)
 
 	rosParams := map[string]string{
 		"on-login": onLogin,
@@ -259,6 +259,36 @@ func (s *HotspotService) UpdateProfile(ctx context.Context, routerID uint, id st
 	meta := roskitservice.ParseOnLoginPut(profile["on-login"])
 	enriched := enrichProfile(profile, meta)
 	return &enriched, nil
+}
+
+func (s *HotspotService) resolveOnLoginParams(ctx context.Context, tenantID, routerID uint, params ProfileParams) roskitservice.OnLoginParams {
+	olParams := roskitservice.OnLoginParams{
+		ExpMode:      params.ExpireMode,
+		Price:        strconv.FormatInt(params.Price, 10),
+		SellingPrice: strconv.FormatInt(params.SellingPrice, 10),
+		Validity:     params.Validity,
+		ProfileName:  params.Name,
+		LockUser:     params.LockUser,
+		LockServer:   params.LockServer,
+	}
+
+	if s.cfg != nil {
+		olParams.APIURL = s.cfg.PublicAPIURL
+	}
+
+	if s.settingsRepo != nil {
+		if settings, err := s.settingsRepo.GetByTenantID(ctx, tenantID); err == nil && settings != nil {
+			olParams.WebhookToken = settings.WebhookToken
+		}
+	}
+
+	if s.routerRepo != nil {
+		if router, err := s.routerRepo.GetByID(ctx, tenantID, routerID); err == nil && router != nil {
+			olParams.RouterName = router.Name
+		}
+	}
+
+	return olParams
 }
 
 func (s *HotspotService) RemoveProfile(ctx context.Context, routerID uint, id string) error {
