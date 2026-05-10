@@ -17,12 +17,12 @@ import (
 
 type TemplateRepository interface {
 	Create(ctx context.Context, t *models.PrintTemplate) error
-	GetByID(ctx context.Context, tenantID *uint, id uint) (*models.PrintTemplate, error)
-	List(ctx context.Context, tenantID uint) ([]models.PrintTemplate, error)
+	GetByID(ctx context.Context, id uint) (*models.PrintTemplate, error)
+	List(ctx context.Context) ([]models.PrintTemplate, error)
 	ListGlobal(ctx context.Context) ([]models.PrintTemplate, error)
 	Update(ctx context.Context, t *models.PrintTemplate) error
-	Delete(ctx context.Context, tenantID *uint, id uint) error
-	GetByTenantAndType(ctx context.Context, tenantID uint, templateType string) ([]models.PrintTemplate, error)
+	Delete(ctx context.Context, id uint) error
+	GetByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error)
 	GetGlobalByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error)
 	CountGlobal(ctx context.Context) (int64, error)
 }
@@ -93,15 +93,12 @@ func NewTemplateService(repo TemplateRepository) *TemplateService {
 	}
 }
 
-// Create inserts a template owned by a tenant. Pass tenantID=nil to create a global default
-// (only superadmin should ever do this).
-func (s *TemplateService) Create(ctx context.Context, tenantID *uint, req CreateTemplateRequest) (*models.PrintTemplate, error) {
+func (s *TemplateService) Create(ctx context.Context, req CreateTemplateRequest) (*models.PrintTemplate, error) {
 	t := &models.PrintTemplate{
-		TenantID: tenantID,
-		Name:     req.Name,
-		Type:     req.Type,
-		Part:     req.Part,
-		Content:  req.Content,
+		Name:    req.Name,
+		Type:    req.Type,
+		Part:    req.Part,
+		Content: req.Content,
 	}
 	if err := s.repo.Create(ctx, t); err != nil {
 		return nil, fmt.Errorf("create template: %w", err)
@@ -109,20 +106,20 @@ func (s *TemplateService) Create(ctx context.Context, tenantID *uint, req Create
 	return t, nil
 }
 
-func (s *TemplateService) GetByID(ctx context.Context, tenantID *uint, id uint) (*models.PrintTemplate, error) {
-	return s.repo.GetByID(ctx, tenantID, id)
+func (s *TemplateService) GetByID(ctx context.Context, id uint) (*models.PrintTemplate, error) {
+	return s.repo.GetByID(ctx, id)
 }
 
-func (s *TemplateService) List(ctx context.Context, tenantID uint) ([]models.PrintTemplate, error) {
-	return s.repo.List(ctx, tenantID)
+func (s *TemplateService) List(ctx context.Context) ([]models.PrintTemplate, error) {
+	return s.repo.List(ctx)
 }
 
 func (s *TemplateService) ListGlobal(ctx context.Context) ([]models.PrintTemplate, error) {
 	return s.repo.ListGlobal(ctx)
 }
 
-func (s *TemplateService) Update(ctx context.Context, tenantID *uint, id uint, req UpdateTemplateRequest) (*models.PrintTemplate, error) {
-	t, err := s.repo.GetByID(ctx, tenantID, id)
+func (s *TemplateService) Update(ctx context.Context, id uint, req UpdateTemplateRequest) (*models.PrintTemplate, error) {
+	t, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -144,8 +141,8 @@ func (s *TemplateService) Update(ctx context.Context, tenantID *uint, id uint, r
 	return t, nil
 }
 
-func (s *TemplateService) Delete(ctx context.Context, tenantID *uint, id uint) error {
-	return s.repo.Delete(ctx, tenantID, id)
+func (s *TemplateService) Delete(ctx context.Context, id uint) error {
+	return s.repo.Delete(ctx, id)
 }
 
 // SeedDefaults seeds the global default templates (tenant_id IS NULL) from embedded files.
@@ -158,20 +155,19 @@ func (s *TemplateService) ForceSeedDefaults(ctx context.Context) error {
 	return SeedGlobalDefaults(ctx, s.repo, true)
 }
 
-// Render renders a named template type for the given vouchers, scoped to a tenant.
+// Render renders a named template type for the given vouchers.
 func (s *TemplateService) Render(
 	ctx context.Context,
-	tenantID uint,
 	templateType string,
 	vouchers []roskitservice.GeneratedVoucher,
 	params RenderParams,
 ) ([]RenderedVoucher, error) {
-	parts, err := s.repo.GetByTenantAndType(ctx, tenantID, templateType)
+	parts, err := s.repo.GetGlobalByType(ctx, templateType)
 	if err != nil {
 		return nil, err
 	}
 	if len(parts) == 0 {
-		return nil, fmt.Errorf("no template found for type %q on tenant %d", templateType, tenantID)
+		return nil, fmt.Errorf("no template found for type %q", templateType)
 	}
 
 	byPart := map[string]string{}
@@ -294,7 +290,6 @@ func buildVarsFromResolved(num int, v ResolvedVoucher, router RouterVoucherParam
 
 func (s *TemplateService) RenderFromUsers(
 	ctx context.Context,
-	tenantID uint,
 	templateType string,
 	vouchers []ResolvedVoucher,
 	router RouterVoucherParams,
@@ -302,12 +297,12 @@ func (s *TemplateService) RenderFromUsers(
 	if len(vouchers) == 0 {
 		return "", fmt.Errorf("no vouchers to render")
 	}
-	parts, err := s.repo.GetByTenantAndType(ctx, tenantID, templateType)
+	parts, err := s.repo.GetGlobalByType(ctx, templateType)
 	if err != nil {
 		return "", err
 	}
 	if len(parts) == 0 {
-		return "", fmt.Errorf("no template found for type %q on tenant %d", templateType, tenantID)
+		return "", fmt.Errorf("no template found for type %q", templateType)
 	}
 	byPart := map[string]string{}
 	for _, p := range parts {
@@ -356,7 +351,6 @@ func (s *TemplateService) RenderFromUsers(
 
 func (s *TemplateService) RenderPage(
 	ctx context.Context,
-	tenantID uint,
 	templateType string,
 	vouchers []roskitservice.GeneratedVoucher,
 	params RenderParams,
@@ -364,12 +358,12 @@ func (s *TemplateService) RenderPage(
 	if len(vouchers) == 0 {
 		return "", fmt.Errorf("no vouchers to render")
 	}
-	parts, err := s.repo.GetByTenantAndType(ctx, tenantID, templateType)
+	parts, err := s.repo.GetGlobalByType(ctx, templateType)
 	if err != nil {
 		return "", err
 	}
 	if len(parts) == 0 {
-		return "", fmt.Errorf("no template found for type %q on tenant %d", templateType, tenantID)
+		return "", fmt.Errorf("no template found for type %q", templateType)
 	}
 	byPart := map[string]string{}
 	for _, p := range parts {

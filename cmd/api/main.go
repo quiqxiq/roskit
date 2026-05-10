@@ -13,7 +13,6 @@ import (
 
 	"github.com/quiqxiq/roskit/internal/api"
 	"github.com/quiqxiq/roskit/internal/api/middleware"
-	casbinx "github.com/quiqxiq/roskit/internal/casbin"
 	"github.com/quiqxiq/roskit/internal/config"
 	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
@@ -117,29 +116,16 @@ func main() {
 		roskitSubscriber = subscriber
 	}
 
-	// ===== Casbin =====
-	enforcer, err := casbinx.NewEnforcer(db)
-	if err != nil {
-		log.Fatalf("failed to init casbin enforcer: %v", err)
-	}
-	if err := casbinx.SeedPolicies(enforcer); err != nil {
-		logger.Warn("casbin policy seed failed", "error", err)
-	}
-
-	// ===== Repositories (top-level wiring) =====
-	tenantRepo := repository.NewTenantRepo(db)
-	tenantSettingsRepo := repository.NewTenantSettingsRepo(db)
+	// ===== Repositories =====
 	userRepo := repository.NewUserRepo(db)
 	templateRepo := repository.NewTemplateRepo(db)
 	saleRepo := repository.NewSaleRepo(db)
 	profileRepo := repository.NewProfilePriceMappingRepo(db)
+	settingsRepo := repository.NewSettingsRepo(db)
 
-	// ===== Services that auth depends on =====
-	tenantSvc := services.NewTenantService(db, tenantRepo, tenantSettingsRepo, templateRepo)
+	// ===== Auth service =====
 	authSvc := services.NewAuthService(
 		userRepo,
-		tenantRepo,
-		enforcer,
 		cache,
 		[]byte(cfg.JWTSecret),
 		[]byte(cfg.JWTRefreshSecret),
@@ -207,7 +193,7 @@ func main() {
 	router := api.NewRouter(
 		cfg, db, cache, bridge,
 		routerSvc, tsReader, roskitSubscriber, profileRepo,
-		tenantRepo, tenantSettingsRepo, tenantSvc, authSvc, enforcer,
+		settingsRepo, authSvc, templateRepo,
 		auditLogger,
 	)
 
@@ -239,8 +225,6 @@ func main() {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
 
-	// Drain buffered audit entries before exiting. Bounded by shutCtx so a
-	// stuck DB cannot block the process from terminating.
 	if err := auditLogger.Shutdown(shutCtx); err != nil {
 		log.Printf("audit logger shutdown: %v", err)
 	}

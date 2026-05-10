@@ -153,7 +153,7 @@ type summaryStats struct {
 
 type routerWithConfig struct {
 	router   models.Router
-	settings models.TenantSettings
+	settings models.Settings
 }
 
 func tenantSlugFromSession(name string) string {
@@ -305,7 +305,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 			APIPasswordEncrypted: encryptedPassword,
 			Status:               models.RouterStatusUnknown,
 		}
-		ts := models.TenantSettings{
+		s := models.Settings{
 			HotspotName:  hotspotStr,
 			DNSName:      dnsStr,
 			Currency:     currencyStr,
@@ -317,9 +317,9 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 			WebhookToken: tokenStr,
 		}
 		if idleInt, err := strconv.Atoi(strings.TrimSpace(idleStr)); err == nil && idleInt > 0 {
-			ts.IdleTimeout = idleInt
+			s.IdleTimeout = idleInt
 		}
-		routers = append(routers, routerWithConfig{router: r, settings: ts})
+		routers = append(routers, routerWithConfig{router: r, settings: s})
 		sessions = append(sessions, sessionName)
 	}
 
@@ -337,36 +337,18 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 	for i := range routers {
 		rw := &routers[i]
-		slug := tenantSlugFromSession(rw.router.Name)
 
-		var tenant models.Tenant
-		errT := db.Where("slug = ?", slug).First(&tenant).Error
-		if errT == gorm.ErrRecordNotFound {
-			tenant = models.Tenant{
-				Name:   rw.router.Name,
-				Slug:   slug,
-				Plan:   models.TenantPlanFree,
-				Status: models.TenantStatusActive,
-			}
-			if err := db.Create(&tenant).Error; err != nil {
-				log.Printf("failed to create tenant %s: %v", slug, err)
-				summary.routersSkipped++
-				continue
-			}
-			rw.settings.TenantID = tenant.ID
+		// Upsert the global Settings singleton (use data from first router if not set).
+		var existingSettings models.Settings
+		if db.First(&existingSettings, 1).Error != nil {
+			rw.settings.ID = 0
 			if err := db.Create(&rw.settings).Error; err != nil {
-				log.Printf("failed to create tenant settings %s: %v", slug, err)
+				log.Printf("warning: failed to create settings: %v", err)
 			}
-		} else if errT != nil {
-			log.Printf("failed to check tenant %s: %v", slug, errT)
-			summary.routersSkipped++
-			continue
 		}
 
-		rw.router.TenantID = tenant.ID
-
 		var r models.Router
-		err := db.Where("tenant_id = ? AND name = ?", tenant.ID, rw.router.Name).First(&r).Error
+		err := db.Where("name = ?", rw.router.Name).First(&r).Error
 		if err == gorm.ErrRecordNotFound {
 			if err := db.Create(&rw.router).Error; err != nil {
 				log.Printf("failed to create router %s: %v", rw.router.Name, err)
@@ -406,7 +388,7 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 	for _, rw := range routers {
 		var dbR models.Router
-		if err := db.Where("tenant_id = ? AND name = ?", rw.router.TenantID, rw.router.Name).First(&dbR).Error; err != nil {
+		if err := db.Where("name = ?", rw.router.Name).First(&dbR).Error; err != nil {
 			continue
 		}
 
@@ -449,7 +431,6 @@ func runImport(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bridge, 
 
 			rid := dbR.ID
 			sale := &models.VoucherSale{
-				TenantID:       dbR.TenantID,
 				SoldAt:         soldAt,
 				Username:       fields[2],
 				Price:          price,
@@ -633,7 +614,6 @@ func runSyncScripts(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bri
 	pool.Start(ctxStart)
 
 	profileRepo := repository.NewProfilePriceMappingRepo(db)
-	settingsRepo := repository.NewTenantSettingsRepo(db)
 
 	var totalProfiles, updatedProfiles, skippedProfiles, syncedMappings int
 
@@ -648,11 +628,12 @@ func runSyncScripts(db *gorm.DB, pool *execution.Pool, bridge *roskitservice.Bri
 		}
 
 		var webhookToken string
-		if settings, err := settingsRepo.GetByTenantID(ctx, r.TenantID); err == nil && settings != nil {
+		settingsRepo := repository.NewSettingsRepo(db)
+		if settings, err := settingsRepo.Get(ctx); err == nil && settings != nil {
 			webhookToken = settings.WebhookToken
 		}
 
-		fmt.Printf("\nRouter: %s (ID: %d, Tenant: %d)\n", r.Name, r.ID, r.TenantID)
+		fmt.Printf("\nRouter: %s (ID: %d)\n", r.Name, r.ID)
 
 		for _, prof := range profiles {
 			totalProfiles++

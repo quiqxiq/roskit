@@ -42,7 +42,7 @@ type RecordSaleParams struct {
 	Price       int64     `json:"price" binding:"omitempty,min=0"`
 	Validity    string    `json:"validity" binding:"omitempty,max=20"`
 	Server      string    `json:"server" binding:"omitempty,max=64"`
-	IPAddress   string    `json:"ip_address" binding:"omitempty,max=45"` // IPv6 max length
+	IPAddress   string    `json:"ip_address" binding:"omitempty,max=45"`
 	MACAddress  string    `json:"mac_address" binding:"omitempty,max=17"`
 	SoldAt      time.Time `json:"sold_at"`
 }
@@ -65,19 +65,19 @@ type ResolvedVoucher struct {
 	Comment   string
 	TimeLimit string
 	DataLimit string
-	UserMode  string // "vc" or "up"
-	Price     string // SellingPrice as string
+	UserMode  string
+	Price     string
 	Validity  string
 }
 
 type VoucherService struct {
-	bridge       *roskitservice.Bridge
-	saleRepo     SaleRepository
-	routerRepo   RouterRepository
-	profileRepo  ProfilePriceMappingRepository
-	settingsRepo repository.TenantSettingsRepository
-	cache        *appcache.Cache
-	logger       *slog.Logger
+	bridge      *roskitservice.Bridge
+	saleRepo    SaleRepository
+	routerRepo  RouterRepository
+	profileRepo ProfilePriceMappingRepository
+	settingsRepo repository.SettingsRepository
+	cache       *appcache.Cache
+	logger      *slog.Logger
 }
 
 func NewVoucherService(
@@ -85,17 +85,17 @@ func NewVoucherService(
 	saleRepo SaleRepository,
 	routerRepo RouterRepository,
 	profileRepo ProfilePriceMappingRepository,
-	settingsRepo repository.TenantSettingsRepository,
+	settingsRepo repository.SettingsRepository,
 	cache *appcache.Cache,
 ) *VoucherService {
 	return &VoucherService{
-		bridge:       bridge,
-		saleRepo:     saleRepo,
-		routerRepo:   routerRepo,
-		profileRepo:  profileRepo,
+		bridge:      bridge,
+		saleRepo:    saleRepo,
+		routerRepo:  routerRepo,
+		profileRepo: profileRepo,
 		settingsRepo: settingsRepo,
-		cache:        cache,
-		logger:       slog.Default().With("component", "voucher-svc"),
+		cache:       cache,
+		logger:      slog.Default().With("component", "voucher-svc"),
 	}
 }
 
@@ -168,8 +168,8 @@ func (s *VoucherService) ResolveVoucherPrintData(
 	return result, nil
 }
 
-func (s *VoucherService) GenerateVoucher(ctx context.Context, tenantID, routerID uint, params VoucherGenerateParams) (*VoucherGenerateResult, error) {
-	if _, err := s.routerRepo.GetByID(ctx, tenantID, routerID); err != nil {
+func (s *VoucherService) GenerateVoucher(ctx context.Context, routerID uint, params VoucherGenerateParams) (*VoucherGenerateResult, error) {
+	if _, err := s.routerRepo.GetByID(ctx, routerID); err != nil {
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
 
@@ -241,7 +241,7 @@ func (s *VoucherService) GetCachedVouchers(ctx context.Context, routerID uint, g
 	return &result, nil
 }
 
-func (s *VoucherService) RecordSale(ctx context.Context, tenantID, routerID uint, params RecordSaleParams) error {
+func (s *VoucherService) RecordSale(ctx context.Context, routerID uint, params RecordSaleParams) error {
 	key := mikrotik.MakeSaleIdempotencyKey(routerID, params.Username, params.SoldAt)
 	exists, err := s.saleRepo.ExistsByIdempotencyKey(ctx, key)
 	if err != nil {
@@ -253,7 +253,6 @@ func (s *VoucherService) RecordSale(ctx context.Context, tenantID, routerID uint
 
 	rid := routerID
 	sale := &models.VoucherSale{
-		TenantID:       tenantID,
 		RouterID:       &rid,
 		SoldAt:         params.SoldAt,
 		Username:       params.Username,
@@ -274,15 +273,15 @@ func (s *VoucherService) RecordSale(ctx context.Context, tenantID, routerID uint
 	return nil
 }
 
-func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, tenantID, routerID uint) (*ImportResult, error) {
-	router, err := s.routerRepo.GetByID(ctx, tenantID, routerID)
+func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, routerID uint) (*ImportResult, error) {
+	router, err := s.routerRepo.GetByID(ctx, routerID)
 	if err != nil {
 		return nil, fmt.Errorf("router not found: %w", err)
 	}
 
 	tz := ""
 	if s.settingsRepo != nil {
-		if settings, err := s.settingsRepo.GetByTenantID(ctx, tenantID); err == nil && settings != nil {
+		if settings, err := s.settingsRepo.Get(ctx); err == nil && settings != nil {
 			tz = settings.Timezone
 		}
 	}
@@ -320,7 +319,6 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, tenantID, 
 
 		rid := routerID
 		sale := &models.VoucherSale{
-			TenantID:       tenantID,
 			RouterID:       &rid,
 			SoldAt:         soldAt,
 			Username:       rec.Username,
@@ -346,7 +344,6 @@ func (s *VoucherService) ImportSalesFromRouterOS(ctx context.Context, tenantID, 
 
 	s.logger.Info("sales import complete",
 		"router", router.Name,
-		"tenant_id", tenantID,
 		"total", result.Total,
 		"imported", result.Imported,
 		"skipped", result.Skipped,
@@ -367,6 +364,6 @@ func (s *VoucherService) invalidateSalesCache(ctx context.Context, routerID uint
 	)
 }
 
-func (s *VoucherService) GetRouterInfo(ctx context.Context, tenantID, routerID uint) (*models.Router, error) {
-	return s.routerRepo.GetByID(ctx, tenantID, routerID)
+func (s *VoucherService) GetRouterInfo(ctx context.Context, routerID uint) (*models.Router, error) {
+	return s.routerRepo.GetByID(ctx, routerID)
 }

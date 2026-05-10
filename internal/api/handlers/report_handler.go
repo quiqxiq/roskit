@@ -19,28 +19,22 @@ func NewReportHandler(svc *services.ReportService) *ReportHandler {
 	return &ReportHandler{svc: svc}
 }
 
-// resolveScope returns (tenantID, *routerID).
-// If the route is /routers/:routerId/reports/* the routerID param is set.
-// Otherwise (tenant-wide reports), routerID is nil.
-func resolveScope(c *gin.Context) (uint, *uint, bool) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return 0, nil, false
-	}
+// resolveScope returns *routerID (nil when route is not scoped to a specific router).
+func resolveScope(c *gin.Context) (*uint, bool) {
 	if c.Param("routerId") == "" {
-		return tenantID, nil, true
+		return nil, true
 	}
 	rid, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
-		return 0, nil, false
+		return nil, false
 	}
 	r := uint(rid)
-	return tenantID, &r, true
+	return &r, true
 }
 
 func (h *ReportHandler) GetDailyReport(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
@@ -58,7 +52,7 @@ func (h *ReportHandler) GetDailyReport(c *gin.Context) {
 		Search:  c.Query("search"),
 	}
 
-	result, err := h.svc.GetDailyReport(c.Request.Context(), tenantID, routerID, date, filters)
+	result, err := h.svc.GetDailyReport(c.Request.Context(), routerID, date, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get daily report"})
 		return
@@ -68,7 +62,7 @@ func (h *ReportHandler) GetDailyReport(c *gin.Context) {
 }
 
 func (h *ReportHandler) GetMonthlyReport(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
@@ -82,7 +76,7 @@ func (h *ReportHandler) GetMonthlyReport(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetMonthlyReport(c.Request.Context(), tenantID, routerID, year, month)
+	result, err := h.svc.GetMonthlyReport(c.Request.Context(), routerID, year, month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get monthly report"})
 		return
@@ -92,14 +86,14 @@ func (h *ReportHandler) GetMonthlyReport(c *gin.Context) {
 }
 
 func (h *ReportHandler) GetResumeReport(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
 
 	year, _ := strconv.Atoi(c.DefaultQuery("year", strconv.Itoa(time.Now().Year())))
 
-	result, err := h.svc.GetResumeReport(c.Request.Context(), tenantID, routerID, year)
+	result, err := h.svc.GetResumeReport(c.Request.Context(), routerID, year)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get resume report"})
 		return
@@ -109,12 +103,12 @@ func (h *ReportHandler) GetResumeReport(c *gin.Context) {
 }
 
 func (h *ReportHandler) GetDashboardSummary(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
 
-	result, err := h.svc.GetDashboardSummary(c.Request.Context(), tenantID, routerID)
+	result, err := h.svc.GetDashboardSummary(c.Request.Context(), routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get dashboard summary"})
 		return
@@ -124,7 +118,7 @@ func (h *ReportHandler) GetDashboardSummary(c *gin.Context) {
 }
 
 func (h *ReportHandler) GetDailySummary(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
@@ -136,7 +130,7 @@ func (h *ReportHandler) GetDailySummary(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetResumeReport(c.Request.Context(), tenantID, routerID, parsedMonth.Year())
+	result, err := h.svc.GetResumeReport(c.Request.Context(), routerID, parsedMonth.Year())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get daily summary"})
 		return
@@ -146,7 +140,7 @@ func (h *ReportHandler) GetDailySummary(c *gin.Context) {
 }
 
 func (h *ReportHandler) ExportCSV(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
@@ -162,7 +156,7 @@ func (h *ReportHandler) ExportCSV(c *gin.Context) {
 		Server:  c.Query("server"),
 	}
 
-	data, err := h.svc.ExportCSV(c.Request.Context(), tenantID, routerID, from, to, filters)
+	data, err := h.svc.ExportCSV(c.Request.Context(), routerID, from, to, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to export CSV"})
 		return
@@ -175,7 +169,7 @@ func (h *ReportHandler) ExportCSV(c *gin.Context) {
 }
 
 func (h *ReportHandler) ExportExcel(c *gin.Context) {
-	tenantID, routerID, ok := resolveScope(c)
+	routerID, ok := resolveScope(c)
 	if !ok {
 		return
 	}
@@ -191,7 +185,7 @@ func (h *ReportHandler) ExportExcel(c *gin.Context) {
 		Server:  c.Query("server"),
 	}
 
-	data, err := h.svc.ExportExcel(c.Request.Context(), tenantID, routerID, from, to, filters)
+	data, err := h.svc.ExportExcel(c.Request.Context(), routerID, from, to, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to export Excel"})
 		return

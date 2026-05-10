@@ -21,7 +21,7 @@ type EventHandler struct {
 	routerRepo   repository.RouterRepository
 	saleRepo     repository.SaleRepository
 	profileRepo  repository.ProfilePriceMappingRepository
-	settingsRepo repository.TenantSettingsRepository
+	settingsRepo repository.SettingsRepository
 	bridge       *roskitservice.Bridge
 	cache        *appcache.Cache
 	logger       *slog.Logger
@@ -31,7 +31,7 @@ func NewEventHandler(
 	routerRepo repository.RouterRepository,
 	saleRepo repository.SaleRepository,
 	profileRepo repository.ProfilePriceMappingRepository,
-	settingsRepo repository.TenantSettingsRepository,
+	settingsRepo repository.SettingsRepository,
 	bridge *roskitservice.Bridge,
 	cache *appcache.Cache,
 ) *EventHandler {
@@ -58,10 +58,7 @@ type OnLoginPayload struct {
 }
 
 // OnLoginEvent is a public (no-auth) endpoint hit by RouterOS /tool/fetch.
-// Tenant resolution flow:
-//   1. RouterOS posts X-Router-Token (or token form field)
-//   2. We look up TenantSettings by webhook_token to find tenant_id
-//   3. Then resolve router by (tenant_id, router_name)
+// Token-based: validates X-Router-Token against global Settings.WebhookToken.
 func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 	payload := OnLoginPayload{
 		RouterName: c.PostForm("router_name"),
@@ -96,10 +93,9 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
-	tenantID := settings.TenantID
-	router, err := h.routerRepo.GetByName(c.Request.Context(), tenantID, payload.RouterName)
+	router, err := h.routerRepo.GetByName(c.Request.Context(), payload.RouterName)
 	if err != nil {
-		h.logger.Warn("on-login: router not found", "name", payload.RouterName, "tenant_id", tenantID, "error", err)
+		h.logger.Warn("on-login: router not found", "name", payload.RouterName, "error", err)
 		c.Status(http.StatusOK)
 		return
 	}
@@ -122,10 +118,6 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 		return
 	}
 
-	// NOTE: idempotency check intentionally happens BEFORE the report-mode guard.
-	// If we skipped idempotency when report_mode=disable, the key would never be
-	// stored. Activating report_mode later would re-process the same event and
-	// create a duplicate sale record. The check here prevents that future replay.
 	if settings.ReportMode == "" || settings.ReportMode == "disable" {
 		c.Status(http.StatusOK)
 		return
@@ -144,7 +136,6 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 
 	rid := router.ID
 	sale := &models.VoucherSale{
-		TenantID:       tenantID,
 		RouterID:       &rid,
 		SoldAt:         soldAt,
 		Username:       payload.Username,

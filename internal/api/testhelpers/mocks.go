@@ -30,35 +30,11 @@ func (m *MockUserRepository) GetByID(_ context.Context, _ uint) (*models.User, e
 	return m.User, m.Err
 }
 
-func (m *MockUserRepository) GetByTenantID(_ context.Context, tenantID, _ uint) (*models.User, error) {
-	if m.Err != nil {
-		return nil, m.Err
-	}
-	if m.User == nil {
-		return nil, ErrNotFound
-	}
-	if m.User.TenantID == nil || *m.User.TenantID != tenantID {
-		return nil, ErrNotFound
-	}
-	return m.User, nil
-}
-
-func (m *MockUserRepository) GetByTenantUsername(_ context.Context, _ *uint, _ string) (*models.User, error) {
+func (m *MockUserRepository) GetByUsername(_ context.Context, _ string) (*models.User, error) {
 	return m.User, m.Err
 }
 
-func (m *MockUserRepository) GetSuperAdminByUsername(_ context.Context, _ string) (*models.User, error) {
-	return m.User, m.Err
-}
-
-func (m *MockUserRepository) List(_ context.Context, _ uint) ([]*models.User, error) {
-	if m.User == nil {
-		return nil, m.Err
-	}
-	return []*models.User{m.User}, m.Err
-}
-
-func (m *MockUserRepository) ListSuperAdmins(_ context.Context) ([]*models.User, error) {
+func (m *MockUserRepository) List(_ context.Context) ([]*models.User, error) {
 	if m.User == nil {
 		return nil, m.Err
 	}
@@ -78,10 +54,6 @@ func (m *MockUserRepository) Delete(_ context.Context, _ uint) error {
 }
 
 func (m *MockUserRepository) Count(_ context.Context) (int64, error) {
-	return m.UserCount, m.Err
-}
-
-func (m *MockUserRepository) CountByTenant(_ context.Context, _ uint) (int64, error) {
 	return m.UserCount, m.Err
 }
 

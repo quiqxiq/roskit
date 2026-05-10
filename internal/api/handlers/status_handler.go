@@ -16,17 +16,13 @@ func NewStatusHandler(svc *services.StatusService) *StatusHandler {
 }
 
 func (h *StatusHandler) GetUserStatus(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	sessionName := c.Query("router")
 	mac := c.Query("mac")
 	if sessionName == "" || mac == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "router and mac parameters required"})
 		return
 	}
-	status, err := h.svc.GetUserStatus(c.Request.Context(), tenantID, sessionName, mac)
+	status, err := h.svc.GetUserStatus(c.Request.Context(), sessionName, mac)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return

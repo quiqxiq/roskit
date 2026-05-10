@@ -85,7 +85,7 @@ type HotspotService struct {
 	bridge       *roskitservice.Bridge
 	cache        *appcache.Cache
 	cfg          *config.Config
-	settingsRepo repository.TenantSettingsRepository
+	settingsRepo repository.SettingsRepository
 	routerRepo   RouterRepository
 	profileRepo  repository.ProfilePriceMappingRepository
 	logger       *slog.Logger
@@ -95,7 +95,7 @@ func NewHotspotService(
 	bridge *roskitservice.Bridge,
 	cache *appcache.Cache,
 	cfg *config.Config,
-	settingsRepo repository.TenantSettingsRepository,
+	settingsRepo repository.SettingsRepository,
 	routerRepo RouterRepository,
 	profileRepo repository.ProfilePriceMappingRepository,
 ) *HotspotService {
@@ -204,8 +204,8 @@ func (s *HotspotService) GetProfile(ctx context.Context, routerID uint, idOrName
 	return &enriched, nil
 }
 
-func (s *HotspotService) AddProfile(ctx context.Context, tenantID, routerID uint, params ProfileParams) (*ProfileWithMeta, error) {
-	olParams := s.resolveOnLoginParams(ctx, tenantID, routerID, params)
+func (s *HotspotService) AddProfile(ctx context.Context, routerID uint, params ProfileParams) (*ProfileWithMeta, error) {
+	olParams := s.resolveOnLoginParams(ctx, routerID, params)
 	onLogin := roskitservice.GenerateOnLoginScript(olParams)
 
 	rosParams := map[string]string{
@@ -239,8 +239,8 @@ func (s *HotspotService) AddProfile(ctx context.Context, tenantID, routerID uint
 	return &enriched, nil
 }
 
-func (s *HotspotService) UpdateProfile(ctx context.Context, tenantID, routerID uint, id string, params ProfileParams) (*ProfileWithMeta, error) {
-	olParams := s.resolveOnLoginParams(ctx, tenantID, routerID, params)
+func (s *HotspotService) UpdateProfile(ctx context.Context, routerID uint, id string, params ProfileParams) (*ProfileWithMeta, error) {
+	olParams := s.resolveOnLoginParams(ctx, routerID, params)
 	onLogin := roskitservice.GenerateOnLoginScript(olParams)
 
 	rosParams := map[string]string{
@@ -275,7 +275,7 @@ func (s *HotspotService) UpdateProfile(ctx context.Context, tenantID, routerID u
 	return &enriched, nil
 }
 
-func (s *HotspotService) resolveOnLoginParams(ctx context.Context, tenantID, routerID uint, params ProfileParams) roskitservice.OnLoginParams {
+func (s *HotspotService) resolveOnLoginParams(ctx context.Context, routerID uint, params ProfileParams) roskitservice.OnLoginParams {
 	olParams := roskitservice.OnLoginParams{
 		ExpMode:      params.ExpireMode,
 		Price:        strconv.FormatInt(params.Price, 10),
@@ -291,13 +291,13 @@ func (s *HotspotService) resolveOnLoginParams(ctx context.Context, tenantID, rou
 	}
 
 	if s.settingsRepo != nil {
-		if settings, err := s.settingsRepo.GetByTenantID(ctx, tenantID); err == nil && settings != nil {
+		if settings, err := s.settingsRepo.Get(ctx); err == nil && settings != nil {
 			olParams.WebhookToken = settings.WebhookToken
 		}
 	}
 
 	if s.routerRepo != nil {
-		if router, err := s.routerRepo.GetByID(ctx, tenantID, routerID); err == nil && router != nil {
+		if router, err := s.routerRepo.GetByID(ctx, routerID); err == nil && router != nil {
 			olParams.RouterName = router.Name
 		}
 	}
@@ -314,7 +314,7 @@ func (s *HotspotService) RemoveProfile(ctx context.Context, routerID uint, id st
 	return s.bridge.RemoveHotspotProfileWithCleanup(ctx, routerIDStr(routerID), id, profileName)
 }
 
-func (s *HotspotService) SyncProfiles(ctx context.Context, tenantID, routerID uint) (*SyncProfilesResult, error) {
+func (s *HotspotService) SyncProfiles(ctx context.Context, routerID uint) (*SyncProfilesResult, error) {
 	rID := routerIDStr(routerID)
 	result := &SyncProfilesResult{}
 
@@ -327,12 +327,12 @@ func (s *HotspotService) SyncProfiles(ctx context.Context, tenantID, routerID ui
 	var routerName string
 
 	if s.settingsRepo != nil {
-		if settings, err := s.settingsRepo.GetByTenantID(ctx, tenantID); err == nil && settings != nil {
+		if settings, err := s.settingsRepo.Get(ctx); err == nil && settings != nil {
 			webhookToken = settings.WebhookToken
 		}
 	}
 	if s.routerRepo != nil {
-		if router, err := s.routerRepo.GetByID(ctx, tenantID, routerID); err == nil && router != nil {
+		if router, err := s.routerRepo.GetByID(ctx, routerID); err == nil && router != nil {
 			routerName = router.Name
 		}
 	}

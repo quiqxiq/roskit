@@ -3,11 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
-	"strings"
 	"time"
+
+	"strings"
 
 	routeros "github.com/go-routeros/routeros/v3"
 
@@ -20,7 +19,6 @@ import (
 
 type RouterPublicView struct {
 	ID          uint       `json:"id"`
-	TenantID    uint       `json:"tenant_id"`
 	Name        string     `json:"name"`
 	IPAddress   string     `json:"ip_address"`
 	APIPort     int        `json:"api_port"`
@@ -33,7 +31,6 @@ type RouterPublicView struct {
 func toPublicView(r *models.Router) RouterPublicView {
 	return RouterPublicView{
 		ID:          r.ID,
-		TenantID:    r.TenantID,
 		Name:        r.Name,
 		IPAddress:   r.IPAddress,
 		APIPort:     r.APIPort,
@@ -55,7 +52,7 @@ type ConnectionTestResult struct {
 
 type CreateRouterRequest struct {
 	Name        string `json:"name" binding:"required,min=1,max=100"`
-	IPAddress   string `json:"ip_address" binding:"required,max=255"` // accepts IP, host, or host:port — service layer normalises
+	IPAddress   string `json:"ip_address" binding:"required,max=255"`
 	APIPort     int    `json:"api_port" binding:"omitempty,min=1,max=65535"`
 	APIUsername string `json:"api_username" binding:"required,min=1,max=64"`
 	Password    string `json:"password" binding:"required,min=1,max=128"`
@@ -78,16 +75,13 @@ type MigrationResult struct {
 	Errors   int `json:"errors"`
 }
 
-// RouterRepository is the local interface used by RouterService.
 type RouterRepository interface {
 	Create(ctx context.Context, router *models.Router) error
-	GetByID(ctx context.Context, tenantID, id uint) (*models.Router, error)
-	GetByIDAny(ctx context.Context, id uint) (*models.Router, error)
-	GetByName(ctx context.Context, tenantID uint, name string) (*models.Router, error)
-	List(ctx context.Context, tenantID uint) ([]*models.Router, error)
-	ListAll(ctx context.Context) ([]*models.Router, error)
+	GetByID(ctx context.Context, id uint) (*models.Router, error)
+	GetByName(ctx context.Context, name string) (*models.Router, error)
+	List(ctx context.Context) ([]*models.Router, error)
 	Update(ctx context.Context, router *models.Router) error
-	Delete(ctx context.Context, tenantID, id uint) error
+	Delete(ctx context.Context, id uint) error
 	UpdateStatus(ctx context.Context, routerID uint, status models.RouterStatus) error
 	UpdateLastSeen(ctx context.Context, routerID uint, t time.Time) error
 }
@@ -109,7 +103,6 @@ func NewRouterService(repo RouterRepository, engine *orchestrator.Engine, cache 
 		aesKey: aesKey,
 	}
 }
-
 
 func (s *RouterService) WatchAndSyncStatus(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
@@ -155,10 +148,8 @@ func (s *RouterService) WatchAndSyncStatus(ctx context.Context) {
 	}
 }
 
-// SeedEngineFromDB registers all routers across all tenants in the engine at startup.
-// This is platform-level — the engine is shared, indexed by router ID.
 func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
-	routers, err := s.repo.ListAll(ctx)
+	routers, err := s.repo.List(ctx)
 	if err != nil {
 		s.logger.Error("failed to load routers for engine seeding", "error", err)
 		return
@@ -194,7 +185,7 @@ func (s *RouterService) SeedEngineFromDB(ctx context.Context) {
 	}
 }
 
-func (s *RouterService) CreateRouter(ctx context.Context, tenantID uint, req CreateRouterRequest) (*RouterPublicView, error) {
+func (s *RouterService) CreateRouter(ctx context.Context, req CreateRouterRequest) (*RouterPublicView, error) {
 	if req.IPAddress == "" || req.APIUsername == "" || req.Password == "" {
 		return nil, fmt.Errorf("ip_address, api_username, and password are required")
 	}
@@ -225,7 +216,6 @@ func (s *RouterService) CreateRouter(ctx context.Context, tenantID uint, req Cre
 	}
 
 	router := &models.Router{
-		TenantID:             tenantID,
 		Name:                 req.Name,
 		IPAddress:            req.IPAddress,
 		APIPort:              port,
@@ -247,14 +237,14 @@ func (s *RouterService) CreateRouter(ctx context.Context, tenantID uint, req Cre
 		Password: req.Password,
 	})
 
-	s.logger.Info("router created and registered", "id", router.ID, "name", req.Name, "tenant_id", tenantID)
+	s.logger.Info("router created and registered", "id", router.ID, "name", req.Name)
 
 	view := toPublicView(router)
 	return &view, nil
 }
 
-func (s *RouterService) GetRouter(ctx context.Context, tenantID, id uint) (*RouterPublicView, error) {
-	router, err := s.repo.GetByID(ctx, tenantID, id)
+func (s *RouterService) GetRouter(ctx context.Context, id uint) (*RouterPublicView, error) {
+	router, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -262,8 +252,8 @@ func (s *RouterService) GetRouter(ctx context.Context, tenantID, id uint) (*Rout
 	return &view, nil
 }
 
-func (s *RouterService) ListRouters(ctx context.Context, tenantID uint) ([]RouterPublicView, error) {
-	routers, err := s.repo.List(ctx, tenantID)
+func (s *RouterService) ListRouters(ctx context.Context) ([]RouterPublicView, error) {
+	routers, err := s.repo.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -274,8 +264,8 @@ func (s *RouterService) ListRouters(ctx context.Context, tenantID uint) ([]Route
 	return views, nil
 }
 
-func (s *RouterService) UpdateRouter(ctx context.Context, tenantID, id uint, req UpdateRouterRequest) (*RouterPublicView, error) {
-	router, err := s.repo.GetByID(ctx, tenantID, id)
+func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRouterRequest) (*RouterPublicView, error) {
+	router, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -347,17 +337,18 @@ func (s *RouterService) UpdateRouter(ctx context.Context, tenantID, id uint, req
 	}
 
 	if credsChanged {
-		routerID := fmt.Sprintf("%d", id)
+		routerIDStr := fmt.Sprintf("%d", id)
 		plainPass := passwordPlain
 		if plainPass == "" {
 			dec, err := encrypt.Decrypt(router.APIPasswordEncrypted, s.aesKey)
-			if err == nil {
-				plainPass = dec
+			if err != nil {
+				return nil, fmt.Errorf("decrypt updated password: %w", err)
 			}
+			plainPass = dec
 		}
-		s.engine.RemoveRouter(routerID)
+		s.engine.RemoveRouter(routerIDStr)
 		_ = s.engine.AddRouter(ctx, execution.ConnConfig{
-			RouterID: routerID,
+			RouterID: routerIDStr,
 			Address:  fmt.Sprintf("%s:%d", ip, port),
 			Username: username,
 			Password: plainPass,
@@ -372,8 +363,8 @@ func (s *RouterService) UpdateRouter(ctx context.Context, tenantID, id uint, req
 	return &view, nil
 }
 
-func (s *RouterService) DeleteRouter(ctx context.Context, tenantID, id uint) error {
-	router, err := s.repo.GetByID(ctx, tenantID, id)
+func (s *RouterService) DeleteRouter(ctx context.Context, id uint) error {
+	router, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -381,7 +372,7 @@ func (s *RouterService) DeleteRouter(ctx context.Context, tenantID, id uint) err
 	routerID := fmt.Sprintf("%d", id)
 	s.engine.RemoveRouter(routerID)
 
-	if err := s.repo.Delete(ctx, tenantID, id); err != nil {
+	if err := s.repo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete router: %w", err)
 	}
 
@@ -389,7 +380,7 @@ func (s *RouterService) DeleteRouter(ctx context.Context, tenantID, id uint) err
 		_ = s.cache.Delete(ctx, appcache.DashboardKey(id))
 	}
 
-	s.logger.Info("router deleted", "id", id, "name", router.Name, "tenant_id", tenantID)
+	s.logger.Info("router deleted", "id", id, "name", router.Name)
 	return nil
 }
 
@@ -453,7 +444,7 @@ func (s *RouterService) TestConnection(ctx context.Context, ip string, port int,
 	}, nil
 }
 
-func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, tenantID uint, filePath string) (*MigrationResult, error) {
+func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, filePath string) (*MigrationResult, error) {
 	data, err := readFileContent(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("read config file: %w", err)
@@ -498,7 +489,7 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, tenantID uint,
 			Password:    password,
 		}
 
-		_, err = s.CreateRouter(ctx, tenantID, req)
+		_, err = s.CreateRouter(ctx, req)
 		if err != nil {
 			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 				result.Skipped++
@@ -514,7 +505,6 @@ func (s *RouterService) MigrateFromConfigPHP(ctx context.Context, tenantID uint,
 	}
 
 	s.logger.Info("migration complete",
-		"tenant_id", tenantID,
 		"total", result.Total,
 		"imported", result.Imported,
 		"skipped", result.Skipped,
@@ -550,11 +540,3 @@ func extractField(line string) string {
 	return line[start : start+end]
 }
 
-func readFileContent(path string) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return io.ReadAll(f)
-}

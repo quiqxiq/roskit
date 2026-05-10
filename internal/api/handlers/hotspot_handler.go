@@ -219,10 +219,6 @@ func (h *HotspotHandler) GetProfile(c *gin.Context) {
 }
 
 func (h *HotspotHandler) AddProfile(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -235,7 +231,7 @@ func (h *HotspotHandler) AddProfile(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.AddProfile(c.Request.Context(), tenantID, routerID, params)
+	result, err := h.svc.AddProfile(c.Request.Context(), routerID, params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -245,10 +241,6 @@ func (h *HotspotHandler) AddProfile(c *gin.Context) {
 }
 
 func (h *HotspotHandler) UpdateProfile(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -263,7 +255,7 @@ func (h *HotspotHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.UpdateProfile(c.Request.Context(), tenantID, routerID, id, params)
+	result, err := h.svc.UpdateProfile(c.Request.Context(), routerID, id, params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -289,17 +281,13 @@ func (h *HotspotHandler) RemoveProfile(c *gin.Context) {
 }
 
 func (h *HotspotHandler) SyncProfiles(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
 
-	result, err := h.svc.SyncProfiles(c.Request.Context(), tenantID, routerID)
+	result, err := h.svc.SyncProfiles(c.Request.Context(), routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to sync profiles"})
 		return

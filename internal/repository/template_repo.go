@@ -10,13 +10,14 @@ import (
 
 type TemplateRepository interface {
 	Create(ctx context.Context, t *models.PrintTemplate) error
-	GetByID(ctx context.Context, tenantID *uint, id uint) (*models.PrintTemplate, error)
-	List(ctx context.Context, tenantID uint) ([]models.PrintTemplate, error)
+	GetByID(ctx context.Context, id uint) (*models.PrintTemplate, error)
+	List(ctx context.Context) ([]models.PrintTemplate, error)
 	ListGlobal(ctx context.Context) ([]models.PrintTemplate, error)
 	Update(ctx context.Context, t *models.PrintTemplate) error
-	Delete(ctx context.Context, tenantID *uint, id uint) error
-	GetByTenantAndType(ctx context.Context, tenantID uint, templateType string) ([]models.PrintTemplate, error)
+	Delete(ctx context.Context, id uint) error
+	GetByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error)
 	GetGlobalByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error)
+	Count(ctx context.Context) (int64, error)
 	CountGlobal(ctx context.Context) (int64, error)
 }
 
@@ -32,39 +33,20 @@ func (r *TemplateRepo) Create(ctx context.Context, t *models.PrintTemplate) erro
 	return r.db.WithContext(ctx).Create(t).Error
 }
 
-// GetByID scopes lookup by tenant. Pass tenantID=nil to fetch a global default template.
-func (r *TemplateRepo) GetByID(ctx context.Context, tenantID *uint, id uint) (*models.PrintTemplate, error) {
+func (r *TemplateRepo) GetByID(ctx context.Context, id uint) (*models.PrintTemplate, error) {
 	var t models.PrintTemplate
-	q := r.db.WithContext(ctx).Where("id = ?", id)
-	if tenantID == nil {
-		q = q.Where("tenant_id IS NULL")
-	} else {
-		q = q.Where("tenant_id = ?", *tenantID)
-	}
-	if err := q.First(&t).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&t, id).Error; err != nil {
 		return nil, fmt.Errorf("template not found: %w", err)
 	}
 	return &t, nil
 }
 
-func (r *TemplateRepo) List(ctx context.Context, tenantID uint) ([]models.PrintTemplate, error) {
+func (r *TemplateRepo) List(ctx context.Context) ([]models.PrintTemplate, error) {
 	var templates []models.PrintTemplate
 	if err := r.db.WithContext(ctx).
-		Where("tenant_id = ?", tenantID).
 		Order("name ASC, part ASC").
 		Find(&templates).Error; err != nil {
 		return nil, fmt.Errorf("list templates: %w", err)
-	}
-	return templates, nil
-}
-
-func (r *TemplateRepo) ListGlobal(ctx context.Context) ([]models.PrintTemplate, error) {
-	var templates []models.PrintTemplate
-	if err := r.db.WithContext(ctx).
-		Where("tenant_id IS NULL").
-		Order("name ASC, part ASC").
-		Find(&templates).Error; err != nil {
-		return nil, fmt.Errorf("list global templates: %w", err)
 	}
 	return templates, nil
 }
@@ -73,14 +55,8 @@ func (r *TemplateRepo) Update(ctx context.Context, t *models.PrintTemplate) erro
 	return r.db.WithContext(ctx).Save(t).Error
 }
 
-func (r *TemplateRepo) Delete(ctx context.Context, tenantID *uint, id uint) error {
-	q := r.db.WithContext(ctx).Where("id = ?", id)
-	if tenantID == nil {
-		q = q.Where("tenant_id IS NULL")
-	} else {
-		q = q.Where("tenant_id = ?", *tenantID)
-	}
-	result := q.Delete(&models.PrintTemplate{})
+func (r *TemplateRepo) Delete(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Delete(&models.PrintTemplate{}, id)
 	if result.Error != nil {
 		return fmt.Errorf("delete template: %w", result.Error)
 	}
@@ -90,10 +66,10 @@ func (r *TemplateRepo) Delete(ctx context.Context, tenantID *uint, id uint) erro
 	return nil
 }
 
-func (r *TemplateRepo) GetByTenantAndType(ctx context.Context, tenantID uint, templateType string) ([]models.PrintTemplate, error) {
+func (r *TemplateRepo) GetByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error) {
 	var templates []models.PrintTemplate
 	err := r.db.WithContext(ctx).
-		Where("tenant_id = ? AND type = ?", tenantID, templateType).
+		Where("type = ?", templateType).
 		Order("part ASC").
 		Find(&templates).Error
 	if err != nil {
@@ -102,25 +78,24 @@ func (r *TemplateRepo) GetByTenantAndType(ctx context.Context, tenantID uint, te
 	return templates, nil
 }
 
-func (r *TemplateRepo) GetGlobalByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error) {
-	var templates []models.PrintTemplate
-	err := r.db.WithContext(ctx).
-		Where("tenant_id IS NULL AND type = ?", templateType).
-		Order("part ASC").
-		Find(&templates).Error
-	if err != nil {
-		return nil, fmt.Errorf("get global templates by type: %w", err)
-	}
-	return templates, nil
-}
-
-func (r *TemplateRepo) CountGlobal(ctx context.Context) (int64, error) {
+func (r *TemplateRepo) Count(ctx context.Context) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&models.PrintTemplate{}).
-		Where("tenant_id IS NULL").
 		Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil
+}
+
+func (r *TemplateRepo) ListGlobal(ctx context.Context) ([]models.PrintTemplate, error) {
+	return r.List(ctx)
+}
+
+func (r *TemplateRepo) GetGlobalByType(ctx context.Context, templateType string) ([]models.PrintTemplate, error) {
+	return r.GetByType(ctx, templateType)
+}
+
+func (r *TemplateRepo) CountGlobal(ctx context.Context) (int64, error) {
+	return r.Count(ctx)
 }

@@ -61,11 +61,10 @@ func SeedGlobalDefaults(ctx context.Context, repo TemplateRepository, force bool
 		}
 
 		t := &models.PrintTemplate{
-			TenantID: nil, // global default
-			Name:     d.Name,
-			Type:     d.Type,
-			Part:     d.Part,
-			Content:  string(content),
+			Name:    d.Name,
+			Type:    d.Type,
+			Part:    d.Part,
+			Content: string(content),
 		}
 		if err := repo.Create(ctx, t); err != nil {
 			return fmt.Errorf("seed template %s/%s/%s: %w", d.Type, d.Part, d.Name, err)

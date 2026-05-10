@@ -75,7 +75,6 @@ func NewReportService(saleRepo SaleRepository, cache *appcache.Cache) *ReportSer
 	}
 }
 
-// scopeKey builds a cache key suffix that disambiguates per-router vs tenant-wide scope.
 func scopeKey(routerID *uint) string {
 	if routerID == nil {
 		return "all"
@@ -83,8 +82,6 @@ func scopeKey(routerID *uint) string {
 	return fmt.Sprintf("r%d", *routerID)
 }
 
-// scopeCacheRouterID returns the routerID for cache namespace functions which only accept uint.
-// 0 means "tenant-wide / all routers".
 func scopeCacheRouterID(routerID *uint) uint {
 	if routerID == nil {
 		return 0
@@ -92,16 +89,16 @@ func scopeCacheRouterID(routerID *uint) uint {
 	return *routerID
 }
 
-func (s *ReportService) GetDailyReport(ctx context.Context, tenantID uint, routerID *uint, date time.Time, filters SaleFilters) (*DailyReport, error) {
+func (s *ReportService) GetDailyReport(ctx context.Context, routerID *uint, date time.Time, filters SaleFilters) (*DailyReport, error) {
 	isPast := date.Before(time.Now().Truncate(24 * time.Hour))
 	ttl := appcache.TTLSalesDay
 	if isPast {
 		ttl = appcache.TTLSalesPast
 	}
-	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("t%d:%s:day:%s", tenantID, scopeKey(routerID), date.Format("2006-01-02")))
+	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("%s:day:%s", scopeKey(routerID), date.Format("2006-01-02")))
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() (*DailyReport, error) {
-		sales, err := s.saleRepo.GetByDay(ctx, tenantID, routerID, date)
+		sales, err := s.saleRepo.GetByDay(ctx, routerID, date)
 		if err != nil {
 			return nil, err
 		}
@@ -122,13 +119,13 @@ func (s *ReportService) GetDailyReport(ctx context.Context, tenantID uint, route
 	})
 }
 
-func (s *ReportService) GetMonthlyReport(ctx context.Context, tenantID uint, routerID *uint, year, month int) (*MonthlyReport, error) {
-	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("t%d:%s:month:%d-%02d", tenantID, scopeKey(routerID), year, month))
+func (s *ReportService) GetMonthlyReport(ctx context.Context, routerID *uint, year, month int) (*MonthlyReport, error) {
+	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("%s:month:%d-%02d", scopeKey(routerID), year, month))
 	ttl := appcache.TTLSalesMonth
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() (*MonthlyReport, error) {
 		tm := time.Month(month)
-		sales, err := s.saleRepo.GetByMonth(ctx, tenantID, routerID, year, tm)
+		sales, err := s.saleRepo.GetByMonth(ctx, routerID, year, tm)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +137,7 @@ func (s *ReportService) GetMonthlyReport(ctx context.Context, tenantID uint, rou
 
 		from := time.Date(year, tm, 1, 0, 0, 0, 0, time.UTC)
 		to := from.AddDate(0, 1, 0)
-		daily, err := s.saleRepo.GetDailySummary(ctx, tenantID, routerID, from, to)
+		daily, err := s.saleRepo.GetDailySummary(ctx, routerID, from, to)
 		if err != nil {
 			return nil, err
 		}
@@ -160,12 +157,12 @@ func (s *ReportService) GetMonthlyReport(ctx context.Context, tenantID uint, rou
 	})
 }
 
-func (s *ReportService) GetResumeReport(ctx context.Context, tenantID uint, routerID *uint, year int) (*ResumeReport, error) {
-	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("t%d:%s:resume:%d", tenantID, scopeKey(routerID), year))
+func (s *ReportService) GetResumeReport(ctx context.Context, routerID *uint, year int) (*ResumeReport, error) {
+	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("%s:resume:%d", scopeKey(routerID), year))
 	ttl := appcache.TTLSalesPast
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() (*ResumeReport, error) {
-		summary, err := s.saleRepo.GetMonthlySummary(ctx, tenantID, routerID, year)
+		summary, err := s.saleRepo.GetMonthlySummary(ctx, routerID, year)
 		if err != nil {
 			return nil, err
 		}
@@ -196,20 +193,20 @@ func (s *ReportService) GetResumeReport(ctx context.Context, tenantID uint, rout
 	})
 }
 
-func (s *ReportService) GetDashboardSummary(ctx context.Context, tenantID uint, routerID *uint) (*DashboardSummary, error) {
+func (s *ReportService) GetDashboardSummary(ctx context.Context, routerID *uint) (*DashboardSummary, error) {
 	cacheKey := appcache.DashboardKey(scopeCacheRouterID(routerID))
 	if routerID == nil {
-		cacheKey = fmt.Sprintf("mikhmon:dashboard:tenant:%d", tenantID)
+		cacheKey = "roskit:dashboard:global"
 	}
 	ttl := appcache.TTLDashboard
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() (*DashboardSummary, error) {
-		today, err := s.saleRepo.TodayTotal(ctx, tenantID, routerID)
+		today, err := s.saleRepo.TodayTotal(ctx, routerID)
 		if err != nil {
 			s.logger.Error("failed to get today total", "error", err)
 			return nil, err
 		}
-		month, err := s.saleRepo.MonthTotal(ctx, tenantID, routerID)
+		month, err := s.saleRepo.MonthTotal(ctx, routerID)
 		if err != nil {
 			s.logger.Error("failed to get month total", "error", err)
 			return nil, err
@@ -223,12 +220,16 @@ func (s *ReportService) GetDashboardSummary(ctx context.Context, tenantID uint, 
 	})
 }
 
-func (s *ReportService) ExportCSV(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time, filters SaleFilters) ([]byte, error) {
-	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("t%d:%s:csv:%s:%s", tenantID, scopeKey(routerID), from.Format("2006-01-02"), to.Format("2006-01-02")))
-	ttl := appcache.TTLSalesPast
+func (s *ReportService) ExportCSV(ctx context.Context, routerID *uint, from, to time.Time, filters SaleFilters) ([]byte, error) {
+	isPastRange := to.Before(time.Now().Truncate(24 * time.Hour))
+	ttl := appcache.TTLSalesDay
+	if isPastRange {
+		ttl = appcache.TTLSalesPast
+	}
+	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("%s:csv:%s:%s", scopeKey(routerID), from.Format("2006-01-02"), to.Format("2006-01-02")))
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() ([]byte, error) {
-		sales, err := s.fetchSalesForRange(ctx, tenantID, routerID, from, to)
+		sales, err := s.fetchSalesForRange(ctx, routerID, from, to)
 		if err != nil {
 			return nil, err
 		}
@@ -259,12 +260,16 @@ func (s *ReportService) ExportCSV(ctx context.Context, tenantID uint, routerID *
 	})
 }
 
-func (s *ReportService) ExportExcel(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time, filters SaleFilters) ([]byte, error) {
-	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("t%d:%s:xlsx:%s:%s", tenantID, scopeKey(routerID), from.Format("2006-01-02"), to.Format("2006-01-02")))
-	ttl := appcache.TTLSalesPast
+func (s *ReportService) ExportExcel(ctx context.Context, routerID *uint, from, to time.Time, filters SaleFilters) ([]byte, error) {
+	isPastRange := to.Before(time.Now().Truncate(24 * time.Hour))
+	ttl := appcache.TTLSalesDay
+	if isPastRange {
+		ttl = appcache.TTLSalesPast
+	}
+	cacheKey := appcache.SalesKey(scopeCacheRouterID(routerID), fmt.Sprintf("%s:xlsx:%s:%s", scopeKey(routerID), from.Format("2006-01-02"), to.Format("2006-01-02")))
 
 	return appcache.GetOrSetJSON(s.cache, ctx, cacheKey, ttl, func() ([]byte, error) {
-		sales, err := s.fetchSalesForRange(ctx, tenantID, routerID, from, to)
+		sales, err := s.fetchSalesForRange(ctx, routerID, from, to)
 		if err != nil {
 			return nil, err
 		}
@@ -307,13 +312,13 @@ func (s *ReportService) ExportExcel(ctx context.Context, tenantID uint, routerID
 	})
 }
 
-func (s *ReportService) fetchSalesForRange(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time) ([]*models.VoucherSale, error) {
+func (s *ReportService) fetchSalesForRange(ctx context.Context, routerID *uint, from, to time.Time) ([]*models.VoucherSale, error) {
 	fromDay := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location())
 	toDay := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, to.Location()).Add(24 * time.Hour)
 
 	var all []*models.VoucherSale
 	for day := fromDay; day.Before(toDay); day = day.Add(24 * time.Hour) {
-		daySales, err := s.saleRepo.GetByDay(ctx, tenantID, routerID, day)
+		daySales, err := s.saleRepo.GetByDay(ctx, routerID, day)
 		if err != nil {
 			s.logger.Warn("fetchSalesForRange: failed to fetch day, skipping",
 				"date", day.Format("2006-01-02"), "error", err)

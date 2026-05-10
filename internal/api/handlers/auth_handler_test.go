@@ -23,7 +23,7 @@ func init() {
 }
 
 func newAuthService(repo services.UserRepository) *services.AuthService {
-	return services.NewAuthService(repo, nil, nil, nil, []byte("test-secret"), []byte("refresh-secret"))
+	return services.NewAuthService(repo, nil, []byte("test-secret"), []byte("refresh-secret"))
 }
 
 func hashedPassword(t *testing.T, plain string) string {
@@ -33,18 +33,18 @@ func hashedPassword(t *testing.T, plain string) string {
 	return string(h)
 }
 
-func TestAuthHandler_Login_Superadmin_Success(t *testing.T) {
+func TestAuthHandler_Login_Success(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{
 		User: &models.User{
 			ID:           1,
 			Username:     "admin",
 			PasswordHash: hashedPassword(t, "password123"),
-			Role:         models.UserRoleSuperAdmin,
+			Role:         models.UserRoleAdmin,
 			Active:       true,
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil, nil)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -70,12 +70,12 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 			ID:           1,
 			Username:     "admin",
 			PasswordHash: hashedPassword(t, "correct"),
-			Role:         models.UserRoleSuperAdmin,
+			Role:         models.UserRoleAdmin,
 			Active:       true,
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil, nil)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -92,7 +92,7 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 func TestAuthHandler_Login_MissingBody(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil, nil)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -111,12 +111,12 @@ func TestAuthHandler_Login_InactiveUser(t *testing.T) {
 			ID:           2,
 			Username:     "disabled",
 			PasswordHash: hashedPassword(t, "pass"),
-			Role:         models.UserRoleSuperAdmin,
+			Role:         models.UserRoleAdmin,
 			Active:       false,
 		},
 	}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil, nil)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.POST("/login", h.Login)
@@ -133,14 +133,13 @@ func TestAuthHandler_Login_InactiveUser(t *testing.T) {
 func TestAuthHandler_Me(t *testing.T) {
 	repo := &apitesthelpers.MockUserRepository{}
 	svc := newAuthService(repo)
-	h := handlers.NewAuthHandler(svc, nil, nil)
+	h := handlers.NewAuthHandler(svc, nil)
 
 	router := gin.New()
 	router.GET("/me", func(c *gin.Context) {
 		c.Set("userID", uint(1))
 		c.Set("username", "admin")
-		c.Set("role", models.UserRoleOwner)
-		c.Set("tenantSlug", "default")
+		c.Set("role", models.UserRoleAdmin)
 		h.Me(c)
 	})
 
@@ -153,5 +152,5 @@ func TestAuthHandler_Me(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	data := resp["data"].(map[string]any)
 	assert.Equal(t, "admin", data["username"])
-	assert.Equal(t, "owner", data["role"])
+	assert.Equal(t, "admin", data["role"])
 }

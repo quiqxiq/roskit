@@ -76,16 +76,7 @@ func (a *AuditLogger) Log(c *gin.Context, action, entity, entityID, details stri
 		}
 	}
 
-	var tenantID *uint
-	if v, ok := c.Get("tenantID"); ok {
-		if id, ok := v.(uint); ok {
-			t := id
-			tenantID = &t
-		}
-	}
-
 	entry := &models.AuditLog{
-		TenantID:  tenantID,
 		UserID:    userID,
 		Action:    action,
 		Entity:    entity,
@@ -149,9 +140,6 @@ func (a *AuditLogger) LogSales(c *gin.Context, action string, routerID uint, det
 	a.Log(c, action, "sales", fmt.Sprintf("%d", routerID), details)
 }
 
-func (a *AuditLogger) LogTenant(c *gin.Context, action string, tenantID uint, name string) {
-	a.Log(c, action, "tenant", fmt.Sprintf("%d", tenantID), name)
-}
 
 func (a *AuditLogger) LogUser(c *gin.Context, action string, userID uint, username string) {
 	a.Log(c, action, "user", fmt.Sprintf("%d", userID), username)

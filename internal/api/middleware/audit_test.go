@@ -74,7 +74,6 @@ func TestAuditLogger_DrainsOnShutdown(t *testing.T) {
 
 	c := newGinCtx()
 	c.Set("userID", uint(7))
-	c.Set("tenantID", uint(3))
 
 	for i := 0; i < 20; i++ {
 		a.LogAuth(c, "login", "alice")
@@ -93,9 +92,6 @@ func TestAuditLogger_DrainsOnShutdown(t *testing.T) {
 	for _, e := range got {
 		if e.UserID == nil || *e.UserID != 7 {
 			t.Errorf("UserID not propagated: %+v", e.UserID)
-		}
-		if e.TenantID == nil || *e.TenantID != 3 {
-			t.Errorf("TenantID not propagated: %+v", e.TenantID)
 		}
 	}
 }

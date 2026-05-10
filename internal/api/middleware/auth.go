@@ -15,7 +15,6 @@ func AuthMiddleware(authSvc *services.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenStr string
 
-		// EventSource cannot set headers, so SSE endpoints pass the token as ?token=
 		if qp := c.Query("token"); qp != "" {
 			tokenStr = qp
 		} else {
@@ -42,11 +41,6 @@ func AuthMiddleware(authSvc *services.AuthService) gin.HandlerFunc {
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
 		c.Set("tokenID", claims.TokenID)
-		// Tenant data from JWT (nil/empty for superadmin; TenantMiddleware can override slug via header).
-		if claims.TenantID != nil {
-			c.Set("jwtTenantID", *claims.TenantID)
-		}
-		c.Set("jwtTenantSlug", claims.TenantSlug)
 		c.Next()
 	}
 }
@@ -58,7 +52,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-Slug")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400")
 

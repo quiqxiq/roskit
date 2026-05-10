@@ -53,7 +53,7 @@ func (w *Worker) Start(ctx context.Context) {
 
 func (w *Worker) salesCacheWarmup(ctx context.Context) {
 	slog.Info("Running SalesCacheWarmup task")
-	routers, err := w.routerRepo.ListAll(ctx)
+	routers, err := w.routerRepo.List(ctx)
 	if err != nil {
 		slog.Error("SalesCacheWarmup failed to list routers", "error", err)
 		return
@@ -61,12 +61,12 @@ func (w *Worker) salesCacheWarmup(ctx context.Context) {
 
 	for _, router := range routers {
 		rid := router.ID
-		today, err := w.saleRepo.TodayTotal(ctx, router.TenantID, &rid)
+		today, err := w.saleRepo.TodayTotal(ctx, &rid)
 		if err == nil {
 			w.cache.SetJSON(ctx, redis.SalesKey(router.ID, "today"), today, 5*time.Minute)
 		}
 
-		month, err := w.saleRepo.MonthTotal(ctx, router.TenantID, &rid)
+		month, err := w.saleRepo.MonthTotal(ctx, &rid)
 		if err == nil {
 			w.cache.SetJSON(ctx, redis.SalesKey(router.ID, "month"), month, 5*time.Minute)
 		}

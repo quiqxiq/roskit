@@ -13,13 +13,13 @@ type SaleRepository interface {
 	Create(ctx context.Context, sale *models.VoucherSale) error
 	CreateBatch(ctx context.Context, sales []*models.VoucherSale) error
 	ExistsByIdempotencyKey(ctx context.Context, key string) (bool, error)
-	GetByDateRange(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time, filters SaleFilters) ([]*models.VoucherSale, error)
-	GetByDay(ctx context.Context, tenantID uint, routerID *uint, date time.Time) ([]*models.VoucherSale, error)
-	GetByMonth(ctx context.Context, tenantID uint, routerID *uint, year int, month time.Month) ([]*models.VoucherSale, error)
-	GetDailySummary(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time) ([]DailySummary, error)
-	GetMonthlySummary(ctx context.Context, tenantID uint, routerID *uint, year int) ([]MonthlySummary, error)
-	TodayTotal(ctx context.Context, tenantID uint, routerID *uint) (TotalResult, error)
-	MonthTotal(ctx context.Context, tenantID uint, routerID *uint) (TotalResult, error)
+	GetByDateRange(ctx context.Context, routerID *uint, from, to time.Time, filters SaleFilters) ([]*models.VoucherSale, error)
+	GetByDay(ctx context.Context, routerID *uint, date time.Time) ([]*models.VoucherSale, error)
+	GetByMonth(ctx context.Context, routerID *uint, year int, month time.Month) ([]*models.VoucherSale, error)
+	GetDailySummary(ctx context.Context, routerID *uint, from, to time.Time) ([]DailySummary, error)
+	GetMonthlySummary(ctx context.Context, routerID *uint, year int) ([]MonthlySummary, error)
+	TodayTotal(ctx context.Context, routerID *uint) (TotalResult, error)
+	MonthTotal(ctx context.Context, routerID *uint) (TotalResult, error)
 }
 
 type SaleFilters struct {
@@ -75,17 +75,16 @@ func (r *SaleRepo) ExistsByIdempotencyKey(ctx context.Context, key string) (bool
 	return exists, err
 }
 
-// scopedQuery returns a *gorm.DB pre-filtered by tenant and optionally by router.
-func (r *SaleRepo) scopedQuery(ctx context.Context, tenantID uint, routerID *uint) *gorm.DB {
-	q := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
+func (r *SaleRepo) scopedQuery(ctx context.Context, routerID *uint) *gorm.DB {
+	q := r.db.WithContext(ctx).Model(&models.VoucherSale{})
 	if routerID != nil {
 		q = q.Where("router_id = ?", *routerID)
 	}
 	return q
 }
 
-func (r *SaleRepo) GetByDateRange(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time, filters SaleFilters) ([]*models.VoucherSale, error) {
-	q := r.scopedQuery(ctx, tenantID, routerID).
+func (r *SaleRepo) GetByDateRange(ctx context.Context, routerID *uint, from, to time.Time, filters SaleFilters) ([]*models.VoucherSale, error) {
+	q := r.scopedQuery(ctx, routerID).
 		Where("sold_at >= ? AND sold_at < ?", from, to)
 
 	if filters.Profile != "" {
@@ -105,12 +104,12 @@ func (r *SaleRepo) GetByDateRange(ctx context.Context, tenantID uint, routerID *
 	return sales, nil
 }
 
-func (r *SaleRepo) GetByDay(ctx context.Context, tenantID uint, routerID *uint, date time.Time) ([]*models.VoucherSale, error) {
+func (r *SaleRepo) GetByDay(ctx context.Context, routerID *uint, date time.Time) ([]*models.VoucherSale, error) {
 	from := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	to := from.Add(24 * time.Hour)
 
 	var sales []*models.VoucherSale
-	if err := r.scopedQuery(ctx, tenantID, routerID).
+	if err := r.scopedQuery(ctx, routerID).
 		Where("sold_at >= ? AND sold_at < ?", from, to).
 		Order("sold_at DESC").
 		Find(&sales).Error; err != nil {
@@ -119,12 +118,12 @@ func (r *SaleRepo) GetByDay(ctx context.Context, tenantID uint, routerID *uint, 
 	return sales, nil
 }
 
-func (r *SaleRepo) GetByMonth(ctx context.Context, tenantID uint, routerID *uint, year int, month time.Month) ([]*models.VoucherSale, error) {
+func (r *SaleRepo) GetByMonth(ctx context.Context, routerID *uint, year int, month time.Month) ([]*models.VoucherSale, error) {
 	from := time.Date(year, month, 1, 0, 0, 0, 0, time.Local)
 	to := from.AddDate(0, 1, 0)
 
 	var sales []*models.VoucherSale
-	if err := r.scopedQuery(ctx, tenantID, routerID).
+	if err := r.scopedQuery(ctx, routerID).
 		Where("sold_at >= ? AND sold_at < ?", from, to).
 		Order("sold_at DESC").
 		Find(&sales).Error; err != nil {
@@ -133,15 +132,14 @@ func (r *SaleRepo) GetByMonth(ctx context.Context, tenantID uint, routerID *uint
 	return sales, nil
 }
 
-func (r *SaleRepo) GetDailySummary(ctx context.Context, tenantID uint, routerID *uint, from, to time.Time) ([]DailySummary, error) {
+func (r *SaleRepo) GetDailySummary(ctx context.Context, routerID *uint, from, to time.Time) ([]DailySummary, error) {
 	type row struct {
 		Day   time.Time
 		Count int64
 		Sum   int64
 	}
 	var rows []row
-	err := r.scopedQuery(ctx, tenantID, routerID).
-		Model(&models.VoucherSale{}).
+	err := r.scopedQuery(ctx, routerID).
 		Select("DATE(sold_at) as day, COUNT(*) as count, COALESCE(SUM(price), 0) as sum").
 		Where("sold_at >= ? AND sold_at < ?", from, to).
 		Group("DATE(sold_at)").
@@ -158,7 +156,7 @@ func (r *SaleRepo) GetDailySummary(ctx context.Context, tenantID uint, routerID 
 	return result, nil
 }
 
-func (r *SaleRepo) GetMonthlySummary(ctx context.Context, tenantID uint, routerID *uint, year int) ([]MonthlySummary, error) {
+func (r *SaleRepo) GetMonthlySummary(ctx context.Context, routerID *uint, year int) ([]MonthlySummary, error) {
 	type row struct {
 		Month time.Month
 		Count int64
@@ -168,8 +166,7 @@ func (r *SaleRepo) GetMonthlySummary(ctx context.Context, tenantID uint, routerI
 	from := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := from.AddDate(1, 0, 0)
 
-	err := r.scopedQuery(ctx, tenantID, routerID).
-		Model(&models.VoucherSale{}).
+	err := r.scopedQuery(ctx, routerID).
 		Select("EXTRACT(MONTH FROM sold_at) as month, COUNT(*) as count, COALESCE(SUM(price), 0) as sum").
 		Where("sold_at >= ? AND sold_at < ?", from, to).
 		Group("EXTRACT(MONTH FROM sold_at)").
@@ -186,7 +183,7 @@ func (r *SaleRepo) GetMonthlySummary(ctx context.Context, tenantID uint, routerI
 	return result, nil
 }
 
-func (r *SaleRepo) TodayTotal(ctx context.Context, tenantID uint, routerID *uint) (TotalResult, error) {
+func (r *SaleRepo) TodayTotal(ctx context.Context, routerID *uint) (TotalResult, error) {
 	now := time.Now()
 	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	to := from.Add(24 * time.Hour)
@@ -196,8 +193,7 @@ func (r *SaleRepo) TodayTotal(ctx context.Context, tenantID uint, routerID *uint
 		Sum   int64
 	}
 	var r2 row
-	err := r.scopedQuery(ctx, tenantID, routerID).
-		Model(&models.VoucherSale{}).
+	err := r.scopedQuery(ctx, routerID).
 		Select("COUNT(*) as count, COALESCE(SUM(price), 0) as sum").
 		Where("sold_at >= ? AND sold_at < ?", from, to).
 		Scan(&r2).Error
@@ -207,7 +203,7 @@ func (r *SaleRepo) TodayTotal(ctx context.Context, tenantID uint, routerID *uint
 	return TotalResult{Count: r2.Count, Sum: r2.Sum}, nil
 }
 
-func (r *SaleRepo) MonthTotal(ctx context.Context, tenantID uint, routerID *uint) (TotalResult, error) {
+func (r *SaleRepo) MonthTotal(ctx context.Context, routerID *uint) (TotalResult, error) {
 	now := time.Now()
 	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	to := from.AddDate(0, 1, 0)
@@ -217,8 +213,7 @@ func (r *SaleRepo) MonthTotal(ctx context.Context, tenantID uint, routerID *uint
 		Sum   int64
 	}
 	var r2 row
-	err := r.scopedQuery(ctx, tenantID, routerID).
-		Model(&models.VoucherSale{}).
+	err := r.scopedQuery(ctx, routerID).
 		Select("COUNT(*) as count, COALESCE(SUM(price), 0) as sum").
 		Where("sold_at >= ? AND sold_at < ?", from, to).
 		Scan(&r2).Error

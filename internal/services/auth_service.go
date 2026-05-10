@@ -9,11 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/casbin/casbin/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	casbinx "github.com/quiqxiq/roskit/internal/casbin"
 	"github.com/quiqxiq/roskit/internal/models"
 	appcache "github.com/quiqxiq/roskit/pkg/redis"
 )
@@ -25,9 +23,6 @@ var (
 	ErrInvalidRole        = errors.New("invalid role")
 	ErrOldPasswordWrong   = errors.New("old password is incorrect")
 	ErrSetupComplete      = errors.New("initial setup already completed")
-	ErrTenantNotFound     = errors.New("tenant not found")
-	ErrTenantSuspended    = errors.New("tenant is suspended")
-	ErrTenantRequired     = errors.New("tenant is required for non-superadmin login")
 )
 
 type LoginResult struct {
@@ -38,55 +33,40 @@ type LoginResult struct {
 }
 
 type UserView struct {
-	ID         uint            `json:"id"`
-	Username   string          `json:"username"`
-	Role       models.UserRole `json:"role"`
-	TenantID   *uint           `json:"tenant_id"`
-	TenantSlug string          `json:"tenant_slug"`
+	ID       uint            `json:"id"`
+	Username string          `json:"username"`
+	Role     models.UserRole `json:"role"`
 }
 
 type Claims struct {
-	UserID     uint            `json:"uid"`
-	Username   string          `json:"sub"`
-	Role       models.UserRole `json:"role"`
-	TenantID   *uint           `json:"tid"`
-	TenantSlug string          `json:"tslug"`
-	TokenID    string          `json:"jti"`
+	UserID   uint            `json:"uid"`
+	Username string          `json:"sub"`
+	Role     models.UserRole `json:"role"`
+	TokenID  string          `json:"jti"`
 	jwt.RegisteredClaims
 }
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
 	GetByID(ctx context.Context, id uint) (*models.User, error)
-	GetByTenantUsername(ctx context.Context, tenantID *uint, username string) (*models.User, error)
-	GetSuperAdminByUsername(ctx context.Context, username string) (*models.User, error)
-	List(ctx context.Context, tenantID uint) ([]*models.User, error)
-	ListSuperAdmins(ctx context.Context) ([]*models.User, error)
+	GetByUsername(ctx context.Context, username string) (*models.User, error)
+	List(ctx context.Context) ([]*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	UpdateLastLogin(ctx context.Context, userID uint) error
 	Delete(ctx context.Context, id uint) error
 	Count(ctx context.Context) (int64, error)
-	CountByTenant(ctx context.Context, tenantID uint) (int64, error)
-}
-
-type TenantLookup interface {
-	GetBySlug(ctx context.Context, slug string) (*models.Tenant, error)
 }
 
 type AuthService struct {
 	userRepo      UserRepository
-	tenantRepo    TenantLookup
-	enforcer      *casbin.Enforcer
 	cache         *appcache.Cache
 	jwtSecret     []byte
 	refreshSecret []byte
 }
 
-func NewAuthService(userRepo UserRepository, tenantRepo TenantLookup, enforcer *casbin.Enforcer, cache *appcache.Cache, jwtSecret, refreshSecret []byte) *AuthService {
+func NewAuthService(userRepo UserRepository, cache *appcache.Cache, jwtSecret, refreshSecret []byte) *AuthService {
 	return &AuthService{
 		userRepo:      userRepo,
-		tenantRepo:    tenantRepo,
-		enforcer:      enforcer,
 		cache:         cache,
 		jwtSecret:     jwtSecret,
 		refreshSecret: refreshSecret,
@@ -101,45 +81,10 @@ func generateTokenID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// Login authenticates a user.
-// - tenantSlug == "" : treated as superadmin login (users.tenant_id IS NULL).
-// - tenantSlug != "" : resolve tenant first, then scope user lookup to (tenant_id, username).
-func (s *AuthService) Login(ctx context.Context, tenantSlug, username, password string) (*LoginResult, error) {
-	tenantSlug = strings.TrimSpace(tenantSlug)
-
-	var (
-		user       *models.User
-		tenant     *models.Tenant
-		finalSlug  = models.PlatformTenantSlug
-		finalTenID *uint
-	)
-
-	if tenantSlug == "" {
-		u, err := s.userRepo.GetSuperAdminByUsername(ctx, username)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrInvalidCredentials, err)
-		}
-		user = u
-	} else {
-		if s.tenantRepo == nil {
-			return nil, ErrTenantRequired
-		}
-		t, err := s.tenantRepo.GetBySlug(ctx, tenantSlug)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrTenantNotFound, err)
-		}
-		if t.Status == models.TenantStatusSuspended {
-			return nil, ErrTenantSuspended
-		}
-		tenant = t
-		finalSlug = t.Slug
-		finalTenID = &t.ID
-
-		u, err := s.userRepo.GetByTenantUsername(ctx, &t.ID, username)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrInvalidCredentials, err)
-		}
-		user = u
+func (s *AuthService) Login(ctx context.Context, username, password string) (*LoginResult, error) {
+	user, err := s.userRepo.GetByUsername(ctx, username)
+	if err != nil {
+		return nil, ErrInvalidCredentials
 	}
 
 	if !user.Active {
@@ -150,10 +95,10 @@ func (s *AuthService) Login(ctx context.Context, tenantSlug, username, password 
 		return nil, ErrInvalidCredentials
 	}
 
-	return s.issueTokens(ctx, user, tenant, finalSlug, finalTenID)
+	return s.issueTokens(ctx, user)
 }
 
-func (s *AuthService) issueTokens(ctx context.Context, user *models.User, _ *models.Tenant, tenantSlug string, tenantID *uint) (*LoginResult, error) {
+func (s *AuthService) issueTokens(ctx context.Context, user *models.User) (*LoginResult, error) {
 	tokenID, err := generateTokenID()
 	if err != nil {
 		return nil, fmt.Errorf("generate token id: %w", err)
@@ -168,12 +113,10 @@ func (s *AuthService) issueTokens(ctx context.Context, user *models.User, _ *mod
 	refreshExpiry := now.Add(7 * 24 * time.Hour)
 
 	accessClaims := Claims{
-		UserID:     user.ID,
-		Username:   user.Username,
-		Role:       user.Role,
-		TenantID:   tenantID,
-		TenantSlug: tenantSlug,
-		TokenID:    tokenID,
+		UserID:   user.ID,
+		Username: user.Username,
+		Role:     user.Role,
+		TokenID:  tokenID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(accessExpiry),
@@ -186,10 +129,8 @@ func (s *AuthService) issueTokens(ctx context.Context, user *models.User, _ *mod
 	}
 
 	refreshClaims := Claims{
-		UserID:     user.ID,
-		TenantID:   tenantID,
-		TenantSlug: tenantSlug,
-		TokenID:    refreshTokenID,
+		UserID:  user.ID,
+		TokenID: refreshTokenID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(refreshExpiry),
@@ -213,11 +154,9 @@ func (s *AuthService) issueTokens(ctx context.Context, user *models.User, _ *mod
 		RefreshToken: refreshStr,
 		ExpiresIn:    int(15 * time.Minute.Seconds()),
 		User: UserView{
-			ID:         user.ID,
-			Username:   user.Username,
-			Role:       user.Role,
-			TenantID:   tenantID,
-			TenantSlug: tenantSlug,
+			ID:       user.ID,
+			Username: user.Username,
+			Role:     user.Role,
 		},
 	}, nil
 }
@@ -298,24 +237,12 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	tenantSlug := claims.TenantSlug
-	if tenantSlug == "" {
-		tenantSlug = models.PlatformTenantSlug
-	}
-	return s.issueTokens(ctx, user, nil, tenantSlug, claims.TenantID)
+	return s.issueTokens(ctx, user)
 }
 
-// CreateUser creates a user within a tenant (tenantID != nil) or a superadmin (tenantID == nil).
-// When enforcer is configured, the corresponding Casbin role grant is inserted.
-func (s *AuthService) CreateUser(ctx context.Context, tenantID *uint, tenantSlug, username, password string, role models.UserRole) (*models.User, error) {
+func (s *AuthService) CreateUser(ctx context.Context, username, password string, role models.UserRole) (*models.User, error) {
 	if !role.Valid() {
 		return nil, ErrInvalidRole
-	}
-	if role == models.UserRoleSuperAdmin && tenantID != nil {
-		return nil, fmt.Errorf("superadmin must not be bound to a tenant")
-	}
-	if role != models.UserRoleSuperAdmin && tenantID == nil {
-		return nil, fmt.Errorf("non-superadmin role requires tenant")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
@@ -324,7 +251,6 @@ func (s *AuthService) CreateUser(ctx context.Context, tenantID *uint, tenantSlug
 	}
 
 	user := &models.User{
-		TenantID:     tenantID,
 		Username:     username,
 		PasswordHash: string(hash),
 		Role:         role,
@@ -336,16 +262,6 @@ func (s *AuthService) CreateUser(ctx context.Context, tenantID *uint, tenantSlug
 			return nil, ErrUserAlreadyExists
 		}
 		return nil, fmt.Errorf("create user: %w", err)
-	}
-
-	if s.enforcer != nil {
-		slug := tenantSlug
-		if role == models.UserRoleSuperAdmin {
-			slug = models.PlatformTenantSlug
-		}
-		if err := casbinx.AssignRole(s.enforcer, user.ID, slug, role); err != nil {
-			return nil, fmt.Errorf("assign casbin role: %w", err)
-		}
 	}
 
 	return user, nil
@@ -373,13 +289,28 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uint, oldPass, 
 	return nil
 }
 
+func (s *AuthService) AdminResetPassword(ctx context.Context, userID uint, newPass string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPass), 12)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	user.PasswordHash = string(hash)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	return nil
+}
+
 func (s *AuthService) UserCount(ctx context.Context) (int64, error) {
 	return s.userRepo.Count(ctx)
 }
 
-// HashPassword exposes the same bcrypt cost AuthService uses internally so
-// callers (e.g. tenant bootstrap flows) can pre-hash a password outside a
-// DB transaction without duplicating the cost constant.
 func (s *AuthService) HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
@@ -388,5 +319,44 @@ func (s *AuthService) HashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
-// Enforcer returns the bound Casbin enforcer (may be nil).
-func (s *AuthService) Enforcer() *casbin.Enforcer { return s.enforcer }
+func (s *AuthService) ListUsers(ctx context.Context) ([]*models.User, error) {
+	return s.userRepo.List(ctx)
+}
+
+func (s *AuthService) GetUser(ctx context.Context, id uint) (*models.User, error) {
+	return s.userRepo.GetByID(ctx, id)
+}
+
+func (s *AuthService) UpdateUser(ctx context.Context, id uint, username, password *string, role *models.UserRole, active *bool) (*models.User, error) {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	if username != nil {
+		user.Username = *username
+	}
+	if active != nil {
+		user.Active = *active
+	}
+	if role != nil && *role != user.Role {
+		if !role.Valid() {
+			return nil, ErrInvalidRole
+		}
+		user.Role = *role
+	}
+	if password != nil && *password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(*password), 12)
+		if err != nil {
+			return nil, fmt.Errorf("hash password: %w", err)
+		}
+		user.PasswordHash = string(hash)
+	}
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("update user: %w", err)
+	}
+	return user, nil
+}
+
+func (s *AuthService) DeleteUser(ctx context.Context, id uint) error {
+	return s.userRepo.Delete(ctx, id)
+}

@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/casbin/casbin/v3"
 	"github.com/gin-gonic/gin"
 
 	"github.com/quiqxiq/roskit/internal/api/handlers"
 	sse "github.com/quiqxiq/roskit/internal/api/handlers/sse"
 	"github.com/quiqxiq/roskit/internal/api/middleware"
 	"github.com/quiqxiq/roskit/internal/config"
+	"github.com/quiqxiq/roskit/internal/models"
 	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
@@ -30,11 +30,9 @@ func NewRouter(
 	tsReader timeseries.Reader,
 	subscriber pubsub.Subscriber,
 	profileRepo repository.ProfilePriceMappingRepository,
-	tenantRepo repository.TenantRepository,
-	tenantSettingsRepo repository.TenantSettingsRepository,
-	tenantSvc *services.TenantService,
+	settingsRepo repository.SettingsRepository,
 	authSvc *services.AuthService,
-	enforcer *casbin.Enforcer,
+	templateRepo repository.TemplateRepository,
 	auditLogger *middleware.AuditLogger,
 ) *gin.Engine {
 	engine := gin.New()
@@ -45,36 +43,38 @@ func NewRouter(
 	userRepo := repository.NewUserRepo(db)
 	routerRepo := repository.NewRouterRepo(db)
 	saleRepo := repository.NewSaleRepo(db)
-	templateRepo := repository.NewTemplateRepo(db)
 
 	systemSvc := services.NewSystemService(bridge, tsReader, routerRepo, cache)
-	hotspotSvc := services.NewHotspotService(bridge, cache, cfg, tenantSettingsRepo, routerRepo, profileRepo)
-	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, tenantSettingsRepo, cache)
+	hotspotSvc := services.NewHotspotService(bridge, cache, cfg, settingsRepo, routerRepo, profileRepo)
+	voucherSvc := services.NewVoucherService(bridge, saleRepo, routerRepo, profileRepo, settingsRepo, cache)
 	reportSvc := services.NewReportService(saleRepo, cache)
 	templateSvc := services.NewTemplateService(templateRepo)
+	settingsSvc := services.NewSettingsService(settingsRepo)
 	if err := templateSvc.SeedDefaults(context.Background()); err != nil {
 		slog.Default().Warn("template seed defaults failed", "error", err)
 	}
 
 	routerH := handlers.NewRouterHandler(routerSvc)
 	hotspotH := handlers.NewHotspotHandler(hotspotSvc)
-	voucherH := handlers.NewVoucherHandler(voucherSvc, templateSvc, hotspotSvc, tenantSettingsRepo)
+	voucherH := handlers.NewVoucherHandler(voucherSvc, templateSvc, hotspotSvc, settingsRepo)
 	reportH := handlers.NewReportHandler(reportSvc)
-	authH := handlers.NewAuthHandler(authSvc, tenantSvc, auditLogger)
-	eventH := handlers.NewEventHandler(routerRepo, saleRepo, profileRepo, tenantSettingsRepo, bridge, cache)
+	authH := handlers.NewAuthHandler(authSvc, auditLogger)
+	eventH := handlers.NewEventHandler(routerRepo, saleRepo, profileRepo, settingsRepo, bridge, cache)
 	systemH := handlers.NewSystemHandler(systemSvc)
 	pppH := handlers.NewPPPHandler(bridge)
 	networkH := handlers.NewNetworkHandler(bridge)
 	qpH := handlers.NewQuickPrintHandler(bridge)
-	templateH := handlers.NewTemplateHandler(templateSvc, voucherSvc, tenantSettingsRepo)
+	templateH := handlers.NewTemplateHandler(templateSvc, voucherSvc, settingsRepo)
 	logSSEH := sse.NewLogSSEHandler(subscriber, bridge)
 	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber)
 	statusSvc := services.NewStatusService(routerRepo, bridge)
 	statusH := handlers.NewStatusHandler(statusSvc)
 	healthH := handlers.NewHealthHandler(db, cache, bridge)
 	profileMappingH := handlers.NewProfileMappingHandler(profileRepo)
-	tenantH := handlers.NewTenantHandler(tenantSvc)
-	userH := handlers.NewUserHandler(authSvc, userRepo, enforcer)
+	settingsH := handlers.NewSettingsHandler(settingsSvc)
+	userH := handlers.NewUserHandler(authSvc)
+
+	_ = userRepo
 
 	// Serve the frontend website from the same origin as the API
 	engine.Static("/css", "./website/css")
@@ -100,8 +100,6 @@ func NewRouter(
 			auth.POST("/logout", middleware.AuthMiddleware(authSvc), authH.Logout)
 		}
 
-		// /auth/me and /auth/password are tenant-aware (need claims) but Casbin
-		// is not appropriate (any logged-in user should be able to view self).
 		me := api.Group("")
 		me.Use(middleware.AuthMiddleware(authSvc))
 		{
@@ -119,27 +117,23 @@ func NewRouter(
 		// Public status check (no auth, used by login page).
 		api.GET("/status", statusH.GetUserStatus)
 
-		// All other routes require: AuthMiddleware → TenantMiddleware → CasbinMiddleware
+		// All authenticated routes
 		protected := api.Group("")
-		protected.Use(
-			middleware.AuthMiddleware(authSvc),
-			middleware.TenantMiddleware(tenantRepo),
-			middleware.CasbinMiddleware(enforcer),
-		)
+		protected.Use(middleware.AuthMiddleware(authSvc))
 		{
-			// ====== Tenant self-management (owner) ======
-			tenant := protected.Group("/tenant")
+			// ====== Settings (admin only) ======
+			settings := protected.Group("/settings")
+			settings.Use(middleware.RequireRole(models.UserRoleAdmin))
 			{
-				tenant.GET("", tenantH.GetSelf)
-				tenant.PUT("", tenantH.UpdateSelfName)
-				tenant.GET("/settings", tenantH.GetSelfSettings)
-				tenant.PUT("/settings", tenantH.UpdateSelfSettings)
-				tenant.POST("/logo", tenantH.UploadLogo)
-				tenant.GET("/logo", tenantH.GetLogo)
+				settings.GET("", settingsH.Get)
+				settings.PUT("", settingsH.Update)
+				settings.POST("/logo", settingsH.UploadLogo)
+				settings.GET("/logo", settingsH.GetLogo)
 			}
 
-			// ====== User management (owner + admin) ======
+			// ====== User management (admin only) ======
 			users := protected.Group("/users")
+			users.Use(middleware.RequireRole(models.UserRoleAdmin))
 			{
 				users.GET("", userH.List)
 				users.POST("", userH.Create)
@@ -148,7 +142,7 @@ func NewRouter(
 				users.DELETE("/:id", userH.Delete)
 			}
 
-			// ====== Templates (tenant-scoped) ======
+			// ====== Templates (all authenticated) ======
 			templates := protected.Group("/templates")
 			{
 				templates.GET("", templateH.List)
@@ -160,7 +154,7 @@ func NewRouter(
 				templates.POST("/seed-defaults", templateH.SeedDefaults)
 			}
 
-			// ====== Routers (tenant-scoped) ======
+			// ====== Routers (all authenticated) ======
 			routers := protected.Group("/routers")
 			{
 				routers.GET("", routerH.List)
@@ -168,7 +162,7 @@ func NewRouter(
 				routers.POST("/migrate", routerH.MigrateConfig)
 			}
 			routerOne := protected.Group("/routers/:routerId")
-			routerOne.Use(middleware.RouterTenantMiddleware(routerRepo))
+			routerOne.Use(middleware.RouterOwnershipMiddleware(routerRepo))
 			{
 				routerOne.GET("", routerH.Get)
 				routerOne.PUT("", routerH.Update)
@@ -311,23 +305,6 @@ func NewRouter(
 				routerOne.GET("/profile-mappings", profileMappingH.List)
 				routerOne.PUT("/profile-mappings/:profileName", profileMappingH.Update)
 				routerOne.DELETE("/profile-mappings/:profileName", profileMappingH.Delete)
-			}
-
-			// ====== Platform admin (superadmin only via Casbin /api/v1/* policy) ======
-			admin := protected.Group("/admin")
-			{
-				admin.GET("/tenants", tenantH.AdminList)
-				admin.POST("/tenants", tenantH.AdminCreate)
-				admin.GET("/tenants/:id", tenantH.AdminGet)
-				admin.PUT("/tenants/:id", tenantH.AdminUpdate)
-				admin.DELETE("/tenants/:id", tenantH.AdminHardDelete)
-				admin.POST("/tenants/:id/suspend", tenantH.AdminSuspend)
-				admin.POST("/tenants/:id/activate", tenantH.AdminActivate)
-
-				admin.GET("/templates", templateH.List)
-				admin.POST("/templates", templateH.Create)
-				admin.PUT("/templates/:templateId", templateH.Update)
-				admin.DELETE("/templates/:templateId", templateH.Delete)
 			}
 		}
 	}

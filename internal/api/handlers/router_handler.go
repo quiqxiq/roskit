@@ -32,18 +32,13 @@ func NewRouterHandler(svc *services.RouterService) *RouterHandler {
 }
 
 func (h *RouterHandler) Create(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
-
 	var req services.CreateRouterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	result, err := h.svc.CreateRouter(c.Request.Context(), tenantID, req)
+	result, err := h.svc.CreateRouter(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -53,17 +48,13 @@ func (h *RouterHandler) Create(c *gin.Context) {
 }
 
 func (h *RouterHandler) Get(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
 		return
 	}
 
-	result, err := h.svc.GetRouter(c.Request.Context(), tenantID, uint(id))
+	result, err := h.svc.GetRouter(c.Request.Context(), uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return
@@ -73,11 +64,7 @@ func (h *RouterHandler) Get(c *gin.Context) {
 }
 
 func (h *RouterHandler) List(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
-	results, err := h.svc.ListRouters(c.Request.Context(), tenantID)
+	results, err := h.svc.ListRouters(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list routers"})
 		return
@@ -87,10 +74,6 @@ func (h *RouterHandler) List(c *gin.Context) {
 }
 
 func (h *RouterHandler) Update(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
@@ -103,7 +86,7 @@ func (h *RouterHandler) Update(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.UpdateRouter(c.Request.Context(), tenantID, uint(id), req)
+	result, err := h.svc.UpdateRouter(c.Request.Context(), uint(id), req)
 	if err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
@@ -117,17 +100,13 @@ func (h *RouterHandler) Update(c *gin.Context) {
 }
 
 func (h *RouterHandler) Delete(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	id, err := strconv.ParseUint(c.Param("routerId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
 		return
 	}
 
-	if err := h.svc.DeleteRouter(c.Request.Context(), tenantID, uint(id)); err != nil {
+	if err := h.svc.DeleteRouter(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return
 	}
@@ -172,17 +151,13 @@ type migrateRequest struct {
 }
 
 func (h *RouterHandler) MigrateConfig(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	var req migrateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "file_path is required"})
 		return
 	}
 
-	result, err := h.svc.MigrateFromConfigPHP(c.Request.Context(), tenantID, req.FilePath)
+	result, err := h.svc.MigrateFromConfigPHP(c.Request.Context(), req.FilePath)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return

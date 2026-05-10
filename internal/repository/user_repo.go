@@ -9,22 +9,13 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
-	// GetByID returns a user by primary key without tenant scoping.
-	// Engine-only (e.g. JWT claim resolution); HTTP handlers MUST use
-	// GetByTenantID to prevent cross-tenant data exposure.
 	GetByID(ctx context.Context, id uint) (*models.User, error)
-	// GetByTenantID returns a user only if it belongs to the given tenant,
-	// otherwise gorm.ErrRecordNotFound. Use this from HTTP handlers.
-	GetByTenantID(ctx context.Context, tenantID, id uint) (*models.User, error)
-	GetByTenantUsername(ctx context.Context, tenantID *uint, username string) (*models.User, error)
-	GetSuperAdminByUsername(ctx context.Context, username string) (*models.User, error)
-	List(ctx context.Context, tenantID uint) ([]*models.User, error)
-	ListSuperAdmins(ctx context.Context) ([]*models.User, error)
+	GetByUsername(ctx context.Context, username string) (*models.User, error)
+	List(ctx context.Context) ([]*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	UpdateLastLogin(ctx context.Context, userID uint) error
 	Delete(ctx context.Context, id uint) error
 	Count(ctx context.Context) (int64, error)
-	CountByTenant(ctx context.Context, tenantID uint) (int64, error)
 }
 
 type UserRepo struct {
@@ -47,53 +38,19 @@ func (r *UserRepo) GetByID(ctx context.Context, id uint) (*models.User, error) {
 	return &user, nil
 }
 
-// GetByTenantID returns a user only if it belongs to the given tenant.
-// Returns gorm.ErrRecordNotFound otherwise — never leaks cross-tenant rows.
-func (r *UserRepo) GetByTenantID(ctx context.Context, tenantID, id uint) (*models.User, error) {
+func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
 	if err := r.db.WithContext(ctx).
-		Where("tenant_id = ?", tenantID).
-		First(&user, id).Error; err != nil {
+		Where("username = ?", username).
+		First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-// GetByTenantUsername finds a user scoped to a tenant. Pass tenantID=nil to find
-// a platform-level superadmin (tenant_id IS NULL).
-func (r *UserRepo) GetByTenantUsername(ctx context.Context, tenantID *uint, username string) (*models.User, error) {
-	var user models.User
-	q := r.db.WithContext(ctx).Where("username = ?", username)
-	if tenantID == nil {
-		q = q.Where("tenant_id IS NULL")
-	} else {
-		q = q.Where("tenant_id = ?", *tenantID)
-	}
-	if err := q.First(&user).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *UserRepo) GetSuperAdminByUsername(ctx context.Context, username string) (*models.User, error) {
-	return r.GetByTenantUsername(ctx, nil, username)
-}
-
-func (r *UserRepo) List(ctx context.Context, tenantID uint) ([]*models.User, error) {
+func (r *UserRepo) List(ctx context.Context) ([]*models.User, error) {
 	var users []*models.User
 	if err := r.db.WithContext(ctx).
-		Where("tenant_id = ?", tenantID).
-		Order("id ASC").
-		Find(&users).Error; err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-
-func (r *UserRepo) ListSuperAdmins(ctx context.Context) ([]*models.User, error) {
-	var users []*models.User
-	if err := r.db.WithContext(ctx).
-		Where("tenant_id IS NULL").
 		Order("id ASC").
 		Find(&users).Error; err != nil {
 		return nil, err
@@ -119,17 +76,6 @@ func (r *UserRepo) Delete(ctx context.Context, id uint) error {
 func (r *UserRepo) Count(ctx context.Context) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&models.User{}).Count(&count).Error; err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
-func (r *UserRepo) CountByTenant(ctx context.Context, tenantID uint) (int64, error) {
-	var count int64
-	if err := r.db.WithContext(ctx).
-		Model(&models.User{}).
-		Where("tenant_id = ?", tenantID).
-		Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil

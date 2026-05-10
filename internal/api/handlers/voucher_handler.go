@@ -10,17 +10,17 @@ import (
 )
 
 type VoucherHandler struct {
-	svc          *services.VoucherService
-	templateSvc  *services.TemplateService
-	hotspotSvc   *services.HotspotService
-	settingsRepo repository.TenantSettingsRepository
+	svc         *services.VoucherService
+	templateSvc *services.TemplateService
+	hotspotSvc  *services.HotspotService
+	settingsRepo repository.SettingsRepository
 }
 
 func NewVoucherHandler(
 	svc *services.VoucherService,
 	templateSvc *services.TemplateService,
 	hotspotSvc *services.HotspotService,
-	settingsRepo repository.TenantSettingsRepository,
+	settingsRepo repository.SettingsRepository,
 ) *VoucherHandler {
 	return &VoucherHandler{
 		svc:          svc,
@@ -34,14 +34,10 @@ func tenantLogoURL(logoPath string) string {
 	if logoPath == "" {
 		return ""
 	}
-	return "/api/v1/tenant/logo"
+	return "/api/v1/settings/logo"
 }
 
 func (h *VoucherHandler) Generate(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -54,7 +50,7 @@ func (h *VoucherHandler) Generate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GenerateVoucher(c.Request.Context(), tenantID, routerID, params)
+	result, err := h.svc.GenerateVoucher(c.Request.Context(), routerID, params)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -68,9 +64,6 @@ type cacheVoucherRequest struct {
 }
 
 func (h *VoucherHandler) CacheVoucher(c *gin.Context) {
-	if _, ok := tenantIDFromCtx(c); !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -93,10 +86,6 @@ func (h *VoucherHandler) CacheVoucher(c *gin.Context) {
 }
 
 func (h *VoucherHandler) RecordSale(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -109,7 +98,7 @@ func (h *VoucherHandler) RecordSale(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordSale(c.Request.Context(), tenantID, routerID, params); err != nil {
+	if err := h.svc.RecordSale(c.Request.Context(), routerID, params); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
@@ -118,17 +107,13 @@ func (h *VoucherHandler) RecordSale(c *gin.Context) {
 }
 
 func (h *VoucherHandler) ImportSales(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
 		return
 	}
 
-	result, err := h.svc.ImportSalesFromRouterOS(c.Request.Context(), tenantID, routerID)
+	result, err := h.svc.ImportSalesFromRouterOS(c.Request.Context(), routerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return
@@ -138,10 +123,6 @@ func (h *VoucherHandler) ImportSales(c *gin.Context) {
 }
 
 func (h *VoucherHandler) PrintData(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -160,9 +141,9 @@ func (h *VoucherHandler) PrintData(c *gin.Context) {
 		return
 	}
 
-	settings, err := h.settingsRepo.GetByTenantID(c.Request.Context(), tenantID)
+	settings, err := h.settingsRepo.Get(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get tenant settings"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get settings"})
 		return
 	}
 
@@ -189,10 +170,6 @@ type printVouchersRequest struct {
 }
 
 func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
-	tenantID, ok := tenantIDFromCtx(c)
-	if !ok {
-		return
-	}
 	routerID, err := parseRouterID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
@@ -216,7 +193,7 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	if _, err := h.svc.GetRouterInfo(ctx, tenantID, routerID); err != nil {
+	if _, err := h.svc.GetRouterInfo(ctx, routerID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
 		return
 	}
@@ -237,9 +214,9 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 		return
 	}
 
-	settings, err := h.settingsRepo.GetByTenantID(ctx, tenantID)
+	settings, err := h.settingsRepo.Get(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get tenant settings"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get settings"})
 		return
 	}
 
@@ -250,7 +227,7 @@ func (h *VoucherHandler) PrintVouchers(c *gin.Context) {
 		Currency:    settings.Currency,
 	}
 
-	page, err := h.templateSvc.RenderFromUsers(ctx, tenantID, templateType, resolved, routerParams)
+	page, err := h.templateSvc.RenderFromUsers(ctx, templateType, resolved, routerParams)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		return
