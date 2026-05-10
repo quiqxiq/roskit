@@ -10,10 +10,8 @@ login:
     tags: [auth]
     security: []
     description: |
-      Accepts tenant slug + username + password. The tenant slug may be
-      omitted for superadmin logins; everyone else must supply it. The
-      response includes the user view plus a JWT pair. Rate-limited to
-      10 requests/min/IP.
+      Accepts username + password. The response includes the user view
+      plus a JWT pair. Rate-limited to 10 requests/min/IP.
     requestBody:
       required: true
       content:
@@ -21,7 +19,6 @@ login:
           schema:
             $ref: '../components/schemas/auth.yaml#/LoginRequest'
           example:
-            tenant: acme
             username: alice
             password: hunter2
     responses:
@@ -44,8 +41,6 @@ login:
                   id: 12
                   username: alice
                   role: admin
-                  tenant_id: 3
-                  tenant_slug: acme
               error: null
       '400': { $ref: '../components/responses.yaml#/BadRequest' }
       '401': { $ref: '../components/responses.yaml#/Unauthorized' }
@@ -136,8 +131,6 @@ me:
                 id: 12
                 username: alice
                 role: admin
-                tenant_id: 3
-                tenant_slug: acme
               error: null
       '401': { $ref: '../components/responses.yaml#/Unauthorized' }
 
@@ -169,28 +162,24 @@ changePassword:
 
 setup:
   post:
-    operationId: setupFirstTenant
-    summary: Bootstrap the very first tenant + owner account
+    operationId: setupFirstAdmin
+    summary: Bootstrap the first admin account
     tags: [auth]
     security: []
     description: |
-      One-shot bootstrap endpoint. Creates a tenant, default settings,
-      default templates, and the first owner user inside a single DB
-      transaction. Returns 403 once any user exists. Rate-limited to
-      10 requests/min/IP.
+      One-shot bootstrap endpoint. Creates the first admin user. Returns
+      403 once any user exists. Rate-limited to 10 requests/min/IP.
     requestBody:
       required: true
       content:
         application/json:
           schema: { $ref: '../components/schemas/auth.yaml#/SetupRequest' }
           example:
-            tenant_name: Acme Corp
-            tenant_slug: acme
-            username: owner
+            username: admin
             password: changeme123
     responses:
       '201':
-        description: First tenant created and owner auto-logged-in.
+        description: First admin created and auto-logged-in.
         content:
           application/json:
             schema:

@@ -2,12 +2,12 @@
 # Source: internal/api/handlers/router_handler.go.
 #
 # All routes under /routers/{routerId} are additionally guarded by
-# RouterTenantMiddleware (404 mask if router belongs to another tenant).
+# RouterOwnershipMiddleware (404 if router does not exist).
 
 list:
   get:
     operationId: listRouters
-    summary: List routers in the active tenant
+    summary: List all routers
     tags: [routers]
     responses:
       '200':
@@ -25,7 +25,6 @@ list:
             example:
               data:
                 - id: 7
-                  tenant_id: 3
                   name: hotspot-1
                   ip_address: 192.168.88.1
                   api_port: 8728
@@ -40,13 +39,13 @@ list:
 create:
   post:
     operationId: createRouter
-    summary: Register a new router under the active tenant
+    summary: Register a new router
     tags: [routers]
     description: |
       Creates a router row, encrypts the API password at rest, and
       registers the router with the orchestrator so streams/pollers
       attach automatically. Conflict (409) when the name already
-      exists in this tenant.
+      exists.
     requestBody:
       required: true
       content:
@@ -77,7 +76,7 @@ create:
 migrate:
   post:
     operationId: migrateRouterConfig
-    summary: Import a legacy MIKHMON config.php into the active tenant
+    summary: Import a legacy MIKHMON config.php
     tags: [routers]
     description: |
       Reads the file path on the server, parses MIKHMON's PHP config,
@@ -110,7 +109,7 @@ migrate:
 get:
   get:
     operationId: getRouter
-    summary: Get a router by ID (tenant-scoped)
+    summary: Get a router by ID
     tags: [routers]
     parameters:
       - $ref: '../components/parameters.yaml#/RouterId'
@@ -158,7 +157,7 @@ update:
 delete:
   delete:
     operationId: deleteRouter
-    summary: Soft-delete a router (tenant-scoped)
+    summary: Soft-delete a router
     tags: [routers]
     description: Disconnects the router from the orchestrator pool and soft-deletes the row.
     parameters:

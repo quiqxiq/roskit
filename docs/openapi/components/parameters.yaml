@@ -6,9 +6,8 @@ RouterId:
   name: routerId
   required: true
   description: |
-    Numeric ID of a router owned by the active tenant. Validated by
-    `RouterTenantMiddleware`; routers belonging to a different tenant
-    return 404, not 403, to avoid existence oracles.
+    Numeric ID of a router. Validated by `RouterOwnershipMiddleware`;
+    returns 404 if the router does not exist.
   schema:
     type: integer
     format: int64
@@ -19,7 +18,7 @@ UserId:
   in: path
   name: id
   required: true
-  description: User ID scoped to the active tenant.
+  description: User ID.
   schema:
     type: integer
     format: int64
@@ -76,15 +75,3 @@ LimitQuery:
     minimum: 1
     maximum: 500
     default: 50
-
-TenantSlugHeaderParam:
-  in: header
-  name: X-Tenant-Slug
-  required: false
-  description: |
-    Superadmin-only override for the active tenant. Ignored for tenant-
-    scoped users — their JWT pins the tenant.
-  schema:
-    type: string
-    pattern: '^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$'
-  example: acme

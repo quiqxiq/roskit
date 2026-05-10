@@ -11,7 +11,7 @@ docs/openapi/
 │   ├── schemas/              # all object schemas, split per domain
 │   │   ├── common.yaml       # Envelope, APIError, PaginationMeta, EmptyOK
 │   │   ├── auth.yaml
-│   │   ├── tenant.yaml
+│   │   ├── settings.yaml
 │   │   ├── user.yaml
 │   │   ├── router.yaml
 │   │   ├── hotspot.yaml
@@ -23,14 +23,14 @@ docs/openapi/
 │   │   ├── report.yaml
 │   │   ├── event.yaml
 │   │   └── sse.yaml
-│   ├── parameters.yaml       # routerId, userId, paging, X-Tenant-Slug, etc.
+│   ├── parameters.yaml       # routerId, userId, paging, etc.
 │   ├── responses.yaml        # 400 / 401 / 403 / 404 / 409 / 429 / 500
-│   └── securitySchemes.yaml  # bearerAuth, webhookToken, tenantSlugHeader
+│   └── securitySchemes.yaml  # bearerAuth, webhookToken
 └── paths/
     ├── health.yaml
     ├── status.yaml
     ├── auth.yaml
-    ├── tenant.yaml
+    ├── settings.yaml
     ├── users.yaml
     ├── routers.yaml
     ├── hotspot.yaml
@@ -130,9 +130,9 @@ docker run --rm -p 8082:8080 \
 | Schema                                   | Source of truth                                   |
 |------------------------------------------|---------------------------------------------------|
 | `Envelope`, `APIError`                   | `pkg/httpresp/respond.go`                         |
-| `Tenant`, `TenantSettings`               | `internal/models/tenant.go`, `tenant_settings.go` |
-| `User`, `UserView`                       | `internal/models/user.go`, `services/auth_service.go` |
-| `Router`, `RouterPublicView`             | `internal/models/router.go`, `services/router_service.go` |
+| `Settings`, `UpdateSettingsRequest`      | `internal/models/settings.go`, `internal/services/settings_service.go` |
+| `User`, `UserView`                       | `internal/models/user.go`, `internal/services/auth_service.go` |
+| `Router`, `RouterPublicView`             | `internal/models/router.go`, `internal/services/router_service.go` |
 | `HotspotUser`, `HotspotProfile`, etc.    | `internal/roskit/core/model/hotspot.go`           |
 | `PPPSecret`, `PPPProfile`, `PPPActive`   | `internal/roskit/core/model/ppp.go`               |
 | `Interface`, `Pool`, `Queue`, `DHCPLease`| `internal/roskit/core/model/network.go`           |

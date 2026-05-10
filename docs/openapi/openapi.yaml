@@ -3,20 +3,16 @@ openapi: 3.1.0
 info:
   title: Roskit API
   version: 0.1.0
-  summary: Multi-tenant MikroTik RouterOS management API.
+  summary: MikroTik RouterOS management API.
   description: |
     Roskit exposes hotspot, PPP, network, system, voucher, and reporting
-    operations across multiple MikroTik routers, scoped per tenant.
+    operations across MikroTik routers.
 
     ## Conventions
 
     - All responses use the same envelope: `{ data, error }`. Exactly one
       of `data` / `error` is non-null.
     - Authentication: `Authorization: Bearer <jwt>` issued by `/auth/login`.
-    - Tenant resolution: tenant slug is read from the JWT. Superadmins MAY
-      override via the `X-Tenant-Slug` header.
-    - Cross-tenant access is masked as 404 (never 403/200), so an attacker
-      cannot probe for existence in another tenant.
   contact:
     name: Roskit
     url: https://github.com/quiqxiq/roskit
@@ -41,12 +37,10 @@ tags:
     description: Public connectivity probe used by the login page.
   - name: auth
     description: Login, refresh, logout, password change, first-time setup.
-  - name: tenants
-    description: Tenant self-management for owners.
-  - name: admin
-    description: Platform administration (superadmin only).
+  - name: settings
+    description: Application settings and logo management (admin only).
   - name: users
-    description: User management within a tenant.
+    description: User management.
   - name: routers
     description: Router CRUD, connection test, config migration.
   - name: hotspot
@@ -60,7 +54,7 @@ tags:
   - name: vouchers
     description: Voucher generation, sale recording, printing.
   - name: templates
-    description: Print template CRUD (tenant-scoped + global admin defaults).
+    description: Print template CRUD.
   - name: reports
     description: Daily / monthly / dashboard reports + CSV / Excel export.
   - name: quick-print
@@ -81,8 +75,6 @@ components:
       $ref: 'components/securitySchemes.yaml#/bearerAuth'
     webhookToken:
       $ref: 'components/securitySchemes.yaml#/webhookToken'
-    tenantSlugHeader:
-      $ref: 'components/securitySchemes.yaml#/tenantSlugHeader'
 
   schemas:
     Envelope:        { $ref: 'components/schemas/common.yaml#/Envelope' }
@@ -99,7 +91,6 @@ components:
     InterfaceName:         { $ref: 'components/parameters.yaml#/InterfaceName' }
     PageQuery:             { $ref: 'components/parameters.yaml#/PageQuery' }
     LimitQuery:            { $ref: 'components/parameters.yaml#/LimitQuery' }
-    TenantSlugHeaderParam: { $ref: 'components/parameters.yaml#/TenantSlugHeaderParam' }
 
   responses:
     BadRequest:    { $ref: 'components/responses.yaml#/BadRequest' }
@@ -110,8 +101,6 @@ components:
     RateLimited:   { $ref: 'components/responses.yaml#/RateLimited' }
     InternalError: { $ref: 'components/responses.yaml#/InternalError' }
 
-# NOTE: Paths are added domain-by-domain. Each domain wires its routes
-# via $ref into one of paths/<domain>.yaml.
 paths:
   /health:
     get: { $ref: 'paths/health.yaml#/check/get' }
@@ -131,27 +120,12 @@ paths:
   /auth/setup:
     post: { $ref: 'paths/auth.yaml#/setup/post' }
 
-  /tenant:
-    get: { $ref: 'paths/tenant.yaml#/getSelf/get' }
-    put: { $ref: 'paths/tenant.yaml#/updateSelfName/put' }
-  /tenant/settings:
-    get: { $ref: 'paths/tenant.yaml#/getSelfSettings/get' }
-    put: { $ref: 'paths/tenant.yaml#/updateSelfSettings/put' }
-  /tenant/logo:
-    get:  { $ref: 'paths/tenant.yaml#/getLogo/get' }
-    post: { $ref: 'paths/tenant.yaml#/uploadLogo/post' }
-
-  /admin/tenants:
-    get:  { $ref: 'paths/tenant.yaml#/adminList/get' }
-    post: { $ref: 'paths/tenant.yaml#/adminCreate/post' }
-  /admin/tenants/{id}:
-    get:    { $ref: 'paths/tenant.yaml#/adminGet/get' }
-    put:    { $ref: 'paths/tenant.yaml#/adminUpdate/put' }
-    delete: { $ref: 'paths/tenant.yaml#/adminHardDelete/delete' }
-  /admin/tenants/{id}/suspend:
-    post: { $ref: 'paths/tenant.yaml#/adminSuspend/post' }
-  /admin/tenants/{id}/activate:
-    post: { $ref: 'paths/tenant.yaml#/adminActivate/post' }
+  /settings:
+    get: { $ref: 'paths/settings.yaml#/get/get' }
+    put: { $ref: 'paths/settings.yaml#/update/put' }
+  /settings/logo:
+    get:  { $ref: 'paths/settings.yaml#/getLogo/get' }
+    post: { $ref: 'paths/settings.yaml#/uploadLogo/post' }
 
   /users:
     get:  { $ref: 'paths/users.yaml#/list/get' }
@@ -349,12 +323,6 @@ paths:
     post: { $ref: 'paths/template.yaml#/render/post' }
   /templates/seed-defaults:
     post: { $ref: 'paths/template.yaml#/seedDefaults/post' }
-  /admin/templates:
-    get:  { $ref: 'paths/template.yaml#/list/get' }
-    post: { $ref: 'paths/template.yaml#/create/post' }
-  /admin/templates/{templateId}:
-    put:    { $ref: 'paths/template.yaml#/update/put' }
-    delete: { $ref: 'paths/template.yaml#/delete/delete' }
 
   # ----- Reports ---------------------------------------------------------------
   /routers/{routerId}/reports/daily:

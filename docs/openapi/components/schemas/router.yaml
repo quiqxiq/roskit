@@ -10,13 +10,12 @@ RouterStatus:
 
 RouterPublicView:
   type: object
-  required: [id, tenant_id, name, ip_address, api_port, api_username, status]
+  required: [id, name, ip_address, api_port, api_username, status]
   description: |
     Public-facing router shape. Sensitive fields (encrypted password,
     SSH password) are stripped before serialisation.
   properties:
     id:           { type: integer, format: int64, example: 7 }
-    tenant_id:    { type: integer, format: int64, example: 3 }
     name:         { type: string, example: hotspot-1 }
     ip_address:   { type: string, example: 192.168.88.1 }
     api_port:     { type: integer, minimum: 1, maximum: 65535, example: 8728 }
@@ -40,7 +39,7 @@ CreateRouterRequest:
       type: string
       minLength: 1
       maxLength: 100
-      description: Tenant-unique display name.
+      description: Unique display name.
     ip_address:
       type: string
       maxLength: 255
@@ -98,7 +97,7 @@ MigrationResult:
   required: [total, imported, skipped, errors]
   description: |
     Summary of `POST /routers/migrate` — imports legacy MIKHMON
-    `config.php` data into the tenant's router/profile tables.
+    `config.php` data into the router/profile tables.
   properties:
     total:    { type: integer, minimum: 0 }
     imported: { type: integer, minimum: 0 }

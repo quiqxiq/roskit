@@ -5,20 +5,11 @@
 PrintTemplate:
   type: object
   required: [id, name, type, part, content, created_at, updated_at]
-  description: |
-    A printable template fragment. `tenant_id == null` means a global
-    default seeded for new tenants; tenant-owned rows override the
-    matching global on `(type, part)` per tenant.
   properties:
     id:
       type: integer
       format: int64
       example: 12
-    tenant_id:
-      oneOf:
-        - type: integer
-          format: int64
-        - type: 'null'
     name:
       type: string
       maxLength: 100

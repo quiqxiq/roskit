@@ -7,18 +7,11 @@
 User:
   type: object
   required: [id, username, role, active, created_at, updated_at]
-  description: A user belonging to a tenant (`tenant_id` non-null) or a platform superadmin (`tenant_id` null).
   properties:
     id:
       type: integer
       format: int64
       example: 12
-    tenant_id:
-      oneOf:
-        - type: integer
-          format: int64
-          example: 3
-        - type: 'null'
     username:
       type: string
       maxLength: 100
@@ -56,7 +49,6 @@ CreateUserRequest:
       format: password
     role:
       $ref: 'auth.yaml#/UserRole'
-      description: Cannot be `superadmin` from a tenant scope (rejected with 403).
 
 UpdateUserRequest:
   type: object

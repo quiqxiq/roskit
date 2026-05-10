@@ -1,15 +1,11 @@
-# /templates/* and /admin/templates/* operations.
+# /templates/* operations.
 # Source: internal/api/handlers/template_handler.go.
 
 list:
   get:
     operationId: listTemplates
-    summary: List print templates visible to the caller
+    summary: List print templates
     tags: [templates]
-    description: |
-      Returns the tenant's templates *plus* the platform-wide globals
-      (rows with `tenant_id == null`) when called from the tenant scope.
-      The admin variant under `/admin/templates` only returns globals.
     responses:
       '200':
         description: Templates.
@@ -27,7 +23,7 @@ list:
 create:
   post:
     operationId: createTemplate
-    summary: Create a template (tenant-owned, or global if called via /admin)
+    summary: Create a template
     tags: [templates]
     requestBody:
       required: true
@@ -140,12 +136,11 @@ render:
 seedDefaults:
   post:
     operationId: seedDefaultTemplates
-    summary: Seed/refresh global default templates
+    summary: Seed default templates
     tags: [templates]
     description: |
-      Idempotent — re-creates the platform-default `(type, part)` rows
-      with `tenant_id IS NULL`. Run after editing default content in
-      source. Tenant-owned rows are not touched.
+      Idempotent — re-creates the default `(type, part)` rows. Run
+      after editing default content in source.
     responses:
       '200':
         description: Seeded.

@@ -5,14 +5,12 @@
 
 UserRole:
   type: string
-  enum: [owner, admin, staff, superadmin]
-  description: |
-    Tenant role. `superadmin` users have `tenant_id == null` and operate
-    across all tenants via Casbin's wildcard domain.
+  enum: [admin, staff]
+  description: User role.
 
 UserView:
   type: object
-  required: [id, username, role, tenant_slug]
+  required: [id, username, role]
   description: User identity returned in `/auth/me` and embedded in `LoginResult`.
   properties:
     id:
@@ -24,26 +22,11 @@ UserView:
       example: alice
     role:
       $ref: '#/UserRole'
-    tenant_id:
-      oneOf:
-        - type: integer
-          format: int64
-          example: 3
-        - type: 'null'
-      description: Null for superadmins.
-    tenant_slug:
-      type: string
-      example: acme
 
 LoginRequest:
   type: object
   required: [username, password]
   properties:
-    tenant:
-      type: string
-      maxLength: 100
-      description: Tenant slug. Optional only for superadmin login.
-      example: acme
     username:
       type: string
       minLength: 1
@@ -110,27 +93,16 @@ ChangePasswordRequest:
 
 SetupRequest:
   type: object
-  required: [tenant_name, tenant_slug, username, password]
+  required: [username, password]
   description: |
-    Bootstrap the very first tenant + owner. Available only when the
-    `users` table is empty; subsequent calls return 403.
+    Bootstrap the first admin user. Available only when the `users`
+    table is empty; subsequent calls return 403.
   properties:
-    tenant_name:
-      type: string
-      minLength: 2
-      maxLength: 100
-      example: Acme Corp
-    tenant_slug:
-      type: string
-      minLength: 2
-      maxLength: 100
-      pattern: '^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$'
-      example: acme
     username:
       type: string
       minLength: 3
       maxLength: 64
-      example: owner
+      example: admin
     password:
       type: string
       minLength: 6
@@ -139,22 +111,15 @@ SetupRequest:
 
 SetupResult:
   type: object
-  required: [tenant, user, access_token, refresh_token, expires_in]
-  description: First tenant + auto-issued access tokens for the new owner.
+  required: [user, access_token, refresh_token, expires_in]
+  description: First admin user + auto-issued access tokens.
   properties:
-    tenant:
-      type: object
-      required: [id, name, slug]
-      properties:
-        id:    { type: integer, format: int64, example: 1 }
-        name:  { type: string, example: Acme Corp }
-        slug:  { type: string, example: acme }
     user:
       type: object
       required: [id, username, role]
       properties:
         id:       { type: integer, format: int64, example: 1 }
-        username: { type: string, example: owner }
+        username: { type: string, example: admin }
         role:     { $ref: '#/UserRole' }
     access_token:  { type: string }
     refresh_token: { type: string }

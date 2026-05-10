@@ -1,0 +1,47 @@
+# Application settings schemas. Source:
+#   internal/models/settings.go (Settings)
+#   internal/services/settings_service.go (UpdateSettingsRequest)
+#
+# Settings is a global singleton — there is exactly one row.
+# WebhookToken is `json:"-"` and never exposed.
+
+Settings:
+  type: object
+  required: [id, currency, idle_timeout, report_mode, logo_path, timezone, created_at, updated_at]
+  properties:
+    id:           { type: integer, format: int64 }
+    hotspot_name: { type: string, maxLength: 100, example: 'My Hotspot' }
+    dns_name:     { type: string, maxLength: 100, example: 'login.example.test' }
+    currency:     { type: string, maxLength: 10, example: 'Rp' }
+    phone:        { type: string, maxLength: 20, example: '+62-555-0100' }
+    email:        { type: string, maxLength: 100, example: 'admin@example.test' }
+    info_lp:      { type: string, description: 'Free-form text shown on the hotspot login page.' }
+    idle_timeout:
+      type: integer
+      minimum: 0
+      maximum: 86400
+      description: Hotspot idle timeout in minutes.
+      example: 30
+    report_mode:
+      type: string
+      enum: [disable, enable]
+    logo_path:    { type: string, description: 'Server-side filesystem path; not directly client-accessible.' }
+    timezone:     { type: string, maxLength: 50, example: 'Asia/Jakarta' }
+    created_at:   { type: string, format: date-time }
+    updated_at:   { type: string, format: date-time }
+
+UpdateSettingsRequest:
+  type: object
+  description: |
+    Partial update — every field is optional. Omitted fields are left
+    unchanged on the existing Settings row.
+  properties:
+    hotspot_name: { type: string, maxLength: 100 }
+    dns_name:     { type: string, maxLength: 100 }
+    currency:     { type: string, maxLength: 10 }
+    phone:        { type: string, maxLength: 20 }
+    email:        { type: string, maxLength: 100 }
+    info_lp:      { type: string }
+    idle_timeout: { type: integer, minimum: 0, maximum: 86400 }
+    report_mode:  { type: string, enum: [disable, enable] }
+    timezone:     { type: string, maxLength: 50 }
