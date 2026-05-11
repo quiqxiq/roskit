@@ -6,9 +6,13 @@ import (
 	"strings"
 )
 
-const ExpireMonitorName = "Mikhmon-Expire-Monitor"
+const (
+	ExpireMonitorName = "Mikhmon-Expire-Monitor"
 
-func (b *Bridge) DeployExpireMonitor(ctx context.Context, routerID string) error {
+	ExpireMonitorComment = "Mikhmon Expire Monitor v2 [roskit]"
+)
+
+func (b *Bridge) DeployExpireMonitor(ctx context.Context, routerID, interval string) error {
 	existing, err := b.CheckExpireMonitor(ctx, routerID)
 	if err != nil {
 		return err
@@ -20,20 +24,23 @@ func (b *Bridge) DeployExpireMonitor(ctx context.Context, routerID string) error
 		_, err = b.mutateAdd(ctx, routerID, "system/scheduler/add", map[string]string{
 			"name":       ExpireMonitorName,
 			"start-time": "00:00:00",
-			"interval":   "00:01:00",
+			"interval":   interval,
 			"on-event":   script,
 			"disabled":   "no",
-			"comment":    "Mikhmon Expire Monitor",
+			"comment":    ExpireMonitorComment,
 		})
 		return err
 	}
 
-	if existing["disabled"] == "true" || existing["disabled"] == "yes" {
-		id := existing[".id"]
+	needsUpgrade := existing["comment"] != ExpireMonitorComment
+	isDisabled := existing["disabled"] == "true" || existing["disabled"] == "yes"
+	if needsUpgrade || isDisabled {
 		_, err = b.Mutate(ctx, routerID, "system/scheduler/set",
-			"=.id="+id,
-			"=disabled=no",
+			"=.id="+existing[".id"],
+			"=interval="+interval,
 			"=on-event="+script,
+			"=comment="+ExpireMonitorComment,
+			"=disabled=no",
 		)
 		return err
 	}

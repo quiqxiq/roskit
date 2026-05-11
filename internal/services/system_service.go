@@ -70,22 +70,7 @@ func (s *SystemService) GetExpireMonitorStatus(ctx context.Context, routerID uin
 }
 
 func (s *SystemService) DeployExpireMonitor(ctx context.Context, routerID uint, interval string) error {
-	rID := fmt.Sprintf("%d", routerID)
-	existing, err := s.bridge.CheckExpireMonitor(ctx, rID)
-	if err != nil {
-		return err
-	}
-	if existing != nil {
-		return nil
-	}
-	args := []string{
-		"=name=" + roskitservice.ExpireMonitorName,
-		"=interval=" + interval,
-		"=on-event=/system script run Mikhmon-Expire-Monitor",
-		"=disabled=no",
-	}
-	_, err = s.bridge.Mutate(ctx, rID, "system/scheduler/add", args...)
-	return err
+	return s.bridge.DeployExpireMonitor(ctx, fmt.Sprintf("%d", routerID), interval)
 }
 
 func (s *SystemService) RemoveExpireMonitor(ctx context.Context, routerID uint) error {

@@ -17,7 +17,8 @@ import (
 )
 
 var seedRouters = []seedRouter{
-	{Name: "router-main", IPAddress: "192.168.88.1", APIPort: 8728, APIUsername: "admin", Password: ""},
+	{Name: "router-1", IPAddress: "192.168.233.1", APIPort: 8728, APIUsername: "admin", Password: "r00t"},
+	{Name: "router-2", IPAddress: "192.168.230.2", APIPort: 8728, APIUsername: "admin", Password: "r00t"},
 }
 
 var seedUsers = []seedUser{
