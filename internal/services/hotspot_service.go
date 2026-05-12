@@ -591,7 +591,7 @@ func (s *HotspotService) ExportUsers(ctx context.Context, routerID uint, profile
 	case "script":
 		var sb strings.Builder
 		for _, u := range users {
-			sb.WriteString(fmt.Sprintf("/ip hotspot user add name=%s password=%s profile=%s",
+			sb.WriteString(fmt.Sprintf(`/ip hotspot user add name="%s" password="%s" profile="%s"`,
 				u["name"], u["password"], u["profile"]))
 			if mac, ok := u["mac-address"]; ok && mac != "" {
 				sb.WriteString(fmt.Sprintf(" mac-address=%s", mac))

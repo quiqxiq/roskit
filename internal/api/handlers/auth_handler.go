@@ -104,8 +104,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logged out"}, "error": nil})
 	h.audit.LogAuth(c, "auth.logout", "")
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logged out"}, "error": nil})
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
@@ -193,6 +193,7 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		return
 	}
 
+	h.audit.LogAuth(c, "auth.setup", req.Username)
 	c.JSON(http.StatusCreated, gin.H{
 		"data": gin.H{
 			"user": gin.H{
@@ -206,7 +207,6 @@ func (h *AuthHandler) Setup(c *gin.Context) {
 		},
 		"error": nil,
 	})
-	h.audit.LogAuth(c, "auth.setup", req.Username)
 }
 
 func containsAny(haystack string, needles ...string) bool {

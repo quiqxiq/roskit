@@ -50,6 +50,15 @@
       },
       "optional": true,
       "requiresAuth": true
+    },
+    "code-review-graph": {
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "cwd": "/home/quixiq/projects/personal/roskit",
+      "type": "stdio"
     }
   }
 }

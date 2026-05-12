@@ -158,6 +158,7 @@ func (h *EventHandler) OnLoginEvent(c *gin.Context) {
 			appcache.SalesKey(router.ID, "today"),
 			appcache.SalesKey(router.ID, "month"),
 			appcache.DashboardKey(router.ID),
+			appcache.GlobalDashboardKey,
 		)
 	}
 

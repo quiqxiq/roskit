@@ -196,7 +196,7 @@ func (s *ReportService) GetResumeReport(ctx context.Context, routerID *uint, yea
 func (s *ReportService) GetDashboardSummary(ctx context.Context, routerID *uint) (*DashboardSummary, error) {
 	cacheKey := appcache.DashboardKey(scopeCacheRouterID(routerID))
 	if routerID == nil {
-		cacheKey = "roskit:dashboard:global"
+		cacheKey = appcache.GlobalDashboardKey
 	}
 	ttl := appcache.TTLDashboard
 

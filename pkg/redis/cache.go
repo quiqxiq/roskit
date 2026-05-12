@@ -71,6 +71,8 @@ func HotspotUsersKey(routerID uint) string {
 	return fmt.Sprintf("mikhmon:hotspot_users:%d", routerID)
 }
 
+const GlobalDashboardKey = "roskit:dashboard:global"
+
 func (c *Cache) Get(ctx context.Context, key string) (string, bool, error) {
 	val, err := c.client.Get(ctx, key).Result()
 	if err == goredis.Nil {

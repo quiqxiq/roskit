@@ -347,12 +347,15 @@ func (s *RouterService) UpdateRouter(ctx context.Context, id uint, req UpdateRou
 			plainPass = dec
 		}
 		s.engine.RemoveRouter(routerIDStr)
-		_ = s.engine.AddRouter(ctx, execution.ConnConfig{
+		if err := s.engine.AddRouter(ctx, execution.ConnConfig{
 			RouterID: routerIDStr,
 			Address:  fmt.Sprintf("%s:%d", ip, port),
 			Username: username,
 			Password: plainPass,
-		})
+		}); err != nil {
+			s.logger.Error("failed to re-register router in engine after update",
+				"routerID", routerIDStr, "error", err)
+		}
 	}
 
 	if s.cache != nil {
