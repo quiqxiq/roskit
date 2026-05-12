@@ -78,6 +78,11 @@ func (b *Bridge) ImportSalesFromRouterOS(ctx context.Context, routerID, owner st
 	return records, nil
 }
 
+func (b *Bridge) DeleteRouterOSScript(ctx context.Context, routerID, scriptID string) error {
+	_, err := b.Mutate(ctx, routerID, "system/script/remove", "=.id="+scriptID)
+	return err
+}
+
 func parseSalesRecords(rows []map[string]string) []*SalesRecord {
 	var records []*SalesRecord
 	for _, row := range rows {

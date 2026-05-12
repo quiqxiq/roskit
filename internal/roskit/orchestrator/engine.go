@@ -28,6 +28,7 @@ type Engine struct {
 	appCtx      context.Context // set by Start; used by AddRouter to launch workers
 	pool        *execution.Pool
 	streams     *bstream.Manager
+	logMgr      *bstream.LogManager
 	polls       *poll.Scheduler
 	pollCancels map[string]context.CancelFunc
 	processor   *event.Processor
@@ -61,6 +62,7 @@ func New(cfg Config) *Engine {
 	pool := execution.NewPool(cfg.Logger)
 	processor := event.NewProcessor(cfg.Cache, cfg.TimeSeries, cfg.PubSub, cfg.Logger)
 	streamMgr := bstream.NewManager(pool, processor, cfg.Logger)
+	logMgr := bstream.NewLogManager(pool, cfg.PubSub, cfg.Logger)
 	pollSched := poll.NewScheduler(pool, processor, cfg.Logger)
 	queryH := query.NewHandler(pool, cfg.Cache, cfg.Logger)
 	mutateH := mutation.NewHandler(pool, queryH, cfg.Cache, cfg.Logger)
@@ -77,6 +79,7 @@ func New(cfg Config) *Engine {
 		cfg:         cfg,
 		pool:        pool,
 		streams:     streamMgr,
+		logMgr:      logMgr,
 		polls:       pollSched,
 		pollCancels: make(map[string]context.CancelFunc),
 		processor:   processor,
@@ -114,6 +117,7 @@ func (e *Engine) AddRouter(_ context.Context, cfg execution.ConnConfig) error {
 
 func (e *Engine) RemoveRouter(routerID string) {
 	e.streams.StopAll(routerID)
+	e.logMgr.StopAll(routerID)
 	e.polls.StopAll(routerID)
 	e.mu.Lock()
 	if cancel, ok := e.pollCancels[routerID]; ok {
@@ -150,6 +154,7 @@ func (e *Engine) Start(ctx context.Context) {
 
 func (e *Engine) Stop() {
 	e.streams.Shutdown()
+	e.logMgr.Shutdown()
 	e.polls.Shutdown()
 	e.pool.Stop()
 	e.processor = nil
@@ -183,6 +188,7 @@ func (e *Engine) startRouterWorkers(ctx context.Context, routerID string) {
 	for _, meta := range command.ByType(command.CommandTypeStream) {
 		e.streams.Start(ctx, routerID, meta)
 	}
+	e.logMgr.StartAll(ctx, routerID)
 
 	pollCtx, pollCancel := context.WithCancel(ctx)
 	e.mu.Lock()

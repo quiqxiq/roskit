@@ -77,7 +77,7 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 	fetch := ""
 	if params.APIURL != "" && params.WebhookToken != "" && params.RouterName != "" {
 		fetch = fmt.Sprintf(
-			`/tool/fetch mode=http url="%s/events/on-login" `+
+			`/tool/fetch mode=http connect-timeout=5s url="%s/events/on-login" `+
 				`http-data="token=%s&router_name=%s&server=$server&username=$user`+
 				`&mac=$\"mac-address\"&ip=$address&date=$date&time=$time`+
 				`&profile=[/ip hotspot user get [find where name=$user] profile]" `+
@@ -109,7 +109,20 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 		mode, validity,
 	)
 
-	script := fmt.Sprintf(`%s %s %s}%s%s`, fetch, put, expiry, lock, slock)
+	safetyNet := ""
+	if price != "0" {
+		safetyNet = fmt.Sprintf(
+			`:local _t [ /system clock get time ]; `+
+				`:local _smac $"mac-address"; `+
+				`:local _mon [:pick $date 0 3]; `+
+				`:local _yr [:pick $date 7 11]; `+
+				`:do {/system script add name="$date-|-$_t-|-$user-|-%s-|-$address-|-$_smac-|-%s-|-%s" `+
+				`owner="$_mon$_yr" comment="mikhmon"} on-error={}; `,
+			price, validity, params.ProfileName,
+		)
+	}
+
+	script := fmt.Sprintf(`%s %s %s %s}%s%s`, fetch, put, expiry, safetyNet, lock, slock)
 	script = strings.ReplaceAll(script, "\n", " ")
 	return script
 }

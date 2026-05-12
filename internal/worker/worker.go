@@ -8,6 +8,7 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/quiqxiq/roskit/internal/repository"
+	"github.com/quiqxiq/roskit/internal/services"
 	"github.com/quiqxiq/roskit/pkg/redis"
 	"gorm.io/gorm"
 )
@@ -17,18 +18,21 @@ type Worker struct {
 	cache      *redis.Cache
 	saleRepo   repository.SaleRepository
 	routerRepo *repository.RouterRepo
+	syncSvc    *services.SyncService
 }
 
 func New(
 	db *gorm.DB,
 	cache *redis.Cache,
 	saleRepo repository.SaleRepository,
+	syncSvc *services.SyncService,
 ) *Worker {
 	return &Worker{
 		db:         db,
 		cache:      cache,
 		saleRepo:   saleRepo,
 		routerRepo: repository.NewRouterRepo(db),
+		syncSvc:    syncSvc,
 	}
 }
 
@@ -49,6 +53,23 @@ func (w *Worker) Start(ctx context.Context) {
 			}
 		}
 	}()
+
+	if w.syncSvc != nil {
+		go w.startSalesSyncWorker(ctx)
+	}
+}
+
+func (w *Worker) startSalesSyncWorker(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.syncSvc.SyncAllActiveRouters(ctx)
+		}
+	}
 }
 
 func (w *Worker) salesCacheWarmup(ctx context.Context) {

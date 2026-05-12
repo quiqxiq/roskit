@@ -2,15 +2,18 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/quiqxiq/roskit/internal/roskit/behavior"
-	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
+
+var logFilters = []string{"all", "hotspot", "ppp"}
 
 type LogWorker struct {
 	pool   *execution.Pool
@@ -25,122 +28,156 @@ func NewLogWorker(pool *execution.Pool, ps pubsub.Publisher, logger *slog.Logger
 	return &LogWorker{pool: pool, pubsub: ps, logger: logger}
 }
 
-func (w *LogWorker) Start(ctx context.Context, routerID, filter string, interval time.Duration) {
-	if interval == 0 {
-		interval = 5 * time.Second
+// Start streams /log/print follow for the given filter with exponential backoff on failure.
+// filter: "all" (no topic filter), "hotspot", or "ppp" (maps to ?topics=pppoe internally).
+func (w *LogWorker) Start(ctx context.Context, routerID, filter string) {
+	w.logger.Info("log worker starting", "router_id", routerID, "filter", filter)
+
+	for attempt := 0; ; attempt++ {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if err := w.runStream(ctx, routerID, filter); err != nil {
+			w.logger.Debug("log stream ended, retrying",
+				"router_id", routerID, "filter", filter,
+				"err", err, "attempt", attempt+1)
+
+			shift := attempt
+			if shift > DefaultBackoffShiftCap {
+				shift = DefaultBackoffShiftCap
+			}
+			delay := DefaultBackoffBase << uint(shift)
+			if delay > DefaultBackoffMax {
+				delay = DefaultBackoffMax
+			}
+
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return
+			}
+		} else {
+			return
+		}
+	}
+}
+
+func (w *LogWorker) runStream(ctx context.Context, routerID, filter string) error {
+	conn, err := w.pool.BorrowAsync(ctx, routerID)
+	if err != nil {
+		return fmt.Errorf("borrow stream: %w", err)
 	}
 
-	w.logger.Info("log worker starting",
-		"router_id", routerID, "filter", filter, "interval", interval)
+	sentence := []string{"/log/print", "=follow"}
+	switch filter {
+	case "hotspot":
+		sentence = append(sentence, "?topics=hotspot,info,debug")
+	case "ppp":
+		sentence = append(sentence, "?topics=pppoe,info,debug")
+	}
 
-	var lastID string
+	reply, err := conn.ListenArgsQueueContext(ctx, sentence, 200)
+	if err != nil {
+		return fmt.Errorf("listen log/%s: %w", filter, err)
+	}
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	ch := reply.Chan()
+	channel := cache.FormatLogChannel(routerID, filter)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			rows, err := w.pollLogs(ctx, routerID, filter)
-			if err != nil {
-				w.logger.Debug("log worker poll error",
-					"router_id", routerID, "filter", filter, "err", err)
+			cancelCtx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+			reply.CancelContext(cancelCtx)
+			cancelFn()
+			return nil
+
+		case sentence, ok := <-ch:
+			if !ok {
+				if err := reply.Err(); err != nil {
+					return fmt.Errorf("log stream/%s closed: %w", filter, err)
+				}
+				return fmt.Errorf("log stream/%s channel closed", filter)
+			}
+
+			fields := sentence.Map
+			if len(fields) == 0 {
 				continue
 			}
 
-			if len(rows) == 0 {
-				continue
-			}
-
-			newRows, newLastID := filterNewLogs(rows, lastID)
-			if newLastID != "" {
-				lastID = newLastID
-			}
-
-			for _, row := range newRows {
-				channel := cache.FormatLogChannel(routerID, filter)
-				w.pubsub.Publish(ctx, channel, pubsub.Message{
-					Type:        "log",
-					RouterID:    routerID,
-					Measurement: "system_log",
-					Fields:      row,
-					Timestamp:   time.Now(),
-				})
-			}
+			w.pubsub.Publish(ctx, channel, pubsub.Message{
+				Type:        "log",
+				RouterID:    routerID,
+				Measurement: "log",
+				Fields:      fields,
+				Timestamp:   time.Now(),
+			})
 		}
 	}
 }
 
-func filterNewLogs(rows []map[string]string, lastID string) ([]map[string]string, string) {
-	if lastID == "" {
-		if len(rows) > 0 {
-			return nil, rows[len(rows)-1][".id"]
-		}
-		return nil, ""
-	}
+// LogManager manages per-router log stream workers for all filters.
+type LogManager struct {
+	pool   *execution.Pool
+	pubsub pubsub.Publisher
+	logger *slog.Logger
 
-	var newRows []map[string]string
-	found := false
-	for _, row := range rows {
-		if found {
-			newRows = append(newRows, row)
-		} else if row[".id"] == lastID {
-			found = true
-		}
-	}
-
-	if !found {
-		if len(rows) > 0 {
-			return nil, rows[len(rows)-1][".id"]
-		}
-		return nil, lastID
-	}
-
-	newLastID := lastID
-	if len(newRows) > 0 {
-		newLastID = newRows[len(newRows)-1][".id"]
-	}
-	return newRows, newLastID
+	mu      sync.Mutex
+	cancels map[string]context.CancelFunc
 }
 
-func (w *LogWorker) pollLogs(ctx context.Context, routerID, filter string) ([]map[string]string, error) {
-	conn, err := w.pool.Borrow(ctx, routerID)
-	if err != nil {
-		return nil, err
+func NewLogManager(pool *execution.Pool, ps pubsub.Publisher, logger *slog.Logger) *LogManager {
+	if logger == nil {
+		logger = slog.Default()
 	}
-	defer w.pool.Return(routerID, conn)
-
-	meta := command.Lookup("log/print")
-	if meta == nil {
-		return nil, nil
+	return &LogManager{
+		pool:    pool,
+		pubsub:  ps,
+		logger:  logger,
+		cancels: make(map[string]context.CancelFunc),
 	}
-
-	sentence := []string{"/" + meta.Path}
-	if filter != "" && filter != "all" {
-		switch filter {
-		case "hotspot":
-			sentence = append(sentence, "?topics=hotspot,info,debug")
-		case "ppp":
-			sentence = append(sentence, "?topics=ppp,info,debug")
-		}
-	}
-
-	reply, err := conn.RunContext(ctx, sentence...)
-	if err != nil {
-		return nil, err
-	}
-
-	results := make([]map[string]string, 0, len(reply.Re))
-	for _, s := range reply.Re {
-		row := make(map[string]string, len(s.Map))
-		for k, v := range s.Map {
-			row[k] = v
-		}
-		results = append(results, row)
-	}
-	return results, nil
 }
 
-var _ behavior.StreamHandler = (*Worker)(nil)
+func (m *LogManager) StartAll(ctx context.Context, routerID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	w := NewLogWorker(m.pool, m.pubsub, m.logger)
+	for _, filter := range logFilters {
+		key := routerID + ":" + filter
+		if _, exists := m.cancels[key]; exists {
+			continue
+		}
+		workerCtx, cancel := context.WithCancel(ctx)
+		m.cancels[key] = cancel
+		f := filter
+		go w.Start(workerCtx, routerID, f)
+	}
+}
+
+func (m *LogManager) StopAll(routerID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	prefix := routerID + ":"
+	for key, cancel := range m.cancels {
+		if strings.HasPrefix(key, prefix) {
+			cancel()
+			delete(m.cancels, key)
+		}
+	}
+}
+
+func (m *LogManager) Shutdown() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for key, cancel := range m.cancels {
+		cancel()
+		delete(m.cancels, key)
+	}
+	m.cancels = make(map[string]context.CancelFunc)
+}

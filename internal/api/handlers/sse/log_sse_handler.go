@@ -101,7 +101,7 @@ func (h *LogSSEHandler) sendInitialDump(c *gin.Context, routerID, filter string)
 	case "hotspot":
 		cmd = append(cmd, "?topics=hotspot,info")
 	case "ppp":
-		cmd = append(cmd, "?topics=ppp,info")
+		cmd = append(cmd, "?topics=pppoe,info")
 	}
 
 	ctx := c.Request.Context()
@@ -122,7 +122,7 @@ func (h *LogSSEHandler) sendInitialDump(c *gin.Context, routerID, filter string)
 		if filter == "hotspot" && !strings.Contains(topics, "hotspot") {
 			continue
 		}
-		if filter == "ppp" && !strings.Contains(topics, "ppp") {
+		if filter == "ppp" && !strings.Contains(topics, "pppoe") {
 			continue
 		}
 

@@ -67,7 +67,7 @@ func main() {
 
 	engine.Start(ctx)
 
-	backgroundWorker := worker.New(db, cache, saleRepo)
+	backgroundWorker := worker.New(db, cache, saleRepo, nil)
 	backgroundWorker.Start(ctx)
 
 	log.Println("worker started, waiting for events...")

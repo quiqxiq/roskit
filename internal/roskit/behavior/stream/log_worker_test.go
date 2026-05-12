@@ -28,10 +28,9 @@ func TestLogWorker_Start_And_Cancel(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		worker.Start(ctx, routerID, "all", 500*time.Millisecond)
+		worker.Start(ctx, routerID, "all")
 	}()
 
-	// Let it tick at least once
 	time.Sleep(700 * time.Millisecond)
 	cancel()
 
@@ -57,7 +56,7 @@ func TestLogWorker_FilterHotspot(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		worker.Start(ctx, routerID, "hotspot", 500*time.Millisecond)
+		worker.Start(ctx, routerID, "hotspot")
 	}()
 
 	<-done
