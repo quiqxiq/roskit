@@ -75,7 +75,7 @@ cacheVoucher:
 printData:
   get:
     operationId: getVoucherPrintData
-    summary: Voucher print payload (vouchers + tenant router info)
+    summary: Voucher print payload (vouchers + router info)
     tags: [vouchers]
     parameters:
       - $ref: '../components/parameters.yaml#/RouterId'
@@ -133,7 +133,7 @@ recordSale:
 importSales:
   post:
     operationId: importVoucherSales
-    summary: Import voucher sales from RouterOS for the active tenant
+    summary: Import voucher sales from RouterOS
     tags: [vouchers]
     description: |
       Reconciliation pass — scans the router for hotspot users that
@@ -164,7 +164,7 @@ printVouchers:
     tags: [vouchers]
     description: |
       Resolves the requested vouchers (by username list or by RouterOS
-      comment), looks up the active tenant settings (logo, currency,
+      comment), looks up the active settings (logo, currency,
       hotspot name), and renders the chosen template. Returns raw HTML
       that the SPA opens in a print window.
     parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]

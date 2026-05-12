@@ -113,10 +113,9 @@ ImportResult:
 
 VoucherSale:
   type: object
-  required: [id, tenant_id, sold_at, username, profile_name]
+  required: [id, sold_at, username, profile_name]
   properties:
     id:              { type: integer, format: int64 }
-    tenant_id:       { type: integer, format: int64 }
     router_id:
       oneOf:
         - type: integer

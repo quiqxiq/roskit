@@ -1,8 +1,7 @@
 # /routers/{routerId}/reports/* operations.
 # Source: internal/api/handlers/report_handler.go.
 #
-# Reports are scoped per-router by URL but the underlying service supports
-# tenant-wide (`router_id == nil`) when called from other contexts.
+# Reports are scoped per-router by URL.
 
 getDailyReport:
   get:

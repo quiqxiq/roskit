@@ -2,7 +2,7 @@
 # Source: internal/api/handlers/event_handler.go.
 #
 # These are public webhook endpoints called by RouterOS schedulers via
-# `/tool/fetch`. Authentication is by tenant webhook token (header or
+# `/tool/fetch`. Authentication is by webhook token (header or
 # form field), not JWT. Rate-limited to 100 req/min/IP.
 
 OnLoginPayload:
@@ -20,7 +20,7 @@ OnLoginPayload:
     date:        { type: string, maxLength: 32,  example: 'apr/30/2026' }
     time:        { type: string, maxLength: 32,  example: '10:11:12' }
     profile:     { type: string, maxLength: 64,  example: 1d-1mbps }
-    token:       { type: string, description: 'Tenant webhook token. Use the `X-Router-Token` header instead when possible.' }
+    token:       { type: string, description: 'Webhook token. Use the `X-Router-Token` header instead when possible.' }
 
 # --- operations ---------------------------------------------------------------
 
@@ -32,12 +32,11 @@ onLogin:
     security:
       - webhookToken: []
     description: |
-      Public webhook. Tenant resolution flow:
+      Public webhook. Auth + resolution flow:
 
       1. RouterOS posts an `X-Router-Token` header (or `token` form field).
-      2. The token is matched against `tenant_settings.webhook_token` to
-         find the active tenant.
-      3. The router is resolved by `(tenant_id, router_name)`.
+      2. The token is matched against `settings.webhook_token`.
+      3. The router is resolved by `router_name`.
       4. The voucher sale is recorded idempotently by
          `(router_id, username, sold_at)`.
 

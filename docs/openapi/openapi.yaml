@@ -169,6 +169,8 @@ paths:
     get:    { $ref: 'paths/hotspot.yaml#/getProfile/get' }
     put:    { $ref: 'paths/hotspot.yaml#/updateProfile/put' }
     delete: { $ref: 'paths/hotspot.yaml#/removeProfile/delete' }
+  /routers/{routerId}/hotspot/profiles/sync:
+    post: { $ref: 'paths/hotspot.yaml#/syncProfiles/post' }
 
   /routers/{routerId}/hotspot/active:
     get: { $ref: 'paths/hotspot.yaml#/listActive/get' }

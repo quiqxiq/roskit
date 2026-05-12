@@ -11,23 +11,17 @@ getUserStatus:
     security: []
     description: |
       Public endpoint used by the hotspot login page to show whether a
-      device is currently connected. Resolves the router by name within
-      a tenant scope and looks up the active session matching the MAC.
+      device is currently connected. Resolves the router by name and
+      looks up the active session matching the MAC.
 
       Returns `active: true` with session details when the MAC is in
       `ip/hotspot/active`. Returns `active: false` (with only `mac`
       populated) when no matching session exists.
-
-      **Implementation note:** the handler currently reads the tenant ID
-      from request context, so callers must hit this through a tenant-
-      scoped path (e.g. behind a reverse proxy that injects tenant
-      context, or after authenticating). Treat the `security: []`
-      declaration as the intended public surface, not a guarantee.
     parameters:
       - in: query
         name: router
         required: true
-        description: Router name as registered in the tenant (matches `routers.name`).
+        description: Router name as registered in the system (matches `routers.name`).
         schema:
           type: string
           minLength: 1

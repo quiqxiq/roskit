@@ -351,7 +351,7 @@ syncProfiles:
       Reads all hotspot profiles from the router, parses pricing metadata
       from each on-login script, upserts the data into the
       `profile_price_mappings` table, and replaces the on-login script
-      with the current multi-tenant format (API URL, webhook token,
+      with the current format (API URL, webhook token,
       router name). Scripts that are already up-to-date are skipped.
 
       **Route:** `POST /routers/{routerId}/hotspot/profiles/sync`

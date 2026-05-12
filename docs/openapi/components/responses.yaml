@@ -27,10 +27,7 @@ Unauthorized:
           message: invalid or expired access token
 
 Forbidden:
-  description: |
-    Authentication succeeded but the principal lacks permission. Casbin
-    middleware emits this for cross-domain access; tenant suspension also
-    surfaces as 403.
+  description: Authentication succeeded but the principal lacks the required role.
   content:
     application/json:
       schema:
@@ -42,10 +39,7 @@ Forbidden:
           message: access denied
 
 NotFound:
-  description: |
-    Resource does not exist OR exists in another tenant. The API returns
-    404 in both cases on purpose — never confirm existence across tenant
-    boundaries.
+  description: Resource does not exist.
   content:
     application/json:
       schema:
