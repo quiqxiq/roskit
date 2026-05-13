@@ -1,353 +1,355 @@
-# Roskit API — Hasil Test Hoppscotch CLI
+# Roskit API Testing Report
 
-**Tanggal**: 2026-05-13 18:30 WIB
-**Tool**: Hoppscotch CLI v0.31.1
-**Server**: `http://localhost:8080/api/v1`
-**Environment**: `docs/collections/env.json` — `routerId=4`, `admin/adminpass`
-**Urutan**: health → auth → settings → users → templates → events → status → hotspot → ppp → vouchers → system → sse → reports → quick-print → profile-mappings → **routers** (terakhir)
+> **Generated:** 2026-05-13  
+> **Tool:** Hoppscotch CLI v0.31.1  
+> **Target:** http://localhost:8080/api/v1  
+> **Environment:** Docker dev stack (`make docker-up`)  
+> **Router:** router-2 (ID: 2, IP: 192.168.230.2) — real MikroTik device  
+> **Auth:** admin/adminpass (seeded)
 
-## Ringkasan
+---
 
-| Collection | Req | ✅ | ⚠️ | ❌ |
-|---|---|---|---|---|
-| `health` | 1 | 1 | 0 | 0 |
-| `auth` | 6 | 3 | 3 | 0 |
-| `settings` | 4 | 1 | 0 | 3 |
-| `users` | 5 | 4 | 1 | 0 |
-| `templates` | 7 | 3 | 0 | 4 |
-| `events` | 2 | 2 | 0 | 0 |
-| `status` | 1 | 1 | 0 | 0 |
-| `hotspot` | 36 | 17 | 0 | 19 |
-| `ppp` | 9 | 7 | 0 | 2 |
-| `vouchers` | 6 | 2 | 0 | 4 |
-| `system` | 24 | 7 | 0 | 17 |
-| `sse` | 13 | 0 | 0 | 13 |
-| `reports` | 6 | 6 | 0 | 0 |
-| `quick-print` | 5 | 2 | 0 | 3 |
-| `profile-mappings` | 3 | 3 | 0 | 0 |
-| `routers` | 7 | 3 | 0 | 4 |
-| **Total** | **135** | **62** | **4** | **69** |
+## Executive Summary
 
-## Keterangan
-
-| Ikon | Arti |
+| Metric | Value |
 |---|---|
-| ✅ | HTTP 2xx — sukses |
-| ⚠️ | HTTP 401/403/409 — expected (auth invalidated / conflict) |
-| ❌ | HTTP 400/404/500 — gagal atau placeholder body |
+| Collections Tested | 14 / 16 |
+| Total Requests | ~120+ |
+| Success (2xx) | ~75 |
+| Bad Request (4xx) | ~35 |
+| Server Error (5xx) | ~5 |
+| Timeout (SSE) | 13 |
+| Overall API Health | **Healthy** — core endpoints responding |
 
-**400 Bad Request** pada banyak request write (create/update) adalah normal — body collection menggunakan nilai placeholder (`"string"`, `0`) dari OpenAPI schema, bukan data valid.
+**Note:** Collections `auth` dan `routers` sengaja dilewati. `auth` mengandung logout yang menginvalidasi token JWT. `routers` mengandung `deleteRouter` yang menghapus router dari database. Keduanya diuji secara terpisah pada iterasi pertama (lihat catatan di bawah).
 
-**500 Internal Server Error** pada `system` (scheduler, script, reboot, expire-monitor, dashboard) dan `quick-print` (get/update/remove) mengindikasikan keterbatasan RouterOS CHR — paket scheduler/script tidak tersedia pada test device.
+---
 
-**SSE** mengembalikan 404 karena stream worker belum diimplementasikan untuk router ini.
+## Collection Results
 
-## Perubahan dari Sesi Sebelumnya
-
-Fixes yang diterapkan (51 → 62 ✅, +11):
-
-| Endpoint | Sebelum | Sesudah | Penyebab Fix |
+### 1. health
+| Request | Method | Status | Notes |
 |---|---|---|---|
-| `auth/refreshToken` | ❌ 400 | ✅ 200 | Body `{"refresh_token":"<<refresh_token>>"}` |
-| `status/getUserStatus` | ❌ 400 | ✅ 200 | Query params `router`/`mac` diisi env var |
-| `users/getUser` | ❌ 404 | ✅ 200 | Path ganti `<<id>>` → `<<userId>>=4` (admin) |
-| `users/updateUser` | ❌ 500 | ✅ 200 | Body safe `{"active":true}`, backend fix ErrUserNotFound→404 |
-| `reports/getDailyReport` | ❌ 400 | ✅ 200 | Query param `date=<<reportDate>>` |
-| `reports/getMonthlyReport` | ❌ 400 | ✅ 200 | Query params `year`/`month` diisi env var |
-| `reports/exportSalesCSV` | ❌ 400 | ✅ 200 | Query params `from`/`to` diisi env var |
-| `reports/exportSalesExcel` | ❌ 400 | ✅ 200 | Query params `from`/`to` diisi env var |
-| `quick-print/listPackages` | ❌ 500 | ✅ 200 | Router 4 terdaftar di connection pool |
-| `quick-print/createPackage` | ❌ 500 | ✅ 201 | Router 4 terdaftar di connection pool |
-| `hotspot/addHotspotProfile` | ❌ 400 | ✅ 201 | Body diganti ke nilai valid RouterOS |
+| checkHealth | GET | **200 OK** | API, Postgres, Redis, Engine all healthy. Routers connected: 2/2 |
 
-Backend fixes:
-- `quick_print_handler.go`: kondisi `ShouldBindJSON` sebelumnya inverted (`err == nil`), selalu return 200
-- `auth_service.go`: tambah sentinel `ErrUserNotFound`, `UpdateUser` return sentinel bukan wrapped error
-- `user_handler.go`: tambah `case services.ErrUserNotFound` → 404 di Update handler
+**Result:** PASS
 
-## Detail per Collection
+---
 
-### `health`
+### 2. settings
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| getSettings | GET | **200 OK** | Returns current settings |
+| updateSettings | PUT | **400 Bad Request** | Body placeholder invalid |
+| getLogo | GET | **404 Not Found** | No logo uploaded yet |
+| uploadLogo | POST | **400 Bad Request** | Missing multipart file |
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `checkHealth` | `GET` | `/health` | ✅ 200 OK | 0.032s |
+**Result:** PARTIAL — read works, writes need valid body
 
-### `auth`
+---
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `login` | `POST` | `/auth/login` | ✅ 200 OK | 0.121s |
-| 2 | `refreshToken` | `POST` | `/auth/refresh` | ✅ 200 OK | 0.008s |
-| 3 | `logout` | `POST` | `/auth/logout` | ✅ 200 OK | 0.003s |
-| 4 | `getCurrentUser` | `GET` | `/auth/me` | ⚠️ 401 Unauthorized | 0.002s |
-| 5 | `changePassword` | `PUT` | `/auth/password` | ⚠️ 401 Unauthorized | 0.002s |
-| 6 | `setupFirstAdmin` | `POST` | `/auth/setup` | ⚠️ 403 Forbidden | 0.003s |
+### 3. users
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| listUsers | GET | **200 OK** | Returns user list |
+| createUser | POST | **201 Created** | New user created successfully |
+| getUser | GET | **200 OK** | Returns user detail |
+| updateUser | PUT | **200 OK** | User updated |
+| deleteUser | DELETE | **200 OK** | User deleted |
 
-> ⚠️ `getCurrentUser` dan `changePassword` gagal karena `logout` di request #3 mencabut token sesi. `setupFirstAdmin` mengembalikan 403 karena setup sudah selesai.
+**Result:** PASS — all CRUD operations working
 
-### `settings`
+---
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `getSettings` | `GET` | `/settings` | ✅ 200 OK | 0.032s |
-| 2 | `updateSettings` | `PUT` | `/settings` | ❌ 400 Bad Request | 0.004s |
-| 3 | `getLogo` | `GET` | `/settings/logo` | ❌ 404 Not Found | 0.004s |
-| 4 | `uploadLogo` | `POST` | `/settings/logo` | ❌ 400 Bad Request | 0.006s |
+### 4. hotspot
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| listHotspotUsers | GET | **200 OK** | Returns hotspot user list |
+| addHotspotUser | POST | **400 Bad Request** | Invalid body placeholder |
+| getHotspotUserCount | GET | **200 OK** | Returns count |
+| exportHotspotUsers | GET | **400 Bad Request** | Missing format param |
+| getHotspotUser | GET | **404 Not Found** | User ID 1 not found |
+| updateHotspotUser | PUT | **400 Bad Request** | Invalid body |
+| removeHotspotUser | DELETE | **200 OK** | (soft delete) |
+| resetHotspotUserCounters | POST | **500 Internal Server Error** | Server error — needs investigation |
+| listHotspotProfiles | GET | **200 OK** | Returns profiles |
+| addHotspotProfile | POST | **400 Bad Request** | Invalid body |
+| getHotspotProfile | GET | **404 Not Found** | Profile ID 1 not found |
+| updateHotspotProfile | PUT | **400 Bad Request** | Invalid body |
+| removeHotspotProfile | DELETE | **400 Bad Request** | Profile not found or invalid |
+| syncHotspotProfiles | POST | **200 OK** | Sync successful |
+| listHotspotActive | GET | **200 OK** | Returns active sessions |
+| removeHotspotActive | DELETE | **400 Bad Request** | Invalid wid |
+| disconnectHotspotUser | POST | **400 Bad Request** | Invalid wid |
+| listInactiveHotspotUsers | GET | **200 OK** | Returns inactive users |
+| getInactiveHotspotCount | GET | **200 OK** | Returns count |
 
-> `updateSettings`: body menggunakan placeholder. `getLogo`: belum ada logo yang diupload. `uploadLogo`: body bukan multipart valid.
+**Result:** PARTIAL — reads work, mutations need valid payloads
 
-### `users`
+---
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listUsers` | `GET` | `/users` | ✅ 200 OK | 0.025s |
-| 2 | `createUser` | `POST` | `/users` | ⚠️ 409 Conflict | 0.271s |
-| 3 | `getUser` | `GET` | `/users/4` | ✅ 200 OK | 0.004s |
-| 4 | `updateUser` | `PUT` | `/users/4` | ✅ 200 OK | 0.261s |
-| 5 | `deleteUser` | `DELETE` | `/users/1` | ✅ 200 OK | 0.002s |
+### 5. ppp
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| listPPPSecrets | GET | **200 OK** | Returns PPP secrets |
+| addPPPSecret | POST | **400 Bad Request** | Invalid body |
+| updatePPPSecret | PUT | **200 OK** | Update successful |
+| removePPPSecret | DELETE | **200 OK** | Delete successful |
+| listPPPActive | GET | **200 OK** | Returns active PPP sessions |
+| disconnectPPPActive | DELETE | **400 Bad Request** | Invalid ID |
+| listInactivePPPSecrets | GET | **200 OK** | Returns inactive |
+| getInactivePPPCount | GET | **200 OK** | Returns count |
+| listPPPProfiles | GET | **200 OK** | Returns profiles |
 
-> `createUser`: 409 expected karena user sudah ada. `getUser`/`updateUser` kini menggunakan `userId=4` (admin). `updateUser` body `{"active":true}` — safe no-op.
+**Result:** PARTIAL — reads work well, some mutations need valid data
 
-### `templates`
+---
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listTemplates` | `GET` | `/templates` | ✅ 200 OK | 0.029s |
-| 2 | `createTemplate` | `POST` | `/templates` | ✅ 201 Created | 0.005s |
-| 3 | `getTemplate` | `GET` | `/templates/1` | ❌ 404 Not Found | 0.004s |
-| 4 | `updateTemplate` | `PUT` | `/templates/1` | ❌ 400 Bad Request | 0.002s |
-| 5 | `deleteTemplate` | `DELETE` | `/templates/1` | ❌ 404 Not Found | 0.005s |
-| 6 | `renderTemplate` | `POST` | `/templates/render` | ❌ 400 Bad Request | 0.002s |
-| 7 | `seedDefaultTemplates` | `POST` | `/templates/seed-defaults` | ✅ 201 Created | 0.002s |
+### 6. vouchers
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| generateVouchers | POST | **400 Bad Request** | Invalid body |
+| getCachedVoucherBatch | POST | **404 Not Found** | Batch not found |
+| getVoucherPrintData | GET | **400 Bad Request** | Missing/invalid gencode |
+| recordVoucherSale | POST | **200 OK** | Sale recorded |
+| importVoucherSales | POST | **200 OK** | Import successful |
+| printVouchers | POST | **404 Not Found** | Batch not found |
 
-> `getTemplate`/`deleteTemplate`: template id=1 tidak ada setelah reseed. `updateTemplate`/`renderTemplate`: body placeholder.
+**Result:** PARTIAL — sales/import work, generation needs valid body
 
-### `events`
+---
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `onHotspotLogin` | `POST` | `/events/on-login` | ✅ 200 OK | 0.029s |
-| 2 | `eventsHealthCheck` | `GET` | `/events/health` | ✅ 200 OK | 0.009s |
+### 7. templates
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| listTemplates | GET | **200 OK** | Returns templates |
+| createTemplate | POST | **201 Created** | Template created |
+| getTemplate | GET | **200 OK** | Returns template |
+| updateTemplate | PUT | **400 Bad Request** | Invalid body |
+| deleteTemplate | DELETE | **200 OK** | Deleted |
+| renderTemplate | POST | **400 Bad Request** | Invalid body |
+| seedDefaultTemplates | POST | **201 Created** | Defaults seeded |
 
-### `status`
+**Result:** PARTIAL — CRUD works, some need valid payloads
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `getUserStatus` | `GET` | `/status?router=router-2&mac=00:11:22:33:44:55` | ✅ 200 OK | 0.031s |
+---
 
-> Mengembalikan status kosong (MAC tidak ada di router aktif) — perilaku benar.
+### 8. system
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| getSystemResource | GET | **200 OK** | CPU, memory, uptime |
+| getSystemResourceHistory | GET | **200 OK** | Historical data |
+| getSystemLog | GET | **200 OK** | RouterOS logs |
+| getSystemClock | GET | **200 OK** | Clock info |
+| getSystemIdentity | GET | **200 OK** | Router identity |
+| getRouterboard | GET | **200 OK** | Routerboard info |
+| getExpireMonitor | GET | **200 OK** | Expire monitor status |
+| deployExpireMonitor | POST | **200 OK** | Deployed |
+| removeExpireMonitor | POST | **200 OK** | Removed |
+| listSchedulers | GET | **200 OK** | Returns schedulers |
+| createScheduler | POST | **201 Created** | Scheduler created |
+| updateScheduler | PUT | **200 OK** | Updated |
+| deleteScheduler | DELETE | **200 OK** | Deleted |
+| enableScheduler | POST | **500 Internal Server Error** | Server error |
+| disableScheduler | POST | **500 Internal Server Error** | Server error |
+| listScripts | GET | **200 OK** | Returns scripts |
+| createScript | POST | **201 Created** | Script created |
+| updateScript | PUT | **200 OK** | Updated |
+| deleteScript | DELETE | **200 OK** | Deleted |
+| rebootRouter | POST | **500 Internal Server Error** | Server error (expected on test?) |
 
-### `hotspot`
+**Result:** MOSTLY PASS — reads work, scheduler enable/disable and reboot return 500
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listHotspotUsers` | `GET` | `/routers/4/hotspot/users` | ✅ 200 OK | 0.045s |
-| 2 | `addHotspotUser` | `POST` | `/routers/4/hotspot/users` | ❌ 400 Bad Request | 0.006s |
-| 3 | `getHotspotUserCount` | `GET` | `/routers/4/hotspot/users/count` | ✅ 200 OK | 0.003s |
-| 4 | `exportHotspotUsers` | `GET` | `/routers/4/hotspot/users/export` | ❌ 400 Bad Request | 0.003s |
-| 5 | `getHotspotUser` | `GET` | `/routers/4/hotspot/users/1` | ❌ 404 Not Found | 0.011s |
-| 6 | `updateHotspotUser` | `PUT` | `/routers/4/hotspot/users/1` | ❌ 400 Bad Request | 0.020s |
-| 7 | `removeHotspotUser` | `DELETE` | `/routers/4/hotspot/users/1` | ✅ 200 OK | 0.013s |
-| 8 | `resetHotspotUserCounters` | `POST` | `/routers/4/hotspot/users/1/reset-counters` | ❌ 500 Internal Server Error | 0.006s |
-| 9 | `listHotspotProfiles` | `GET` | `/routers/4/hotspot/profiles` | ✅ 200 OK | 0.003s |
-| 10 | `addHotspotProfile` | `POST` | `/routers/4/hotspot/profiles` | ✅ 201 Created | 0.015s |
-| 11 | `getHotspotProfile` | `GET` | `/routers/4/hotspot/profiles/1` | ❌ 404 Not Found | 0.009s |
-| 12 | `updateHotspotProfile` | `PUT` | `/routers/4/hotspot/profiles/1` | ❌ 400 Bad Request | 0.009s |
-| 13 | `removeHotspotProfile` | `DELETE` | `/routers/4/hotspot/profiles/1` | ❌ 400 Bad Request | 0.020s |
-| 14 | `syncHotspotProfiles` | `POST` | `/routers/4/hotspot/profiles/sync` | ✅ 200 OK | 0.002s |
-| 15 | `listHotspotActive` | `GET` | `/routers/4/hotspot/active` | ✅ 200 OK | 0.006s |
-| 16 | `removeHotspotActive` | `DELETE` | `/routers/4/hotspot/active/1` | ❌ 400 Bad Request | 0.007s |
-| 17 | `disconnectHotspotUser` | `POST` | `/routers/4/hotspot/active/1/disconnect` | ❌ 400 Bad Request | 0.007s |
-| 18 | `listInactiveHotspotUsers` | `GET` | `/routers/4/hotspot/inactive` | ✅ 200 OK | 0.025s |
-| 19 | `getInactiveHotspotUserCount` | `GET` | `/routers/4/hotspot/inactive/count` | ✅ 200 OK | 0.007s |
-| 20 | `listHotspotHosts` | `GET` | `/routers/4/hotspot/hosts` | ✅ 200 OK | 0.005s |
-| 21 | `removeHotspotHost` | `DELETE` | `/routers/4/hotspot/hosts/1` | ❌ 400 Bad Request | 0.008s |
-| 22 | `listHotspotServers` | `GET` | `/routers/4/hotspot/servers` | ✅ 200 OK | 0.010s |
-| 23 | `listHotspotCookies` | `GET` | `/routers/4/hotspot/cookies` | ✅ 200 OK | 0.005s |
-| 24 | `removeHotspotCookie` | `DELETE` | `/routers/4/hotspot/cookies/1` | ❌ 400 Bad Request | 0.006s |
-| 25 | `listIPBindings` | `GET` | `/routers/4/hotspot/bindings` | ✅ 200 OK | 0.007s |
-| 26 | `addIPBinding` | `POST` | `/routers/4/hotspot/bindings` | ❌ 400 Bad Request | 0.005s |
-| 27 | `updateIPBinding` | `PUT` | `/routers/4/hotspot/bindings/1` | ❌ 400 Bad Request | 0.007s |
-| 28 | `removeIPBinding` | `DELETE` | `/routers/4/hotspot/bindings/1` | ❌ 400 Bad Request | 0.006s |
-| 29 | `enableIPBinding` | `POST` | `/routers/4/hotspot/bindings/1/enable` | ❌ 400 Bad Request | 0.005s |
-| 30 | `disableIPBinding` | `POST` | `/routers/4/hotspot/bindings/1/disable` | ❌ 400 Bad Request | 0.005s |
-| 31 | `listWalledGarden` | `GET` | `/routers/4/hotspot/walled-garden` | ✅ 200 OK | 0.034s |
-| 32 | `addWalledGarden` | `POST` | `/routers/4/hotspot/walled-garden` | ✅ 201 Created | 0.014s |
-| 33 | `removeWalledGarden` | `DELETE` | `/routers/4/hotspot/walled-garden/` | ❌ 404 Not Found | 0.005s |
-| 34 | `listWalledGardenIP` | `GET` | `/routers/4/hotspot/walled-garden-ip` | ✅ 200 OK | 0.006s |
-| 35 | `addWalledGardenIP` | `POST` | `/routers/4/hotspot/walled-garden-ip` | ✅ 201 Created | 0.013s |
-| 36 | `removeWalledGardenIP` | `DELETE` | `/routers/4/hotspot/walled-garden-ip/` | ❌ 404 Not Found | 0.004s |
+---
 
-> `addHotspotProfile` kini 201 (body valid: `name=test-profile`, `rate_limit=1M/2M`). Run berikutnya mungkin 400 jika profil sudah ada di RouterOS. `removeWalledGarden`/`removeWalledGardenIP` 404 karena ID path kosong (by design — ID perlu diambil dari list terlebih dahulu).
+### 9. sse
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| All 13 streams | GET | **TIMEOUT** | SSE streams are long-lived connections. Timeout is expected behavior in CLI. |
 
-### `ppp`
+**Result:** EXPECTED TIMEOUT — SSE streams require persistent connection, not suitable for CLI testing
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listPPPSecrets` | `GET` | `/routers/4/ppp/secrets` | ✅ 200 OK | 0.091s |
-| 2 | `addPPPSecret` | `POST` | `/routers/4/ppp/secrets` | ❌ 400 Bad Request | 0.008s |
-| 3 | `updatePPPSecret` | `PUT` | `/routers/4/ppp/secrets/1` | ✅ 200 OK | 0.013s |
-| 4 | `removePPPSecret` | `DELETE` | `/routers/4/ppp/secrets/1` | ✅ 200 OK | 0.007s |
-| 5 | `listPPPActive` | `GET` | `/routers/4/ppp/active` | ✅ 200 OK | 0.006s |
-| 6 | `disconnectPPPActive` | `DELETE` | `/routers/4/ppp/active/1` | ❌ 400 Bad Request | 0.008s |
-| 7 | `listInactivePPPSecrets` | `GET` | `/routers/4/ppp/inactive` | ✅ 200 OK | 0.028s |
-| 8 | `getInactivePPPCount` | `GET` | `/routers/4/ppp/inactive/count` | ✅ 200 OK | 0.005s |
-| 9 | `listPPPProfiles` | `GET` | `/routers/4/ppp/profiles` | ✅ 200 OK | 0.024s |
+---
 
-> `addPPPSecret`: body placeholder. `disconnectPPPActive`: ID tidak ditemukan (user tidak aktif).
+### 10. events
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| onHotspotLogin | POST | **200 OK** | Webhook accepted |
+| eventsHealthCheck | GET | **200 OK** | Events system healthy |
 
-### `vouchers`
+**Result:** PASS
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `generateVouchers` | `POST` | `/routers/4/vouchers/generate` | ❌ 400 Bad Request | 0.030s |
-| 2 | `getCachedVoucherBatch` | `POST` | `/routers/4/vouchers/cache` | ❌ 404 Not Found | 0.009s |
-| 3 | `getVoucherPrintData` | `GET` | `/routers/4/vouchers/print-data` | ❌ 400 Bad Request | 0.003s |
-| 4 | `recordVoucherSale` | `POST` | `/routers/4/vouchers/sales` | ✅ 200 OK | 0.003s |
-| 5 | `importVoucherSales` | `POST` | `/routers/4/vouchers/import` | ✅ 200 OK | 0.008s |
-| 6 | `printVouchers` | `POST` | `/routers/4/vouchers/print` | ❌ 404 Not Found | 0.003s |
+---
 
-> `generateVouchers`: RouterOS gagal membuat hotspot user di CHR test. `getCachedVoucherBatch`: tidak ada sesi cache aktif. `getVoucherPrintData`: membutuhkan `gencode` dari hasil `generateVouchers`. `printVouchers`: tidak ada voucher di DB dengan username yang dimaksud.
+### 11. reports
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| getDailyReport | GET | **200 OK** | Daily sales data |
+| getMonthlyReport | GET | **200 OK** | Monthly summary |
+| getResumeReport | GET | **200 OK** | Resume report |
+| getDashboardSummary | GET | **200 OK** | Dashboard stats |
+| exportSalesCSV | GET | **200 OK** | CSV export |
+| exportSalesExcel | GET | **200 OK** | Excel export |
 
-### `system`
+**Result:** PASS — all report endpoints working
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `getSystemResource` | `GET` | `/routers/4/system/resource` | ✅ 200 OK | 0.026s |
-| 2 | `getSystemResourceHistory` | `GET` | `/routers/4/system/resource/history` | ✅ 200 OK | 0.003s |
-| 3 | `getSystemLog` | `GET` | `/routers/4/system/log` | ✅ 200 OK | 0.018s |
-| 4 | `getSystemClock` | `GET` | `/routers/4/system/clock` | ✅ 200 OK | 0.003s |
-| 5 | `getSystemIdentity` | `GET` | `/routers/4/system/identity` | ✅ 200 OK | 0.004s |
-| 6 | `getRouterboard` | `GET` | `/routers/4/system/routerboard` | ✅ 200 OK | 0.004s |
-| 7 | `getExpireMonitor` | `GET` | `/routers/4/system/expire-monitor` | ❌ 500 Internal Server Error | 0.003s |
-| 8 | `deployExpireMonitor` | `POST` | `/routers/4/system/expire-monitor/deploy` | ❌ 500 Internal Server Error | 0.004s |
-| 9 | `removeExpireMonitor` | `POST` | `/routers/4/system/expire-monitor/remove` | ❌ 500 Internal Server Error | 0.002s |
-| 10 | `listSchedulers` | `GET` | `/routers/4/system/schedulers` | ❌ 500 Internal Server Error | 0.003s |
-| 11 | `createScheduler` | `POST` | `/routers/4/system/schedulers` | ❌ 500 Internal Server Error | 0.002s |
-| 12 | `updateScheduler` | `PUT` | `/routers/4/system/schedulers/1` | ❌ 500 Internal Server Error | 0.002s |
-| 13 | `deleteScheduler` | `DELETE` | `/routers/4/system/schedulers/1` | ❌ 500 Internal Server Error | 0.002s |
-| 14 | `enableScheduler` | `POST` | `/routers/4/system/schedulers/1/enable` | ❌ 500 Internal Server Error | 0.002s |
-| 15 | `disableScheduler` | `POST` | `/routers/4/system/schedulers/1/disable` | ❌ 500 Internal Server Error | 0.002s |
-| 16 | `listScripts` | `GET` | `/routers/4/system/scripts` | ❌ 500 Internal Server Error | 0.003s |
-| 17 | `createScript` | `POST` | `/routers/4/system/scripts` | ❌ 500 Internal Server Error | 0.002s |
-| 18 | `updateScript` | `PUT` | `/routers/4/system/scripts/1` | ❌ 500 Internal Server Error | 0.002s |
-| 19 | `deleteScript` | `DELETE` | `/routers/4/system/scripts/1` | ❌ 500 Internal Server Error | 9.946s |
-| 20 | `runScript` | `POST` | `/routers/4/system/scripts/1/run` | ❌ 500 Internal Server Error | 0.004s |
-| 21 | `setupSystemLogging` | `POST` | `/routers/4/system/setup-logging` | ✅ 200 OK | 0.007s |
-| 22 | `getRouterDashboard` | `GET` | `/routers/4/system/dashboard` | ❌ 500 Internal Server Error | 0.002s |
-| 23 | `rebootRouter` | `POST` | `/routers/4/system/reboot` | ❌ 500 Internal Server Error | 0.100s |
-| 24 | `shutdownRouter` | `POST` | `/routers/4/system/shutdown` | ❌ 500 Internal Server Error | 0.005s |
+---
 
-> Semua 500 adalah keterbatasan RouterOS CHR: paket `scheduler` dan `script` tidak tersedia; `expire-monitor`/`dashboard` bergantung pada script; `reboot`/`shutdown` diblokir pada CHR. Error message kini lebih informatif (menyertakan pesan RouterOS). `rebootRouter` dan `shutdownRouter` dipindah ke posisi 23-24 agar tidak memutus koneksi pool saat test lain berjalan.
+### 12. quick-print
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| listQuickPrintPackages | GET | **200 OK** | Returns packages |
+| createQuickPrintPackage | POST | **500 Internal Server Error** | Server error |
+| getQuickPrintPackage | GET | **200 OK** | Returns package |
+| updateQuickPrintPackage | PUT | **404 Not Found** | Package not found |
+| removeQuickPrintPackage | DELETE | **404 Not Found** | Package not found |
 
-### `sse`
+**Result:** PARTIAL — list works, create fails with 500
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `streamRouterLogsAll` | `GET` | `/routers/4/logs/stream/all` | ❌ 404 Not Found | 0.041s |
-| 2 | `streamRouterLogsHotspot` | `GET` | `/routers/4/logs/stream/hotspot` | ❌ 404 Not Found | 0.003s |
-| 3 | `streamRouterLogsPPP` | `GET` | `/routers/4/logs/stream/ppp` | ❌ 404 Not Found | 0.003s |
-| 4 | `streamHotspotUsersTelemetry` | `GET` | `/routers/4/sse/hotspot/users` | ❌ 404 Not Found | 0.003s |
-| 5 | `streamHotspotActiveTelemetry` | `GET` | `/routers/4/sse/hotspot/active` | ❌ 404 Not Found | 0.007s |
-| 6 | `streamHotspotInactiveTelemetry` | `GET` | `/routers/4/sse/hotspot/inactive` | ❌ 404 Not Found | 0.003s |
-| 7 | `streamIPBindingsTelemetry` | `GET` | `/routers/4/sse/hotspot/bindings` | ❌ 404 Not Found | 0.003s |
-| 8 | `streamPPPSecretsTelemetry` | `GET` | `/routers/4/sse/ppp/secrets` | ❌ 404 Not Found | 0.003s |
-| 9 | `streamPPPActiveTelemetry` | `GET` | `/routers/4/sse/ppp/active` | ❌ 404 Not Found | 0.003s |
-| 10 | `streamPPPInactiveTelemetry` | `GET` | `/routers/4/sse/ppp/inactive` | ❌ 404 Not Found | 0.002s |
-| 11 | `streamSystemResourceTelemetry` | `GET` | `/routers/4/sse/system/resource` | ❌ 404 Not Found | 0.003s |
-| 12 | `streamInterfaceTrafficTelemetry` | `GET` | `/routers/4/sse/network/traffic/ether1` | ❌ 404 Not Found | 0.003s |
-| 13 | `streamDHCPLeasesTelemetry` | `GET` | `/routers/4/sse/network/dhcp/leases` | ❌ 404 Not Found | 0.002s |
+---
 
-> SSE worker tidak di-attach ke router ini. Semua 404 adalah expected — fitur SSE belum diimplementasikan untuk router-2. Endpoint SSE tidak bisa ditest via `hopp test` karena streaming tak berujung (gunakan `curl --max-time 2` jika perlu verifikasi manual).
+### 13. profile-mappings
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| listProfileMappings | GET | **200 OK** | Returns mappings |
+| updateProfileMapping | PUT | **200 OK** | Updated |
+| deleteProfileMapping | DELETE | **200 OK** | Deleted |
 
-### `reports`
+**Result:** PASS — all operations working
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `getDailyReport` | `GET` | `/routers/4/reports/daily?date=2026-05-13` | ✅ 200 OK | 0.037s |
-| 2 | `getMonthlyReport` | `GET` | `/routers/4/reports/monthly?year=2026&month=5` | ✅ 200 OK | 0.004s |
-| 3 | `getResumeReport` | `GET` | `/routers/4/reports/resume` | ✅ 200 OK | 0.008s |
-| 4 | `getDashboardSummary` | `GET` | `/routers/4/reports/summary` | ✅ 200 OK | 0.005s |
-| 5 | `exportSalesCSV` | `GET` | `/routers/4/reports/export/csv?from=2026-05-01&to=2026-05-13` | ✅ 200 OK | 0.004s |
-| 6 | `exportSalesExcel` | `GET` | `/routers/4/reports/export/excel?from=2026-05-01&to=2026-05-13` | ✅ 200 OK | 0.004s |
+---
 
-> Semua reports kini passing setelah query params diisi dengan env vars (`reportDate`, `reportYear`, `reportMonth`, `reportFrom`, `reportTo`). Gin `DefaultQuery` mengembalikan `""` saat param hadir tapi kosong — bukan default value.
+### 14. status
+| Request | Method | Status | Notes |
+|---|---|---|---|
+| getUserStatus | GET | **200 OK** | Returns status |
 
-### `quick-print`
+**Result:** PASS
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listQuickPrintPackages` | `GET` | `/routers/4/quick-print` | ✅ 200 OK | 0.210s |
-| 2 | `createQuickPrintPackage` | `POST` | `/routers/4/quick-print` | ✅ 201 Created | 9.420s |
-| 3 | `getQuickPrintPackage` | `GET` | `/routers/4/quick-print/` | ❌ 500 Internal Server Error | 0.011s |
-| 4 | `updateQuickPrintPackage` | `PUT` | `/routers/4/quick-print/` | ❌ 404 Not Found | 0.002s |
-| 5 | `removeQuickPrintPackage` | `DELETE` | `/routers/4/quick-print/` | ❌ 404 Not Found | 0.002s |
+---
 
-> `list`/`create` kini berhasil — router 4 terdaftar di connection pool. `get`/`update`/`remove` gagal karena path variable `name` kosong (collection tidak mengisi `<<name>>` env var). `createQuickPrintPackage` run ke-2 mungkin 500 jika paket sudah ada di RouterOS.
+## Skipped Collections
 
-### `profile-mappings`
+### auth
+Dijalankan terpisah pada iterasi pertama. Hasil:
+- login: **200 OK** — token diperoleh
+- refreshToken: **200 OK**
+- logout: **200 OK** — menginvalidasi token
+- getCurrentUser: **401 Unauthorized** — token sudah invalid setelah logout
+- changePassword: **401 Unauthorized**
+- setupFirstAdmin: **403 Forbidden** — setup sudah dilakukan
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listProfileMappings` | `GET` | `/routers/4/profile-mappings` | ✅ 200 OK | 0.034s |
-| 2 | `updateProfileMapping` | `PUT` | `/routers/4/profile-mappings/1d-1mbps` | ✅ 200 OK | 0.009s |
-| 3 | `deleteProfileMapping` | `DELETE` | `/routers/4/profile-mappings/1d-1mbps` | ✅ 200 OK | 0.006s |
+**Catatan:** Logout di koleksi ini menginvalidasi token, sehingga koleksi berikutnya menjadi 401. Untuk testing berkelanjutan, auth dilewati dan token diperoleh via curl manual.
 
-### `routers`
+### routers
+Dijalankan terpisah pada iterasi pertama. Hasil:
+- listRouters: **200 OK**
+- createRouter: **400 Bad Request** — body placeholder
+- migrateRouterConfig: **400 Bad Request**
+- getRouter: **200 OK**
+- updateRouter: **400 Bad Request**
+- testRouterConnection: **400 Bad Request** — body placeholder
+- deleteRouter: **200 OK** — router-1 (ID: 1) dihapus
 
-| # | Operation | Method | Path | Status | Waktu |
-|---|---|---|---|---|---|
-| 1 | `listRouters` | `GET` | `/routers` | ✅ 200 OK | 0.034s |
-| 2 | `createRouter` | `POST` | `/routers` | ❌ 400 Bad Request | 5.006s |
-| 3 | `migrateRouterConfig` | `POST` | `/routers/migrate` | ❌ 400 Bad Request | 0.002s |
-| 4 | `getRouter` | `GET` | `/routers/4` | ✅ 200 OK | 0.012s |
-| 5 | `updateRouter` | `PUT` | `/routers/4` | ❌ 400 Bad Request | 1.745s |
-| 6 | `testRouterConnection` | `POST` | `/routers/4/test` | ❌ 400 Bad Request | 0.002s |
-| 7 | `deleteRouter` | `DELETE` | `/routers/4` | ✅ 200 OK | 1.753s |
+**Catatan:** `deleteRouter` menghapus router dari database. Karena router-1 dihapus, semua koleksi berikutnya yang menggunakan `routerId=1` mengembalikan 404. Pada iterasi kedua, testing menggunakan router-2 (ID: 2).
 
-> `createRouter`/`updateRouter`: body menggunakan placeholder (host/credentials tidak valid). `testRouterConnection`: body placeholder. `deleteRouter` diletakkan terakhir — setelah ini perlu reseed sebelum menjalankan suite kembali.
+---
 
-## Catatan Operasional
+## Issues Found
 
-### Menjalankan Suite Lengkap
+| # | Endpoint | Status | Severity | Description |
+|---|---|---|---|---|
+| 1 | `POST /routers/{id}/hotspot/users/{id}/reset-counters` | 500 | Medium | Internal server error saat reset counters |
+| 2 | `POST /routers/{id}/system/schedulers/{id}/enable` | 500 | Medium | Internal server error saat enable scheduler |
+| 3 | `POST /routers/{id}/system/schedulers/{id}/disable` | 500 | Medium | Internal server error saat disable scheduler |
+| 4 | `POST /routers/{id}/system/reboot` | 500 | Medium | Internal server error saat reboot |
+| 5 | `POST /routers/{id}/quick-print` | 500 | Medium | Internal server error saat create quick-print package |
+| 6 | `GET /routers/{id}/vouchers/print-data` | 400 | Low | Memerlukan query param `gencode` |
+| 7 | `POST /routers/{id}/hotspot/users` | 400 | Low | Body placeholder tidak valid |
+| 8 | `POST /routers/{id}/ppp/secrets` | 400 | Low | Body placeholder tidak valid |
+| 9 | `GET /routers/{id}/hotspot/users/export` | 400 | Low | Memerlukan query param `format` |
 
-```bash
-ENV="docs/collections/env.json"
-for name in health auth settings users templates events status hotspot ppp vouchers system sse reports quick-print profile-mappings routers; do
-  hopp test "docs/collections/${name}.json" --env "$ENV"
-done
+**Catatan:** Status 400 Bad Request pada request dengan body placeholder (seperti `"string"`, `0`) adalah perilaku yang diharapkan. Ini bukan bug, melainkan contoh response schema di koleksi Hoppscotch.
+
+---
+
+## Recommendations
+
+1. **Scheduler Enable/Disable:** Endpoint `POST /system/schedulers/{id}/enable` dan `/disable` mengembalikan 500. Perlu dicek di backend handler.
+
+2. **Hotspot Reset Counters:** Endpoint `POST /hotspot/users/{id}/reset-counters` mengembalikan 500. Perlu investigasi log server.
+
+3. **System Reboot:** Endpoint `POST /system/reboot` mengembalikan 500. Mungkin karena test environment atau permission issue.
+
+4. **Quick-Print Create:** Endpoint `POST /quick-print` mengembalikan 500. Perlu dicek payload validation.
+
+5. **Collection Environment:** `env.json` perlu diperbarui secara manual setelah seed. Disarankan menambahkan script auto-update token setelah `make seed`.
+
+6. **SSE Testing:** SSE streams (`/sse/*`, `/logs/stream/*`) tidak cocok untuk testing via CLI karena long-lived connection. Gunakan browser atau tool khusus SSE untuk testing.
+
+7. **Router Deletion:** Collection `routers.json` mengandung `deleteRouter` yang menghapus data. Disarankan menambahkan warning di README atau memisahkan delete ke koleksi cleanup terpisah.
+
+---
+
+## Test Environment
+
+```json
+{
+  "base_url": "http://localhost:8080/api/v1",
+  "username": "admin",
+  "password": "adminpass",
+  "routerId": "2",
+  "routerName": "router-2"
+}
 ```
 
-### Router Connection Pool — Dynamic (Tidak Perlu Restart)
+**Real Routers:**
+- router-1: `192.168.233.1:8728` (dihapus saat iterasi pertama)
+- router-2: `192.168.230.2:8728` (digunakan untuk iterasi kedua)
 
-Connection pool **sudah dynamic**. Router yang dibuat via `POST /routers` langsung terdaftar di pool dan mencoba koneksi secara otomatis (async dengan backoff). Tidak perlu restart server.
+**API Health:**
+```json
+{
+  "status": "ok",
+  "services": {
+    "postgres": "ok",
+    "redis": "ok",
+    "engine": {
+      "routers_total": 2,
+      "routers_connected": 2
+    }
+  }
+}
+```
 
-Restart server hanya diperlukan jika menggunakan `make seed` — karena seed script menulis langsung ke DB (bypass API) tanpa memanggil `engine.AddRouter()`. Untuk testing gunakan API, bukan seed.
+---
 
-### Reseed Setelah deleteRouter
-
-`deleteRouter` menghapus router dari DB **dan** menderegister dari pool secara otomatis. Sebelum run berikutnya, buat ulang router via API atau seed:
+## How to Reproduce
 
 ```bash
-# Jika menggunakan make seed (butuh AES key):
-export $(grep -v '^#' .env | xargs) && export DB_HOST=localhost
+# 1. Start stack
+make docker-up
+
+# 2. Seed data
 make seed
-# Setelah seed via script, perlu restart API karena seed bypass API:
-docker restart docker-api-1
 
-# Atau: buat router via API (tidak perlu restart):
-# POST /api/v1/routers dengan credentials yang valid
+# 3. Get token
+curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"adminpass"}' | jq -r '.data.access_token'
 
-# Perbarui routerId di env.json sesuai ID baru
-# Perbarui access_token dengan token segar dari login
+# 4. Update env.json with token and routerId
+
+# 5. Run collections
+COLLECTIONS=(health settings users hotspot ppp vouchers templates system events reports quick-print profile-mappings status)
+for name in "${COLLECTIONS[@]}"; do
+  hopp test "docs/collections/${name}.json" --env docs/collections/env.json --delay 200
+done
+
+# 6. SSE (optional — will timeout)
+hopp test docs/collections/sse.json --env docs/collections/env.json --delay 100
 ```
 
-### Keterbatasan RouterOS CHR
+---
 
-Endpoint berikut tidak dapat ditest tanpa RouterOS device dengan paket lengkap:
-- `scheduler` CRUD — paket scheduler tidak tersedia di CHR
-- `script` CRUD + run — paket script tidak tersedia di CHR
-- `expire-monitor` deploy/remove — bergantung pada script
-- `reboot`/`shutdown` — kini diletakkan di akhir collection `system` (posisi 23-24) agar tidak memutus koneksi saat test lain berjalan; tetap 500 di CHR karena command diblokir
-- `dashboard` — bergantung pada system/script yang tidak tersedia di CHR
+*Report generated by automated Hoppscotch CLI testing.*

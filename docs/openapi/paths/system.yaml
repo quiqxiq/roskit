@@ -147,7 +147,7 @@ reboot:
           application/json:
             schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
             example:
-              data: { message: reboot scheduled }
+              data: { message: reboot initiated }
               error: null
       '500': { $ref: '../components/responses.yaml#/InternalError' }
 
