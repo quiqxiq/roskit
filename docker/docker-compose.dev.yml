@@ -83,7 +83,7 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - ../docs/openapi:/spec:ro
+      - ../docs/openapi:/spec:ro,z
     restart: unless-stopped
 
   openapi-bundler:
@@ -92,7 +92,7 @@ services:
     command: bundle /spec/openapi.yaml -o /output/openapi.yaml
     working_dir: /spec
     volumes:
-      - ../docs/openapi:/spec:ro
+      - ../docs/openapi:/spec:ro,z
       - bundled-spec:/output
 
   swagger-ui:
