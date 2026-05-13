@@ -76,7 +76,11 @@ healthCheck:
         description: Reachable.
         content:
           application/json:
-            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: ok
             example:
-              data: { message: ok }
-              error: null
+              status: ok

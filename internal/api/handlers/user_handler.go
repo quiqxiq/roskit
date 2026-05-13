@@ -98,6 +98,8 @@ func (h *UserHandler) Update(c *gin.Context) {
 		switch err {
 		case services.ErrInvalidRole:
 			c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid role"})
+		case services.ErrUserNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "user not found"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
 		}

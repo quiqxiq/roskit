@@ -26,7 +26,7 @@ func (h *SystemHandler) GetSystemResource(c *gin.Context) {
 	}
 	result, err := h.svc.GetSystemResource(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get system resource"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get system resource: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
@@ -46,7 +46,7 @@ func (h *SystemHandler) GetSystemLog(c *gin.Context) {
 	}
 	result, err := h.svc.GetSystemLog(c.Request.Context(), routerID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get system log"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get system log: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
@@ -60,7 +60,7 @@ func (h *SystemHandler) GetSystemClock(c *gin.Context) {
 	}
 	result, err := h.svc.GetSystemClock(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get system clock"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get system clock: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
@@ -74,7 +74,7 @@ func (h *SystemHandler) GetSystemIdentity(c *gin.Context) {
 	}
 	result, err := h.svc.GetSystemIdentity(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get system identity"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get system identity: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
@@ -88,12 +88,11 @@ func (h *SystemHandler) GetRouterboard(c *gin.Context) {
 	}
 	result, err := h.svc.GetRouterboard(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get routerboard info"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get routerboard info: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
 }
-
 
 func (h *SystemHandler) GetDashboard(c *gin.Context) {
 	routerID, err := parseRouterID(c)
@@ -103,7 +102,7 @@ func (h *SystemHandler) GetDashboard(c *gin.Context) {
 	}
 	result, err := h.svc.GetDashboard(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get dashboard"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get dashboard: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
@@ -116,7 +115,7 @@ func (h *SystemHandler) Reboot(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Reboot(c.Request.Context(), routerID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "reboot failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("reboot failed: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "reboot initiated"}, "error": nil})
@@ -129,7 +128,7 @@ func (h *SystemHandler) Shutdown(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Shutdown(c.Request.Context(), routerID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "shutdown failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("shutdown failed: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "shutdown initiated"}, "error": nil})
@@ -143,7 +142,7 @@ func (h *SystemHandler) GetExpireMonitor(c *gin.Context) {
 	}
 	result, err := h.svc.GetExpireMonitorStatus(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get expire monitor status"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to get expire monitor status: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result, "error": nil})
@@ -192,7 +191,7 @@ func (h *SystemHandler) ListSchedulers(c *gin.Context) {
 	}
 	results, err := h.svc.ListSchedulers(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list schedulers"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to list schedulers: %s", err)})
 		return
 	}
 	for i, s := range results {
@@ -216,7 +215,7 @@ func (h *SystemHandler) CreateScheduler(c *gin.Context) {
 	}
 	result, err := h.svc.AddScheduler(c.Request.Context(), routerID, params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to create scheduler"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to create scheduler: %s", err)})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": result, "error": nil})
@@ -235,7 +234,7 @@ func (h *SystemHandler) UpdateScheduler(c *gin.Context) {
 		return
 	}
 	if err := h.svc.UpdateScheduler(c.Request.Context(), routerID, schedulerID, params); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to update scheduler"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to update scheduler: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler updated"}, "error": nil})
@@ -249,7 +248,7 @@ func (h *SystemHandler) DeleteScheduler(c *gin.Context) {
 	}
 	schedulerID := c.Param("schedulerId")
 	if err := h.svc.DeleteScheduler(c.Request.Context(), routerID, schedulerID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to delete scheduler"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to delete scheduler: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler deleted"}, "error": nil})
@@ -263,7 +262,7 @@ func (h *SystemHandler) EnableSchedulerByID(c *gin.Context) {
 	}
 	schedulerID := c.Param("schedulerId")
 	if err := h.svc.EnableSchedulerByID(c.Request.Context(), routerID, schedulerID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to enable scheduler"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to enable scheduler: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler enabled"}, "error": nil})
@@ -277,7 +276,7 @@ func (h *SystemHandler) DisableSchedulerByID(c *gin.Context) {
 	}
 	schedulerID := c.Param("schedulerId")
 	if err := h.svc.DisableSchedulerByID(c.Request.Context(), routerID, schedulerID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to disable scheduler"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to disable scheduler: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "scheduler disabled"}, "error": nil})
@@ -291,7 +290,7 @@ func (h *SystemHandler) ListScripts(c *gin.Context) {
 	}
 	results, err := h.svc.ListScripts(c.Request.Context(), routerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to list scripts"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to list scripts: %s", err)})
 		return
 	}
 	for i, s := range results {
@@ -315,7 +314,7 @@ func (h *SystemHandler) CreateScript(c *gin.Context) {
 	}
 	result, err := h.svc.AddScript(c.Request.Context(), routerID, params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to create script"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to create script: %s", err)})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": result, "error": nil})
@@ -334,7 +333,7 @@ func (h *SystemHandler) UpdateScript(c *gin.Context) {
 		return
 	}
 	if err := h.svc.UpdateScript(c.Request.Context(), routerID, scriptID, params); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to update script"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to update script: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "script updated"}, "error": nil})
@@ -348,7 +347,7 @@ func (h *SystemHandler) DeleteScript(c *gin.Context) {
 	}
 	scriptID := c.Param("scriptId")
 	if err := h.svc.DeleteScript(c.Request.Context(), routerID, scriptID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to delete script"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to delete script: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "script deleted"}, "error": nil})
@@ -362,7 +361,7 @@ func (h *SystemHandler) RunScriptByID(c *gin.Context) {
 	}
 	scriptID := c.Param("scriptId")
 	if err := h.svc.RunScript(c.Request.Context(), routerID, scriptID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to run script"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to run script: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "script executed"}, "error": nil})
@@ -375,7 +374,7 @@ func (h *SystemHandler) SetupLogging(c *gin.Context) {
 		return
 	}
 	if err := h.svc.SetupLogging(c.Request.Context(), routerID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to setup logging"})
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": fmt.Sprintf("failed to setup logging: %s", err)})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "logging configured"}, "error": nil})

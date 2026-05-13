@@ -88,6 +88,7 @@ seed: build-seed
 
 seed-docker:
 	$(COMPOSE) exec api /seed
+	$(COMPOSE) restart api
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,11 @@ docs-bundle:
 
 docs-lint:
 	npx --yes @redocly/cli@latest lint docs/openapi/openapi.yaml
+
+
+test-api:
+	@which newman > /dev/null || (echo "Installing newman…" && npm install -g newman)
+	@node scripts/test-api.js
 
 # ── Curl helpers ─────────────────────────────────────────────────────────────
 

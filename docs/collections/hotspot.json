@@ -1,0 +1,3179 @@
+{
+  "v": 12,
+  "name": "hotspot",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listHotspotUsers",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+      "params": [
+        {
+          "key": "profile",
+          "value": "",
+          "active": true,
+          "description": "Filter by profile name."
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Array of hotspot users (raw RouterOS records).": {
+          "name": "Array of hotspot users (raw RouterOS records).",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": "Filter by profile name."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \".id\": \"*A1\",\n      \"name\": \"voucher-7g3pq\",\n      \"password\": \"7g3pq\",\n      \"profile\": \"1d-1mbps\",\n      \"server\": \"hotspot1\",\n      \"mac-address\": \"00:11:22:33:44:55\",\n      \"bytes-in\": \"15823234\",\n      \"bytes-out\": \"982341\",\n      \"disabled\": \"false\"\n    }\n  ],\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": "Filter by profile name."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": "Filter by profile name."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "addHotspotUser",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"alice\",\n  \"password\": \"hunter2\",\n  \"profile\": \"1d-1mbps\",\n  \"server\": \"hotspot1\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Created. `data.id` is the new RouterOS `.id`.": {
+          "name": "Created. `data.id` is the new RouterOS `.id`.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addHotspotUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"alice\",\n  \"password\": \"hunter2\",\n  \"profile\": \"1d-1mbps\",\n  \"server\": \"hotspot1\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"*42\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addHotspotUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"alice\",\n  \"password\": \"hunter2\",\n  \"profile\": \"1d-1mbps\",\n  \"server\": \"hotspot1\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addHotspotUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"alice\",\n  \"password\": \"hunter2\",\n  \"profile\": \"1d-1mbps\",\n  \"server\": \"hotspot1\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Body is a free-form `name → value` map mirroring RouterOS\n`/ip/hotspot/user/add` arguments. Common keys: `name`, `password`,\n`profile`, `server`, `mac-address`, `limit-uptime`,\n`limit-bytes-total`, `comment`.\n"
+    },
+    {
+      "v": "17",
+      "name": "getHotspotUserCount",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/count",
+      "params": [
+        {
+          "key": "profile",
+          "value": "",
+          "active": true,
+          "description": "Optional — count only users in this profile."
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Count.": {
+          "name": "Count.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getHotspotUserCount",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/count",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": "Optional — count only users in this profile."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"count\": 42\n  },\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getHotspotUserCount",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/count",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": "Optional — count only users in this profile."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "exportHotspotUsers",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/export",
+      "params": [
+        {
+          "key": "profile",
+          "value": "",
+          "active": true,
+          "description": ""
+        },
+        {
+          "key": "format",
+          "value": "",
+          "active": true,
+          "description": "`csv` returns a CSV download. `script` (default) returns a\nRouterOS `/ip/hotspot/user/add` script that can be pasted\ndirectly into a terminal.\n"
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Response type depends on `format`:\n- `csv` → `text/csv` with `Content-Disposition: attachment`\n- `script` → `text/plain` with raw RouterOS commands\n": {
+          "name": "Response type depends on `format`:\n- `csv` → `text/csv` with `Content-Disposition: attachment`\n- `script` → `text/plain` with raw RouterOS commands\n",
+          "originalRequest": {
+            "v": "6",
+            "name": "exportHotspotUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/export",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "format",
+                "value": "",
+                "active": true,
+                "description": "`csv` returns a CSV download. `script` (default) returns a\nRouterOS `/ip/hotspot/user/add` script that can be pasted\ndirectly into a terminal.\n"
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/csv"
+            }
+          ],
+          "body": "string"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "exportHotspotUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/export",
+            "headers": [],
+            "params": [
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "format",
+                "value": "",
+                "active": true,
+                "description": "`csv` returns a CSV download. `script` (default) returns a\nRouterOS `/ip/hotspot/user/add` script that can be pasted\ndirectly into a terminal.\n"
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getHotspotUser",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "User record.": {
+          "name": "User record.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getHotspotUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": \"\",\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getHotspotUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateHotspotUser",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateHotspotUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"user updated\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateHotspotUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeHotspotUser",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeHotspotUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"user removed\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeHotspotUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": "Removes the user plus any RouterOS scheduler/script that was\nauto-created for this user (best-effort; errors are logged but do\nnot propagate).\n"
+    },
+    {
+      "v": "17",
+      "name": "resetHotspotUserCounters",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>/reset-counters",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Counters reset.": {
+          "name": "Counters reset.",
+          "originalRequest": {
+            "v": "6",
+            "name": "resetHotspotUserCounters",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>/reset-counters",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"counters reset\"\n  },\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "resetHotspotUserCounters",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/users/<<id>>/reset-counters",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listHotspotProfiles",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Profiles.": {
+          "name": "Profiles.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotProfiles",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"id\": \"*A1\",\n      \"name\": \"1d-1mbps\",\n      \"address_pool\": \"string\",\n      \"rate_limit\": \"1M/2M\",\n      \"shared_users\": \"1\",\n      \"status_autorefresh\": \"string\",\n      \"on_login\": \"string\",\n      \"on_logout\": \"string\",\n      \"parent_queue\": \"string\",\n      \"exp_mode\": \"rem\",\n      \"price\": \"5000\",\n      \"selling_price\": \"7500\",\n      \"validity\": \"1d\",\n      \"no_expiry\": true,\n      \"lock_user\": \"string\",\n      \"lock_server\": \"string\"\n    }\n  ],\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotProfiles",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "addHotspotProfile",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"test-profile\",\n  \"rate_limit\": \"1M/2M\",\n  \"shared_users\": \"1\",\n  \"validity\": \"1d\",\n  \"lock_user\": \"enable\",\n  \"lock_server\": \"enable\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Profile created.": {
+          "name": "Profile created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addHotspotProfile",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"rate_limit\": \"1M/2M\",\n  \"address_pool\": \"string\",\n  \"shared_users\": \"1\",\n  \"parent_queue\": \"string\",\n  \"price\": 0,\n  \"selling_price\": 0,\n  \"validity\": \"1d\",\n  \"expire_mode\": \"string\",\n  \"lock_user\": \"enable\",\n  \"lock_server\": \"enable\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addHotspotProfile",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"rate_limit\": \"1M/2M\",\n  \"address_pool\": \"string\",\n  \"shared_users\": \"1\",\n  \"parent_queue\": \"string\",\n  \"price\": 0,\n  \"selling_price\": 0,\n  \"validity\": \"1d\",\n  \"expire_mode\": \"string\",\n  \"lock_user\": \"enable\",\n  \"lock_server\": \"enable\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getHotspotProfile",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Profile record.": {
+          "name": "Profile record.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getHotspotProfile",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \".id\": \"*A1\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getHotspotProfile",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateHotspotProfile",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"string\",\n  \"rate_limit\": \"1M/2M\",\n  \"address_pool\": \"string\",\n  \"shared_users\": \"1\",\n  \"parent_queue\": \"string\",\n  \"price\": 0,\n  \"selling_price\": 0,\n  \"validity\": \"1d\",\n  \"expire_mode\": \"string\",\n  \"lock_user\": \"enable\",\n  \"lock_server\": \"enable\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateHotspotProfile",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"rate_limit\": \"1M/2M\",\n  \"address_pool\": \"string\",\n  \"shared_users\": \"1\",\n  \"parent_queue\": \"string\",\n  \"price\": 0,\n  \"selling_price\": 0,\n  \"validity\": \"1d\",\n  \"expire_mode\": \"string\",\n  \"lock_user\": \"enable\",\n  \"lock_server\": \"enable\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"profile updated\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeHotspotProfile",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeHotspotProfile",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"profile removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "syncHotspotProfiles",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/sync",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Sync completed successfully.": {
+          "name": "Sync completed successfully.",
+          "originalRequest": {
+            "v": "6",
+            "name": "syncHotspotProfiles",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/sync",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"profiles_scanned\": 5,\n    \"mappings_synced\": 5,\n    \"scripts_updated\": 3,\n    \"scripts_skipped\": 2,\n    \"scripts_failed\": 0\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "syncHotspotProfiles",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/sync",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "syncHotspotProfiles",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/profiles/sync",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Reads all hotspot profiles from the router, parses pricing metadata\nfrom each on-login script, upserts the data into the\n`profile_price_mappings` table, and replaces the on-login script\nwith the current format (API URL, webhook token,\nrouter name). Scripts that are already up-to-date are skipped.\n\n**Route:** `POST /routers/{routerId}/hotspot/profiles/sync`\n"
+    },
+    {
+      "v": "17",
+      "name": "listHotspotActive",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/active",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Active sessions.": {
+          "name": "Active sessions.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotActive",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/active",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeHotspotActive",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/active/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Session removed.": {
+          "name": "Session removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeHotspotActive",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/active/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"session removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "disconnectHotspotUser",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/active/<<id>>/disconnect",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Disconnected.": {
+          "name": "Disconnected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "disconnectHotspotUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/active/<<id>>/disconnect",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"user disconnected\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": "Drops the active session AND removes the corresponding cookie so re-auth is required."
+    },
+    {
+      "v": "17",
+      "name": "listInactiveHotspotUsers",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/inactive",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Inactive users.": {
+          "name": "Inactive users.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listInactiveHotspotUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/inactive",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getInactiveHotspotUserCount",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/inactive/count",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Count.": {
+          "name": "Count.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getInactiveHotspotUserCount",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/inactive/count",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"count\": 0\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listHotspotHosts",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/hosts",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Hosts.": {
+          "name": "Hosts.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotHosts",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/hosts",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeHotspotHost",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/hosts/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Host removed.": {
+          "name": "Host removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeHotspotHost",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/hosts/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"host removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listHotspotServers",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/servers",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Servers.": {
+          "name": "Servers.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotServers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/servers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listHotspotCookies",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/cookies",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Cookies.": {
+          "name": "Cookies.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listHotspotCookies",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/cookies",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeHotspotCookie",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/cookies/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Cookie removed.": {
+          "name": "Cookie removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeHotspotCookie",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/cookies/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"cookie removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listIPBindings",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Bindings.": {
+          "name": "Bindings.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listIPBindings",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "addIPBinding",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"mac-address\": \"00:11:22:33:44:55\",\n  \"address\": \"10.5.50.23\",\n  \"type\": \"bypassed\",\n  \"comment\": \"POS terminal\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Binding created.": {
+          "name": "Binding created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addIPBinding",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"mac-address\": \"00:11:22:33:44:55\",\n  \"address\": \"10.5.50.23\",\n  \"type\": \"bypassed\",\n  \"comment\": \"POS terminal\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateIPBinding",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateIPBinding",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"binding updated\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeIPBinding",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeIPBinding",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"binding removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "enableIPBinding",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>/enable",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Enabled.": {
+          "name": "Enabled.",
+          "originalRequest": {
+            "v": "6",
+            "name": "enableIPBinding",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>/enable",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"binding enabled\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "disableIPBinding",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>/disable",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Disabled.": {
+          "name": "Disabled.",
+          "originalRequest": {
+            "v": "6",
+            "name": "disableIPBinding",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/bindings/<<id>>/disable",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"binding disabled\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listWalledGarden",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Walled garden entries.": {
+          "name": "Walled garden entries.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listWalledGarden",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "addWalledGarden",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"dst-host\": \"youtube.com\",\n  \"action\": \"allow\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Rule added.": {
+          "name": "Rule added.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addWalledGarden",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"dst-host\": \"youtube.com\",\n  \"action\": \"allow\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeWalledGarden",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden/<<wid>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "wid",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeWalledGarden",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden/<<wid>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "wid",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"walled garden rule removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listWalledGardenIP",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden-ip",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Walled-garden IP entries.": {
+          "name": "Walled-garden IP entries.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listWalledGardenIP",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden-ip",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "addWalledGardenIP",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden-ip",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"dst-address\": \"142.250.0.0/15\",\n  \"action\": \"accept\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Rule added.": {
+          "name": "Rule added.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addWalledGardenIP",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden-ip",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"dst-address\": \"142.250.0.0/15\",\n  \"action\": \"accept\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeWalledGardenIP",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden-ip/<<wid>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "wid",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeWalledGardenIP",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/hotspot/walled-garden-ip/<<wid>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "wid",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"walled garden IP rule removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "MikroTik hotspot users, profiles, sessions, hosts, bindings, walled-garden.",
+  "preRequestScript": "",
+  "testScript": ""
+}

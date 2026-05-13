@@ -1,0 +1,658 @@
+{
+  "v": 12,
+  "name": "reports",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "getDailyReport",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/reports/daily",
+      "params": [
+        {
+          "key": "date",
+          "value": "<<reportDate>>",
+          "active": true,
+          "description": ""
+        },
+        {
+          "key": "profile",
+          "value": "",
+          "active": true,
+          "description": ""
+        },
+        {
+          "key": "server",
+          "value": "",
+          "active": true,
+          "description": ""
+        },
+        {
+          "key": "search",
+          "value": "",
+          "active": true,
+          "description": "Free-text filter matched against username and profile name."
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Daily report.": {
+          "name": "Daily report.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getDailyReport",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/daily",
+            "headers": [],
+            "params": [
+              {
+                "key": "date",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "server",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "search",
+                "value": "",
+                "active": true,
+                "description": "Free-text filter matched against username and profile name."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"date\": \"string\",\n    \"sales\": [\n      {\n        \"id\": 0,\n        \"router_id\": \"\",\n        \"sold_at\": \"string\",\n        \"username\": \"string\",\n        \"profile_name\": \"string\",\n        \"price\": 0,\n        \"selling_price\": 0,\n        \"server\": \"string\",\n        \"ip_address\": \"string\",\n        \"mac_address\": \"string\",\n        \"validity\": \"string\",\n        \"idempotency_key\": \"string\",\n        \"created_at\": \"string\"\n      }\n    ],\n    \"total\": 0,\n    \"count\": 0\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getDailyReport",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/daily",
+            "headers": [],
+            "params": [
+              {
+                "key": "date",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "profile",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "server",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "search",
+                "value": "",
+                "active": true,
+                "description": "Free-text filter matched against username and profile name."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getMonthlyReport",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/reports/monthly",
+      "params": [
+        {
+          "key": "year",
+          "value": "<<reportYear>>",
+          "active": true,
+          "description": ""
+        },
+        {
+          "key": "month",
+          "value": "<<reportMonth>>",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Monthly report.": {
+          "name": "Monthly report.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getMonthlyReport",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/monthly",
+            "headers": [],
+            "params": [
+              {
+                "key": "year",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "month",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"year\": 0,\n    \"month\": 0,\n    \"daily\": [\n      {\n        \"day\": \"2026-04-30\",\n        \"count\": 0,\n        \"total\": 0\n      }\n    ],\n    \"total\": 0,\n    \"count\": 0\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getMonthlyReport",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/monthly",
+            "headers": [],
+            "params": [
+              {
+                "key": "year",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "month",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getResumeReport",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/reports/resume",
+      "params": [
+        {
+          "key": "year",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Resume report.": {
+          "name": "Resume report.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getResumeReport",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/resume",
+            "headers": [],
+            "params": [
+              {
+                "key": "year",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"year\": 0,\n    \"months\": [\n      {\n        \"month\": 0,\n        \"count\": 0,\n        \"total\": 0\n      }\n    ],\n    \"total\": 0,\n    \"count\": 0\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getDashboardSummary",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/reports/summary",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Dashboard summary.": {
+          "name": "Dashboard summary.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getDashboardSummary",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/summary",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"today_count\": 0,\n    \"today_sum\": 0,\n    \"month_count\": 0,\n    \"month_sum\": 0\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "exportSalesCSV",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/reports/export/csv",
+      "params": [
+        {
+          "key": "from",
+          "value": "<<reportFrom>>",
+          "active": true,
+          "description": "Inclusive start date."
+        },
+        {
+          "key": "to",
+          "value": "<<reportTo>>",
+          "active": true,
+          "description": "Inclusive end date."
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "CSV file. `Content-Disposition` includes a suggested filename.": {
+          "name": "CSV file. `Content-Disposition` includes a suggested filename.",
+          "originalRequest": {
+            "v": "6",
+            "name": "exportSalesCSV",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/export/csv",
+            "headers": [],
+            "params": [
+              {
+                "key": "from",
+                "value": "",
+                "active": true,
+                "description": "Inclusive start date."
+              },
+              {
+                "key": "to",
+                "value": "",
+                "active": true,
+                "description": "Inclusive end date."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/csv"
+            }
+          ],
+          "body": "string"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "exportSalesExcel",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/reports/export/excel",
+      "params": [
+        {
+          "key": "from",
+          "value": "<<reportFrom>>",
+          "active": true,
+          "description": ""
+        },
+        {
+          "key": "to",
+          "value": "<<reportTo>>",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Excel file (XLSX).": {
+          "name": "Excel file (XLSX).",
+          "originalRequest": {
+            "v": "6",
+            "name": "exportSalesExcel",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/reports/export/excel",
+            "headers": [],
+            "params": [
+              {
+                "key": "from",
+                "value": "",
+                "active": true,
+                "description": ""
+              },
+              {
+                "key": "to",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          ],
+          "body": "string"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Daily / monthly / dashboard reports + CSV / Excel export.",
+  "preRequestScript": "",
+  "testScript": ""
+}

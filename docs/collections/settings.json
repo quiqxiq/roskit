@@ -1,0 +1,630 @@
+{
+  "v": 12,
+  "name": "settings",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "getSettings",
+      "method": "GET",
+      "endpoint": "<<base_url>>/settings",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Settings object.": {
+          "name": "Settings object.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSettings",
+            "method": "GET",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 0,\n    \"hotspot_name\": \"My Hotspot\",\n    \"dns_name\": \"login.example.test\",\n    \"currency\": \"Rp\",\n    \"phone\": \"+62-555-0100\",\n    \"email\": \"admin@example.test\",\n    \"info_lp\": \"string\",\n    \"idle_timeout\": 30,\n    \"report_mode\": \"string\",\n    \"logo_path\": \"string\",\n    \"timezone\": \"Asia/Jakarta\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSettings",
+            "method": "GET",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSettings",
+            "method": "GET",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSettings",
+            "method": "GET",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Returns the global Settings singleton."
+    },
+    {
+      "v": "17",
+      "name": "updateSettings",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/settings",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"hotspot_name\": \"string\",\n  \"dns_name\": \"string\",\n  \"currency\": \"string\",\n  \"phone\": \"string\",\n  \"email\": \"string\",\n  \"info_lp\": \"string\",\n  \"idle_timeout\": 0,\n  \"report_mode\": \"string\",\n  \"timezone\": \"string\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {
+        "Updated settings.": {
+          "name": "Updated settings.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateSettings",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"hotspot_name\": \"string\",\n  \"dns_name\": \"string\",\n  \"currency\": \"string\",\n  \"phone\": \"string\",\n  \"email\": \"string\",\n  \"info_lp\": \"string\",\n  \"idle_timeout\": 0,\n  \"report_mode\": \"string\",\n  \"timezone\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 0,\n    \"hotspot_name\": \"My Hotspot\",\n    \"dns_name\": \"login.example.test\",\n    \"currency\": \"Rp\",\n    \"phone\": \"+62-555-0100\",\n    \"email\": \"admin@example.test\",\n    \"info_lp\": \"string\",\n    \"idle_timeout\": 30,\n    \"report_mode\": \"string\",\n    \"logo_path\": \"string\",\n    \"timezone\": \"Asia/Jakarta\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateSettings",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"hotspot_name\": \"string\",\n  \"dns_name\": \"string\",\n  \"currency\": \"string\",\n  \"phone\": \"string\",\n  \"email\": \"string\",\n  \"info_lp\": \"string\",\n  \"idle_timeout\": 0,\n  \"report_mode\": \"string\",\n  \"timezone\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateSettings",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"hotspot_name\": \"string\",\n  \"dns_name\": \"string\",\n  \"currency\": \"string\",\n  \"phone\": \"string\",\n  \"email\": \"string\",\n  \"info_lp\": \"string\",\n  \"idle_timeout\": 0,\n  \"report_mode\": \"string\",\n  \"timezone\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateSettings",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"hotspot_name\": \"string\",\n  \"dns_name\": \"string\",\n  \"currency\": \"string\",\n  \"phone\": \"string\",\n  \"email\": \"string\",\n  \"info_lp\": \"string\",\n  \"idle_timeout\": 0,\n  \"report_mode\": \"string\",\n  \"timezone\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateSettings",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/settings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"hotspot_name\": \"string\",\n  \"dns_name\": \"string\",\n  \"currency\": \"string\",\n  \"phone\": \"string\",\n  \"email\": \"string\",\n  \"info_lp\": \"string\",\n  \"idle_timeout\": 0,\n  \"report_mode\": \"string\",\n  \"timezone\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Partial update — only fields supplied in the body are changed."
+    },
+    {
+      "v": "17",
+      "name": "getLogo",
+      "method": "GET",
+      "endpoint": "<<base_url>>/settings/logo",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Binary logo image.": {
+          "name": "Binary logo image.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getLogo",
+            "method": "GET",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "image/png"
+            }
+          ],
+          "body": "string"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getLogo",
+            "method": "GET",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": "Returns the raw image bytes; the Content-Type header reflects the stored format."
+    },
+    {
+      "v": "17",
+      "name": "uploadLogo",
+      "method": "POST",
+      "endpoint": "<<base_url>>/settings/logo",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "multipart/form-data",
+        "body": [
+          {
+            "key": "logo",
+            "active": true,
+            "isFile": false,
+            "value": ""
+          }
+        ]
+      },
+      "requestVariables": [],
+      "responses": {
+        "Logo accepted.": {
+          "name": "Logo accepted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "uploadLogo",
+            "method": "POST",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "multipart/form-data",
+              "body": [
+                {
+                  "key": "logo",
+                  "active": true,
+                  "isFile": false,
+                  "value": ""
+                }
+              ]
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"logo uploaded\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "uploadLogo",
+            "method": "POST",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "multipart/form-data",
+              "body": [
+                {
+                  "key": "logo",
+                  "active": true,
+                  "isFile": false,
+                  "value": ""
+                }
+              ]
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "uploadLogo",
+            "method": "POST",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "multipart/form-data",
+              "body": [
+                {
+                  "key": "logo",
+                  "active": true,
+                  "isFile": false,
+                  "value": ""
+                }
+              ]
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "uploadLogo",
+            "method": "POST",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "multipart/form-data",
+              "body": [
+                {
+                  "key": "logo",
+                  "active": true,
+                  "isFile": false,
+                  "value": ""
+                }
+              ]
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "uploadLogo",
+            "method": "POST",
+            "endpoint": "<<base_url>>/settings/logo",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "multipart/form-data",
+              "body": [
+                {
+                  "key": "logo",
+                  "active": true,
+                  "isFile": false,
+                  "value": ""
+                }
+              ]
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Accepts a `multipart/form-data` body. The uploaded file is stored\nserver-side and referenced by `settings.logo_path`. Use\n`GET /settings/logo` to fetch it back.\n"
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Application settings and logo management (admin only).",
+  "preRequestScript": "",
+  "testScript": ""
+}

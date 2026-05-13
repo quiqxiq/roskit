@@ -77,21 +77,37 @@ getUserCount:
 exportUsers:
   get:
     operationId: exportHotspotUsers
-    summary: Export hotspot users (CSV)
+    summary: Export hotspot users (CSV or RouterOS script)
     tags: [hotspot]
     parameters:
       - $ref: '../components/parameters.yaml#/RouterId'
       - in: query
         name: profile
         schema: { type: string }
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum: [csv, script]
+          default: script
+        description: |
+          `csv` returns a CSV download. `script` (default) returns a
+          RouterOS `/ip/hotspot/user/add` script that can be pasted
+          directly into a terminal.
     responses:
       '200':
-        description: CSV blob with one user per row.
+        description: |
+          Response type depends on `format`:
+          - `csv` → `text/csv` with `Content-Disposition: attachment`
+          - `script` → `text/plain` with raw RouterOS commands
         content:
           text/csv:
             schema:
               type: string
               format: binary
+          text/plain:
+            schema:
+              type: string
       '500': { $ref: '../components/responses.yaml#/InternalError' }
 
 getUser:
@@ -368,7 +384,7 @@ syncProfiles:
               properties:
                 data:
                   type: object
-                  required: [profiles_scanned, mappings_synced, scripts_updated, scripts_skipped]
+                  required: [profiles_scanned, mappings_synced, scripts_updated, scripts_skipped, scripts_failed]
                   properties:
                     profiles_scanned:
                       type: integer
@@ -386,6 +402,10 @@ syncProfiles:
                       type: integer
                       description: Scripts already up-to-date (no change needed).
                       example: 2
+                    scripts_failed:
+                      type: integer
+                      description: On-login scripts that could not be updated.
+                      example: 0
                 error: { type: 'null' }
             example:
               data:
@@ -393,6 +413,7 @@ syncProfiles:
                 mappings_synced: 5
                 scripts_updated: 3
                 scripts_skipped: 2
+                scripts_failed: 0
               error: null
       '400': { $ref: '../components/responses.yaml#/BadRequest' }
       '500': { $ref: '../components/responses.yaml#/InternalError' }

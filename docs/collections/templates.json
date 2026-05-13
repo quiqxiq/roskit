@@ -1,0 +1,717 @@
+{
+  "v": 12,
+  "name": "templates",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listTemplates",
+      "method": "GET",
+      "endpoint": "<<base_url>>/templates",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Templates.": {
+          "name": "Templates.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listTemplates",
+            "method": "GET",
+            "endpoint": "<<base_url>>/templates",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"id\": 12,\n      \"name\": \"Default thermal\",\n      \"type\": \"string\",\n      \"part\": \"string\",\n      \"content\": \"string\",\n      \"created_at\": \"string\",\n      \"updated_at\": \"string\"\n    }\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "createTemplate",
+      "method": "POST",
+      "endpoint": "<<base_url>>/templates",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"Custom thermal header\",\n  \"type\": \"thermal\",\n  \"part\": \"header\",\n  \"content\": \"<h1>{{.HotspotName}}</h1>\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {
+        "Created.": {
+          "name": "Created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createTemplate",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"Custom thermal header\",\n  \"type\": \"thermal\",\n  \"part\": \"header\",\n  \"content\": \"<h1>{{.HotspotName}}</h1>\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 12,\n    \"name\": \"Default thermal\",\n    \"type\": \"string\",\n    \"part\": \"string\",\n    \"content\": \"string\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createTemplate",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"Custom thermal header\",\n  \"type\": \"thermal\",\n  \"part\": \"header\",\n  \"content\": \"<h1>{{.HotspotName}}</h1>\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getTemplate",
+      "method": "GET",
+      "endpoint": "<<base_url>>/templates/<<templateId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "templateId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Template.": {
+          "name": "Template.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getTemplate",
+            "method": "GET",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 12,\n    \"name\": \"Default thermal\",\n    \"type\": \"string\",\n    \"part\": \"string\",\n    \"content\": \"string\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getTemplate",
+            "method": "GET",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateTemplate",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/templates/<<templateId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"string\",\n  \"type\": \"string\",\n  \"part\": \"string\",\n  \"content\": \"string\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "templateId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateTemplate",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"type\": \"string\",\n  \"part\": \"string\",\n  \"content\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 12,\n    \"name\": \"Default thermal\",\n    \"type\": \"string\",\n    \"part\": \"string\",\n    \"content\": \"string\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateTemplate",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"type\": \"string\",\n  \"part\": \"string\",\n  \"content\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateTemplate",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"type\": \"string\",\n  \"part\": \"string\",\n  \"content\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "deleteTemplate",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/templates/<<templateId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "templateId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Deleted.": {
+          "name": "Deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteTemplate",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"template deleted\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteTemplate",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/templates/<<templateId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "templateId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "renderTemplate",
+      "method": "POST",
+      "endpoint": "<<base_url>>/templates/render",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"gencode\": \"string\",\n  \"template_type\": \"string\",\n  \"profile\": \"string\",\n  \"validity\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"price\": \"string\",\n  \"comment\": \"string\",\n  \"user_mode\": \"string\",\n  \"logo\": \"string\",\n  \"router_id\": 0\n}"
+      },
+      "requestVariables": [],
+      "responses": {
+        "Rendered HTML.": {
+          "name": "Rendered HTML.",
+          "originalRequest": {
+            "v": "6",
+            "name": "renderTemplate",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates/render",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\",\n  \"template_type\": \"string\",\n  \"profile\": \"string\",\n  \"validity\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"price\": \"string\",\n  \"comment\": \"string\",\n  \"user_mode\": \"string\",\n  \"logo\": \"string\",\n  \"router_id\": 0\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/html"
+            }
+          ],
+          "body": "string"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "renderTemplate",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates/render",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\",\n  \"template_type\": \"string\",\n  \"profile\": \"string\",\n  \"validity\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"price\": \"string\",\n  \"comment\": \"string\",\n  \"user_mode\": \"string\",\n  \"logo\": \"string\",\n  \"router_id\": 0\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "renderTemplate",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates/render",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\",\n  \"template_type\": \"string\",\n  \"profile\": \"string\",\n  \"validity\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"price\": \"string\",\n  \"comment\": \"string\",\n  \"user_mode\": \"string\",\n  \"logo\": \"string\",\n  \"router_id\": 0\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "renderTemplate",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates/render",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\",\n  \"template_type\": \"string\",\n  \"profile\": \"string\",\n  \"validity\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"price\": \"string\",\n  \"comment\": \"string\",\n  \"user_mode\": \"string\",\n  \"logo\": \"string\",\n  \"router_id\": 0\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Returns rendered HTML, not JSON."
+    },
+    {
+      "v": "17",
+      "name": "seedDefaultTemplates",
+      "method": "POST",
+      "endpoint": "<<base_url>>/templates/seed-defaults",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Seeded.": {
+          "name": "Seeded.",
+          "originalRequest": {
+            "v": "6",
+            "name": "seedDefaultTemplates",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates/seed-defaults",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"default templates seeded\"\n  },\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "seedDefaultTemplates",
+            "method": "POST",
+            "endpoint": "<<base_url>>/templates/seed-defaults",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Idempotent — re-creates the default `(type, part)` rows. Run\nafter editing default content in source.\n"
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Print template CRUD.",
+  "preRequestScript": "",
+  "testScript": ""
+}

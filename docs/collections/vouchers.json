@@ -1,0 +1,909 @@
+{
+  "v": 12,
+  "name": "vouchers",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "generateVouchers",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/generate",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"qty\": 50,\n  \"profile\": \"1d-1mbps\",\n  \"user_type\": \"vc\",\n  \"name_length\": 6,\n  \"prefix\": \"WIFI-\",\n  \"time_limit\": \"1d\",\n  \"comment\": \"2026-04-30 batch\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Batch generated. `data.gencode` is the print key.": {
+          "name": "Batch generated. `data.gencode` is the print key.",
+          "originalRequest": {
+            "v": "6",
+            "name": "generateVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/generate",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"qty\": 50,\n  \"profile\": \"1d-1mbps\",\n  \"user_type\": \"vc\",\n  \"name_length\": 6,\n  \"prefix\": \"WIFI-\",\n  \"time_limit\": \"1d\",\n  \"comment\": \"2026-04-30 batch\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"count\": 50,\n    \"gencode\": \"7g3pq\",\n    \"profile\": \"1d-1mbps\",\n    \"vouchers\": [\n      {\n        \"username\": \"voucher-7g3pq\",\n        \"password\": \"7g3pq\"\n      }\n    ]\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "generateVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/generate",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"qty\": 50,\n  \"profile\": \"1d-1mbps\",\n  \"user_type\": \"vc\",\n  \"name_length\": 6,\n  \"prefix\": \"WIFI-\",\n  \"time_limit\": \"1d\",\n  \"comment\": \"2026-04-30 batch\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "generateVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/generate",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"qty\": 50,\n  \"profile\": \"1d-1mbps\",\n  \"user_type\": \"vc\",\n  \"name_length\": 6,\n  \"prefix\": \"WIFI-\",\n  \"time_limit\": \"1d\",\n  \"comment\": \"2026-04-30 batch\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Generates `qty` hotspot users with random usernames/passwords from\nthe requested character set, attaches them to `profile`, and caches\nthe batch in Redis under a `gencode` so the printer endpoint can\npull the same list later.\n"
+    },
+    {
+      "v": "17",
+      "name": "getCachedVoucherBatch",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/cache",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"gencode\": \"string\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Cached batch.": {
+          "name": "Cached batch.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getCachedVoucherBatch",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/cache",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"count\": 50,\n    \"gencode\": \"7g3pq\",\n    \"profile\": \"1d-1mbps\",\n    \"vouchers\": [\n      {\n        \"username\": \"voucher-7g3pq\",\n        \"password\": \"7g3pq\"\n      }\n    ]\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getCachedVoucherBatch",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/cache",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getCachedVoucherBatch",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/cache",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"gencode\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": "Looks up the cached generation result for `gencode`. Used when the\nprinter page reloads after generation. Cache TTL is enforced\nserver-side (Redis); expired batches return 404.\n"
+    },
+    {
+      "v": "17",
+      "name": "getVoucherPrintData",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print-data",
+      "params": [
+        {
+          "key": "gencode",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Print payload.": {
+          "name": "Print payload.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getVoucherPrintData",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print-data",
+            "headers": [],
+            "params": [
+              {
+                "key": "gencode",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"vouchers\": [\n      {\n        \"username\": \"voucher-7g3pq\",\n        \"password\": \"7g3pq\"\n      }\n    ],\n    \"router_info\": {\n      \"hotspot_name\": \"string\",\n      \"dns_name\": \"string\",\n      \"currency\": \"string\",\n      \"phone\": \"string\",\n      \"email\": \"string\",\n      \"info_lp\": \"string\"\n    }\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getVoucherPrintData",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print-data",
+            "headers": [],
+            "params": [
+              {
+                "key": "gencode",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getVoucherPrintData",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print-data",
+            "headers": [],
+            "params": [
+              {
+                "key": "gencode",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getVoucherPrintData",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print-data",
+            "headers": [],
+            "params": [
+              {
+                "key": "gencode",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "recordVoucherSale",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/sales",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"username\": \"voucher-7g3pq\",\n  \"profile_name\": \"1d-1mbps\",\n  \"price\": 7500,\n  \"sold_at\": \"2026-04-30T10:11:12Z\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Sale recorded.": {
+          "name": "Sale recorded.",
+          "originalRequest": {
+            "v": "6",
+            "name": "recordVoucherSale",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/sales",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"voucher-7g3pq\",\n  \"profile_name\": \"1d-1mbps\",\n  \"price\": 7500,\n  \"sold_at\": \"2026-04-30T10:11:12Z\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"sale recorded\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "recordVoucherSale",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/sales",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"voucher-7g3pq\",\n  \"profile_name\": \"1d-1mbps\",\n  \"price\": 7500,\n  \"sold_at\": \"2026-04-30T10:11:12Z\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "recordVoucherSale",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/sales",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"voucher-7g3pq\",\n  \"profile_name\": \"1d-1mbps\",\n  \"price\": 7500,\n  \"sold_at\": \"2026-04-30T10:11:12Z\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Persists a `voucher_sales` row. Idempotency is enforced by a\ncomposite key derived from router + username + sold_at, so the\nsame on-login event delivered twice cannot double-count revenue.\n"
+    },
+    {
+      "v": "17",
+      "name": "importVoucherSales",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/import",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Import summary.": {
+          "name": "Import summary.",
+          "originalRequest": {
+            "v": "6",
+            "name": "importVoucherSales",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/import",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"total\": 42,\n    \"imported\": 5,\n    \"skipped\": 37,\n    \"errors\": 0\n  },\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "importVoucherSales",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/import",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Reconciliation pass — scans the router for hotspot users that\nalready logged in (have `bytes-in > 0`) and were created from\nvoucher batches, then materialises matching `voucher_sales` rows\nidempotently.\n"
+    },
+    {
+      "v": "17",
+      "name": "printVouchers",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"usernames\": [\n    \"voucher-7g3pq\",\n    \"voucher-92xz1\"\n  ],\n  \"template_type\": \"thermal\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Rendered HTML (UTF-8). Not JSON — `Content-Type` is `text/html`.": {
+          "name": "Rendered HTML (UTF-8). Not JSON — `Content-Type` is `text/html`.",
+          "originalRequest": {
+            "v": "6",
+            "name": "printVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"usernames\": [\n    \"voucher-7g3pq\",\n    \"voucher-92xz1\"\n  ],\n  \"template_type\": \"thermal\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/html"
+            }
+          ],
+          "body": "<!doctype html><html>..."
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "printVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"usernames\": [\n    \"voucher-7g3pq\",\n    \"voucher-92xz1\"\n  ],\n  \"template_type\": \"thermal\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "printVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"usernames\": [\n    \"voucher-7g3pq\",\n    \"voucher-92xz1\"\n  ],\n  \"template_type\": \"thermal\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "printVouchers",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/vouchers/print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"usernames\": [\n    \"voucher-7g3pq\",\n    \"voucher-92xz1\"\n  ],\n  \"template_type\": \"thermal\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Resolves the requested vouchers (by username list or by RouterOS\ncomment), looks up the active settings (logo, currency,\nhotspot name), and renders the chosen template. Returns raw HTML\nthat the SPA opens in a print window.\n"
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Voucher generation, sale recording, printing.",
+  "preRequestScript": "",
+  "testScript": ""
+}

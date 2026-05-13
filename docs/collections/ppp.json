@@ -1,0 +1,785 @@
+{
+  "v": 12,
+  "name": "ppp",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listPPPSecrets",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "PPP secrets.": {
+          "name": "PPP secrets.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listPPPSecrets",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \".id\": \"*1\",\n      \"name\": \"alice@vpn\",\n      \"service\": \"pppoe\",\n      \"profile\": \"default\",\n      \"disabled\": \"false\"\n    }\n  ],\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listPPPSecrets",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "addPPPSecret",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"alice@vpn\",\n  \"password\": \"hunter2\",\n  \"service\": \"pppoe\",\n  \"profile\": \"default\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "PPP secret added.": {
+          "name": "PPP secret added.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addPPPSecret",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"alice@vpn\",\n  \"password\": \"hunter2\",\n  \"service\": \"pppoe\",\n  \"profile\": \"default\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"PPP secret added\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "addPPPSecret",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"alice@vpn\",\n  \"password\": \"hunter2\",\n  \"service\": \"pppoe\",\n  \"profile\": \"default\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updatePPPSecret",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updatePPPSecret",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"PPP secret updated\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updatePPPSecret",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removePPPSecret",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removePPPSecret",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"PPP secret removed\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removePPPSecret",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/secrets/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listPPPActive",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/active",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Active sessions.": {
+          "name": "Active sessions.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listPPPActive",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/active",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "disconnectPPPActive",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/active/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Disconnected.": {
+          "name": "Disconnected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "disconnectPPPActive",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/active/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"PPP active session disconnected\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listInactivePPPSecrets",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/inactive",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Inactive secrets.": {
+          "name": "Inactive secrets.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listInactivePPPSecrets",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/inactive",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getInactivePPPCount",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/inactive/count",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Count.": {
+          "name": "Count.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getInactivePPPCount",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/inactive/count",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"count\": 0\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listPPPProfiles",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/profiles",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Profiles.": {
+          "name": "Profiles.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listPPPProfiles",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/ppp/profiles",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "PPP secrets, profiles, active/inactive sessions.",
+  "preRequestScript": "",
+  "testScript": ""
+}

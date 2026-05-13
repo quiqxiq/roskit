@@ -1,0 +1,969 @@
+{
+  "v": 12,
+  "name": "routers",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listRouters",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Array of public router views.": {
+          "name": "Array of public router views.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listRouters",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"id\": 7,\n      \"name\": \"hotspot-1\",\n      \"ip_address\": \"192.168.88.1\",\n      \"api_port\": 8728,\n      \"api_username\": \"api\",\n      \"status\": \"connected\",\n      \"last_seen_at\": \"2026-04-30T10:11:12Z\",\n      \"notes\": null\n    }\n  ],\n  \"error\": null\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listRouters",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listRouters",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "createRouter",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"hotspot-1\",\n  \"ip_address\": \"192.168.88.1\",\n  \"api_port\": 8728,\n  \"api_username\": \"api\",\n  \"password\": \"api-password\",\n  \"notes\": \"Lobby AP\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {
+        "Router created.": {
+          "name": "Router created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"hotspot-1\",\n  \"ip_address\": \"192.168.88.1\",\n  \"api_port\": 8728,\n  \"api_username\": \"api\",\n  \"password\": \"api-password\",\n  \"notes\": \"Lobby AP\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 7,\n    \"name\": \"hotspot-1\",\n    \"ip_address\": \"192.168.88.1\",\n    \"api_port\": 8728,\n    \"api_username\": \"api\",\n    \"status\": \"string\",\n    \"last_seen_at\": \"\",\n    \"notes\": \"\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input \u2014 body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input \u2014 body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"hotspot-1\",\n  \"ip_address\": \"192.168.88.1\",\n  \"api_port\": 8728,\n  \"api_username\": \"api\",\n  \"password\": \"api-password\",\n  \"notes\": \"Lobby AP\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource already exists or version conflict (e.g. duplicate username).": {
+          "name": "Resource already exists or version conflict (e.g. duplicate username).",
+          "originalRequest": {
+            "v": "6",
+            "name": "createRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"hotspot-1\",\n  \"ip_address\": \"192.168.88.1\",\n  \"api_port\": 8728,\n  \"api_username\": \"api\",\n  \"password\": \"api-password\",\n  \"notes\": \"Lobby AP\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Conflict",
+          "code": 409,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"conflict\",\n    \"message\": \"user already exists\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"hotspot-1\",\n  \"ip_address\": \"192.168.88.1\",\n  \"api_port\": 8728,\n  \"api_username\": \"api\",\n  \"password\": \"api-password\",\n  \"notes\": \"Lobby AP\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Creates a router row, encrypts the API password at rest, and\nregisters the router with the orchestrator so streams/pollers\nattach automatically. Conflict (409) when the name already\nexists.\n"
+    },
+    {
+      "v": "17",
+      "name": "migrateRouterConfig",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/migrate",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"file_path\": \"/data/legacy/mikhmon/config.php\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {
+        "Migration summary.": {
+          "name": "Migration summary.",
+          "originalRequest": {
+            "v": "6",
+            "name": "migrateRouterConfig",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/migrate",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"file_path\": \"/data/legacy/mikhmon/config.php\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"total\": 12,\n    \"imported\": 9,\n    \"skipped\": 3,\n    \"errors\": 0\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input \u2014 body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input \u2014 body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "migrateRouterConfig",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/migrate",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"file_path\": \"/data/legacy/mikhmon/config.php\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "migrateRouterConfig",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/migrate",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"file_path\": \"/data/legacy/mikhmon/config.php\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Reads the file path on the server, parses MIKHMON's PHP config,\nand creates corresponding router + profile-mapping rows. Idempotent\non `name` \u2014 existing routers are skipped.\n"
+    },
+    {
+      "v": "17",
+      "name": "getRouter",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Router public view.": {
+          "name": "Router public view.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getRouter",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 7,\n    \"name\": \"hotspot-1\",\n    \"ip_address\": \"192.168.88.1\",\n    \"api_port\": 8728,\n    \"api_username\": \"api\",\n    \"status\": \"string\",\n    \"last_seen_at\": \"\",\n    \"notes\": \"\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getRouter",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getRouter",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateRouter",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"string\",\n  \"ip_address\": \"string\",\n  \"api_port\": 0,\n  \"api_username\": \"string\",\n  \"password\": \"string\",\n  \"notes\": \"string\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateRouter",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"ip_address\": \"string\",\n  \"api_port\": 0,\n  \"api_username\": \"string\",\n  \"password\": \"string\",\n  \"notes\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 7,\n    \"name\": \"hotspot-1\",\n    \"ip_address\": \"192.168.88.1\",\n    \"api_port\": 8728,\n    \"api_username\": \"api\",\n    \"status\": \"string\",\n    \"last_seen_at\": \"\",\n    \"notes\": \"\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input \u2014 body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input \u2014 body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateRouter",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"ip_address\": \"string\",\n  \"api_port\": 0,\n  \"api_username\": \"string\",\n  \"password\": \"string\",\n  \"notes\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateRouter",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"ip_address\": \"string\",\n  \"api_port\": 0,\n  \"api_username\": \"string\",\n  \"password\": \"string\",\n  \"notes\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateRouter",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"string\",\n  \"ip_address\": \"string\",\n  \"api_port\": 0,\n  \"api_username\": \"string\",\n  \"password\": \"string\",\n  \"notes\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "testRouterConnection",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/test",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Probe result. Always 200 \u2014 `data.connected` reflects success.": {
+          "name": "Probe result. Always 200 \u2014 `data.connected` reflects success.",
+          "originalRequest": {
+            "v": "6",
+            "name": "testRouterConnection",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/test",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"connected\": true,\n    \"latency_ms\": 14,\n    \"routeros_version\": \"7.20.8\",\n    \"board_model\": \"CCR1009-7G-1C-1S+\",\n    \"identity\": \"MikroTik\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "testRouterConnection",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/test",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "testRouterConnection",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/test",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Performs a TCP+API roundtrip to the router using its stored\ncredentials. Useful after editing IP/port/credentials to verify\neverything still works without polluting the orchestrator pool.\n"
+    },
+    {
+      "v": "17",
+      "name": "deleteRouter",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Deleted.": {
+          "name": "Deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteRouter",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"router deleted\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteRouter",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised \u2014 does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteRouter",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Disconnects the router from the orchestrator pool and soft-deletes the row."
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Router CRUD, connection test, config migration.",
+  "preRequestScript": "",
+  "testScript": ""
+}

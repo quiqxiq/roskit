@@ -1,0 +1,156 @@
+{
+  "v": 12,
+  "name": "events",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "onHotspotLogin",
+      "method": "POST",
+      "endpoint": "<<base_url>>/events/on-login",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "api-key",
+        "key": "X-Router-Token",
+        "value": "",
+        "addTo": "HEADERS",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/x-www-form-urlencoded",
+        "body": "router_name: \nserver: \nusername: \nmac: \nip: \ndate: \ntime: \nprofile: \ntoken: "
+      },
+      "requestVariables": [],
+      "responses": {
+        "Always 200 — body is empty. Inspect server logs for failure\nmodes (missing token, bad router name, idempotency hit, etc.).\n": {
+          "name": "Always 200 — body is empty. Inspect server logs for failure\nmodes (missing token, bad router name, idempotency hit, etc.).\n",
+          "originalRequest": {
+            "v": "6",
+            "name": "onHotspotLogin",
+            "method": "POST",
+            "endpoint": "<<base_url>>/events/on-login",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/x-www-form-urlencoded",
+              "body": "router_name: \nserver: \nusername: \nmac: \nip: \ndate: \ntime: \nprofile: \ntoken: "
+            },
+            "auth": {
+              "authType": "api-key",
+              "key": "X-Router-Token",
+              "value": "",
+              "addTo": "HEADERS",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": ""
+        },
+        "Rate limit exceeded.": {
+          "name": "Rate limit exceeded.",
+          "originalRequest": {
+            "v": "6",
+            "name": "onHotspotLogin",
+            "method": "POST",
+            "endpoint": "<<base_url>>/events/on-login",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/x-www-form-urlencoded",
+              "body": "router_name: \nserver: \nusername: \nmac: \nip: \ndate: \ntime: \nprofile: \ntoken: "
+            },
+            "auth": {
+              "authType": "api-key",
+              "key": "X-Router-Token",
+              "value": "",
+              "addTo": "HEADERS",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Too Many Requests",
+          "code": 429,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"rate_limited\",\n    \"message\": \"too many requests\"\n  }\n}"
+        }
+      },
+      "description": "Public webhook. Auth + resolution flow:\n\n1. RouterOS posts an `X-Router-Token` header (or `token` form field).\n2. The token is matched against `settings.webhook_token`.\n3. The router is resolved by `router_name`.\n4. The voucher sale is recorded idempotently by\n   `(router_id, username, sold_at)`.\n\nThe endpoint always returns 200 (even on validation/auth issues)\nso a misconfigured RouterOS scheduler does not loop on retries.\nOperators see issues via warnings in server logs.\n"
+    },
+    {
+      "v": "17",
+      "name": "eventsHealthCheck",
+      "method": "GET",
+      "endpoint": "<<base_url>>/events/health",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "none",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Reachable.": {
+          "name": "Reachable.",
+          "originalRequest": {
+            "v": "6",
+            "name": "eventsHealthCheck",
+            "method": "GET",
+            "endpoint": "<<base_url>>/events/health",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"status\": \"ok\"\n}"
+        }
+      },
+      "description": "Returns 200 unconditionally. Useful for RouterOS to verify reachability without auth."
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Public webhook from RouterOS (on-login).",
+  "preRequestScript": "",
+  "testScript": ""
+}

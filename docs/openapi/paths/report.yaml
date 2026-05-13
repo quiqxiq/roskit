@@ -21,6 +21,10 @@ getDailyReport:
       - in: query
         name: server
         schema: { type: string }
+      - in: query
+        name: search
+        schema: { type: string }
+        description: Free-text filter matched against username and profile name.
     responses:
       '200':
         description: Daily report.

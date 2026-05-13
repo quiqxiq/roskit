@@ -1,0 +1,1025 @@
+{
+  "v": 12,
+  "name": "users",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listUsers",
+      "method": "GET",
+      "endpoint": "<<base_url>>/users",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "Array of users.": {
+          "name": "Array of users.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"id\": 1,\n      \"username\": \"admin\",\n      \"role\": \"admin\",\n      \"active\": true,\n      \"last_login_at\": \"2026-04-30T10:11:12Z\",\n      \"created_at\": \"2026-04-01T00:00:00Z\",\n      \"updated_at\": \"2026-04-30T10:11:12Z\"\n    }\n  ],\n  \"error\": null\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listUsers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "createUser",
+      "method": "POST",
+      "endpoint": "<<base_url>>/users",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {
+        "User created.": {
+          "name": "User created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 12,\n    \"username\": \"alice\",\n    \"role\": \"string\",\n    \"active\": true,\n    \"last_login_at\": \"\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Resource already exists or version conflict (e.g. duplicate username).": {
+          "name": "Resource already exists or version conflict (e.g. duplicate username).",
+          "originalRequest": {
+            "v": "6",
+            "name": "createUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Conflict",
+          "code": 409,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"conflict\",\n    \"message\": \"user already exists\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createUser",
+            "method": "POST",
+            "endpoint": "<<base_url>>/users",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"bob\",\n  \"password\": \"secret123\",\n  \"role\": \"staff\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Admins may create users with role `admin` or `staff`."
+    },
+    {
+      "v": "17",
+      "name": "getUser",
+      "method": "GET",
+      "endpoint": "<<base_url>>/users/<<userId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "User found.": {
+          "name": "User found.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 12,\n    \"username\": \"alice\",\n    \"role\": \"string\",\n    \"active\": true,\n    \"last_login_at\": \"\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUser",
+            "method": "GET",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateUser",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/users/<<userId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"active\": true\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated user.": {
+          "name": "Updated user.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"string\",\n  \"password\": \"string\",\n  \"role\": \"string\",\n  \"active\": true\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 12,\n    \"username\": \"alice\",\n    \"role\": \"string\",\n    \"active\": true,\n    \"last_login_at\": \"\",\n    \"created_at\": \"string\",\n    \"updated_at\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"string\",\n  \"password\": \"string\",\n  \"role\": \"string\",\n  \"active\": true\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"string\",\n  \"password\": \"string\",\n  \"role\": \"string\",\n  \"active\": true\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"string\",\n  \"password\": \"string\",\n  \"role\": \"string\",\n  \"active\": true\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"string\",\n  \"password\": \"string\",\n  \"role\": \"string\",\n  \"active\": true\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateUser",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"username\": \"string\",\n  \"password\": \"string\",\n  \"role\": \"string\",\n  \"active\": true\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "deleteUser",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/users/<<id>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "id",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "User deleted.": {
+          "name": "User deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"user deleted\"\n  },\n  \"error\": null\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Authentication succeeded but the principal lacks the required role.": {
+          "name": "Authentication succeeded but the principal lacks the required role.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"forbidden\",\n    \"message\": \"access denied\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteUser",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/users/<<id>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "id",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "User management.",
+  "preRequestScript": "",
+  "testScript": ""
+}

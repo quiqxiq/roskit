@@ -1,0 +1,354 @@
+{
+  "v": 12,
+  "name": "profile-mappings",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listProfileMappings",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Mappings.": {
+          "name": "Mappings.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listProfileMappings",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"id\": 0,\n      \"router_id\": 0,\n      \"profile_name\": \"1d-1mbps\",\n      \"price\": 5000,\n      \"selling_price\": 7500,\n      \"validity\": \"1d\",\n      \"exp_mode\": \"rem\",\n      \"lock_user\": true,\n      \"lock_server\": true\n    }\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateProfileMapping",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"price\": 5000,\n  \"selling_price\": 7500,\n  \"validity\": \"1d\",\n  \"exp_mode\": \"rem\",\n  \"lock_user\": true,\n  \"lock_server\": false\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "profileName",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Mapping upserted.": {
+          "name": "Mapping upserted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateProfileMapping",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"price\": 5000,\n  \"selling_price\": 7500,\n  \"validity\": \"1d\",\n  \"exp_mode\": \"rem\",\n  \"lock_user\": true,\n  \"lock_server\": false\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "profileName",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": 0,\n    \"router_id\": 0,\n    \"profile_name\": \"1d-1mbps\",\n    \"price\": 5000,\n    \"selling_price\": 7500,\n    \"validity\": \"1d\",\n    \"exp_mode\": \"rem\",\n    \"lock_user\": true,\n    \"lock_server\": true\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateProfileMapping",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"price\": 5000,\n  \"selling_price\": 7500,\n  \"validity\": \"1d\",\n  \"exp_mode\": \"rem\",\n  \"lock_user\": true,\n  \"lock_server\": false\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "profileName",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateProfileMapping",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"price\": 5000,\n  \"selling_price\": 7500,\n  \"validity\": \"1d\",\n  \"exp_mode\": \"rem\",\n  \"lock_user\": true,\n  \"lock_server\": false\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "profileName",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "deleteProfileMapping",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "profileName",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Deleted.": {
+          "name": "Deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteProfileMapping",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "profileName",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"profile mapping deleted\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteProfileMapping",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/profile-mappings/<<profileName>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "profileName",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Per-router profile → price/validity mapping.",
+  "preRequestScript": "",
+  "testScript": ""
+}

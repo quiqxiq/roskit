@@ -121,27 +121,29 @@ func (h *QuickPrintHandler) UpdatePackage(c *gin.Context) {
 		SellingPrice string `json:"selling_price"`
 		LockUser     string `json:"lock_user"`
 	}
-	if err := c.ShouldBindJSON(&body); err == nil {
-		pkg := &roskitservice.QuickPrintPackage{
-			Name:         body.Name,
-			Server:       body.Server,
-			UserMode:     body.UserMode,
-			UserLength:   body.UserLength,
-			Prefix:       body.Prefix,
-			CharMode:     body.CharMode,
-			Profile:      body.Profile,
-			TimeLimit:    body.TimeLimit,
-			DataLimit:    body.DataLimit,
-			Comment:      body.Comment,
-			Validity:     body.Validity,
-			Price:        body.Price,
-			SellingPrice: body.SellingPrice,
-			LockUser:     body.LockUser,
-		}
-		if err := h.bridge.UpdateQuickPrintPackage(c.Request.Context(), fmt.Sprintf("%d", routerID), id, pkg); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
-			return
-		}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid request body"})
+		return
+	}
+	pkg := &roskitservice.QuickPrintPackage{
+		Name:         body.Name,
+		Server:       body.Server,
+		UserMode:     body.UserMode,
+		UserLength:   body.UserLength,
+		Prefix:       body.Prefix,
+		CharMode:     body.CharMode,
+		Profile:      body.Profile,
+		TimeLimit:    body.TimeLimit,
+		DataLimit:    body.DataLimit,
+		Comment:      body.Comment,
+		Validity:     body.Validity,
+		Price:        body.Price,
+		SellingPrice: body.SellingPrice,
+		LockUser:     body.LockUser,
+	}
+	if err := h.bridge.UpdateQuickPrintPackage(c.Request.Context(), fmt.Sprintf("%d", routerID), id, pkg); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "quick print package updated"}, "error": nil})
 }

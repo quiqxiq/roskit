@@ -21,6 +21,7 @@ var (
 	ErrUserInactive       = errors.New("user account is inactive")
 	ErrUserAlreadyExists  = errors.New("username already exists")
 	ErrInvalidRole        = errors.New("invalid role")
+	ErrUserNotFound       = errors.New("user not found")
 	ErrOldPasswordWrong   = errors.New("old password is incorrect")
 	ErrSetupComplete      = errors.New("initial setup already completed")
 )
@@ -330,7 +331,7 @@ func (s *AuthService) GetUser(ctx context.Context, id uint) (*models.User, error
 func (s *AuthService) UpdateUser(ctx context.Context, id uint, username, password *string, role *models.UserRole, active *bool) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		return nil, ErrUserNotFound
 	}
 	if username != nil {
 		user.Username = *username

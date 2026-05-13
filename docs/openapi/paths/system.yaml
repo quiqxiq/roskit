@@ -30,9 +30,17 @@ getResourceHistory:
         name: range
         schema:
           type: string
-          enum: ['1h', '6h', '24h', '7d', '30d']
+          enum: ['15m', '1h', '6h', '12h', '24h', '7d', '30d']
           default: '24h'
         description: Look-back window served by the time-series reader.
+      - in: query
+        name: step
+        schema:
+          type: string
+          example: '5m'
+        description: |
+          Aggregation bucket size (e.g. `1m`, `5m`, `15m`, `1h`).
+          When omitted the server picks a sensible default based on `range`.
     responses:
       '200':
         description: History points.
@@ -56,7 +64,7 @@ getLog:
       - $ref: '../components/parameters.yaml#/RouterId'
       - in: query
         name: limit
-        schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
     responses:
       '200':
         description: Log rows newest first.
@@ -167,14 +175,16 @@ getExpireMonitor:
     parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
     responses:
       '200':
-        description: Monitor status.
+        description: |
+          Raw RouterOS scheduler record for the expire-monitor job,
+          or an empty object when the scheduler does not exist.
         content:
           application/json:
             schema:
               type: object
               required: [data, error]
               properties:
-                data:  { $ref: '../components/schemas/system.yaml#/ExpireMonitorStatus' }
+                data:  { $ref: '../components/schemas/common.yaml#/RouterOSRecord' }
                 error: { type: 'null' }
 
 deployExpireMonitor:
@@ -518,5 +528,5 @@ getDashboard:
               type: object
               required: [data, error]
               properties:
-                data:  { $ref: '../components/schemas/system.yaml#/DashboardSummary' }
+                data:  { $ref: '../components/schemas/system.yaml#/RouterDashboard' }
                 error: { type: 'null' }

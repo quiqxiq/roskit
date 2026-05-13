@@ -16,6 +16,7 @@ type Router struct {
 	SSHPort              *int           `gorm:"default:22"                                                         json:"ssh_port"`
 	SSHUsername          *string        `gorm:"size:50"                                                            json:"ssh_username"`
 	SSHPasswordEncrypted *string        `gorm:"column:ssh_password"                                                json:"-"`
+	Timezone             *string        `gorm:"size:50"                                                            json:"timezone,omitempty"`
 	Status               RouterStatus   `gorm:"type:varchar(20);not null;default:unknown"                          json:"status"`
 	LastSeenAt           *time.Time     `                                                                          json:"last_seen_at"`
 	Notes                *string        `gorm:"type:text"                                                          json:"notes"`

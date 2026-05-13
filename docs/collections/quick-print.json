@@ -1,0 +1,561 @@
+{
+  "v": 12,
+  "name": "quick-print",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "listQuickPrintPackages",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Packages.": {
+          "name": "Packages.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listQuickPrintPackages",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"name\": \"1d-1mbps-25k\",\n      \"server\": \"string\",\n      \"user_mode\": \"vc\",\n      \"user_length\": \"6\",\n      \"prefix\": \"string\",\n      \"char_mode\": \"string\",\n      \"profile\": \"string\",\n      \"time_limit\": \"string\",\n      \"data_limit\": \"string\",\n      \"comment\": \"string\",\n      \"validity\": \"string\",\n      \"price\": \"string\",\n      \"selling_price\": \"string\",\n      \"lock_user\": \"string\"\n    }\n  ],\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listQuickPrintPackages",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "createQuickPrintPackage",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"1d-1mbps-25k\",\n  \"server\": \"string\",\n  \"user_mode\": \"vc\",\n  \"user_length\": \"6\",\n  \"prefix\": \"string\",\n  \"char_mode\": \"string\",\n  \"profile\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"comment\": \"string\",\n  \"validity\": \"string\",\n  \"price\": \"string\",\n  \"selling_price\": \"string\",\n  \"lock_user\": \"string\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Saved.": {
+          "name": "Saved.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createQuickPrintPackage",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"1d-1mbps-25k\",\n  \"server\": \"string\",\n  \"user_mode\": \"vc\",\n  \"user_length\": \"6\",\n  \"prefix\": \"string\",\n  \"char_mode\": \"string\",\n  \"profile\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"comment\": \"string\",\n  \"validity\": \"string\",\n  \"price\": \"string\",\n  \"selling_price\": \"string\",\n  \"lock_user\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"quick print package created\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createQuickPrintPackage",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"1d-1mbps-25k\",\n  \"server\": \"string\",\n  \"user_mode\": \"vc\",\n  \"user_length\": \"6\",\n  \"prefix\": \"string\",\n  \"char_mode\": \"string\",\n  \"profile\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"comment\": \"string\",\n  \"validity\": \"string\",\n  \"price\": \"string\",\n  \"selling_price\": \"string\",\n  \"lock_user\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createQuickPrintPackage",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"1d-1mbps-25k\",\n  \"server\": \"string\",\n  \"user_mode\": \"vc\",\n  \"user_length\": \"6\",\n  \"prefix\": \"string\",\n  \"char_mode\": \"string\",\n  \"profile\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"comment\": \"string\",\n  \"validity\": \"string\",\n  \"price\": \"string\",\n  \"selling_price\": \"string\",\n  \"lock_user\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getQuickPrintPackage",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "name",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Package.": {
+          "name": "Package.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getQuickPrintPackage",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "name",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"name\": \"1d-1mbps-25k\",\n    \"server\": \"string\",\n    \"user_mode\": \"vc\",\n    \"user_length\": \"6\",\n    \"prefix\": \"string\",\n    \"char_mode\": \"string\",\n    \"profile\": \"string\",\n    \"time_limit\": \"string\",\n    \"data_limit\": \"string\",\n    \"comment\": \"string\",\n    \"validity\": \"string\",\n    \"price\": \"string\",\n    \"selling_price\": \"string\",\n    \"lock_user\": \"string\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getQuickPrintPackage",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "name",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateQuickPrintPackage",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"1d-1mbps-25k\",\n  \"server\": \"string\",\n  \"user_mode\": \"vc\",\n  \"user_length\": \"6\",\n  \"prefix\": \"string\",\n  \"char_mode\": \"string\",\n  \"profile\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"comment\": \"string\",\n  \"validity\": \"string\",\n  \"price\": \"string\",\n  \"selling_price\": \"string\",\n  \"lock_user\": \"string\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "name",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateQuickPrintPackage",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"1d-1mbps-25k\",\n  \"server\": \"string\",\n  \"user_mode\": \"vc\",\n  \"user_length\": \"6\",\n  \"prefix\": \"string\",\n  \"char_mode\": \"string\",\n  \"profile\": \"string\",\n  \"time_limit\": \"string\",\n  \"data_limit\": \"string\",\n  \"comment\": \"string\",\n  \"validity\": \"string\",\n  \"price\": \"string\",\n  \"selling_price\": \"string\",\n  \"lock_user\": \"string\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "name",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"quick print package updated\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeQuickPrintPackage",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "name",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Deleted.": {
+          "name": "Deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeQuickPrintPackage",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "name",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"quick print package removed\"\n  },\n  \"error\": null\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeQuickPrintPackage",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/quick-print/<<name>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "name",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Quick-print package preset CRUD (per router).",
+  "preRequestScript": "",
+  "testScript": ""
+}

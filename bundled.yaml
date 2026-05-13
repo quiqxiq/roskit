@@ -1,0 +1,6524 @@
+openapi: 3.1.0
+info:
+  title: Roskit API
+  version: 0.1.0
+  summary: MikroTik RouterOS management API.
+  description: |
+    Roskit exposes hotspot, PPP, network, system, voucher, and reporting
+    operations across MikroTik routers.
+
+    ## Conventions
+
+    - All responses use the same envelope: `{ data, error }`. Exactly one
+      of `data` / `error` is non-null.
+    - Authentication: `Authorization: Bearer <jwt>` issued by `/auth/login`.
+  contact:
+    name: Roskit
+    url: https://github.com/quiqxiq/roskit
+  license:
+    name: See repository LICENSE
+    identifier: LicenseRef-Repo-LICENSE
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://{host}/api/v1
+    description: Production
+    variables:
+      host:
+        default: api.example.com
+        description: Public host where Roskit is deployed.
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+    description: Liveness / readiness checks. No auth.
+  - name: status
+    description: Public connectivity probe used by the login page.
+  - name: auth
+    description: Login, refresh, logout, password change, first-time setup.
+  - name: settings
+    description: Application settings and logo management (admin only).
+  - name: users
+    description: User management.
+  - name: routers
+    description: Router CRUD, connection test, config migration.
+  - name: hotspot
+    description: MikroTik hotspot users, profiles, sessions, hosts, bindings, walled-garden.
+  - name: ppp
+    description: PPP secrets, profiles, active/inactive sessions.
+  - name: network
+    description: Interfaces, traffic, pools, queues, NAT, DHCP.
+  - name: system
+    description: Router system resource, scheduler, scripts, expire-monitor.
+  - name: vouchers
+    description: Voucher generation, sale recording, printing.
+  - name: templates
+    description: Print template CRUD.
+  - name: reports
+    description: Daily / monthly / dashboard reports + CSV / Excel export.
+  - name: quick-print
+    description: Quick-print package preset CRUD (per router).
+  - name: profile-mappings
+    description: Per-router profile → price/validity mapping.
+  - name: events
+    description: Public webhook from RouterOS (on-login).
+  - name: sse
+    description: Server-Sent Events streams (logs + telemetry).
+paths:
+  /health:
+    get:
+      operationId: checkHealth
+      summary: Liveness and dependency health probe
+      tags:
+        - health
+      security: []
+      description: |
+        Returns the health of Postgres, Redis, and the MikroTik connection
+        pool. `data.status` is `ok` when all dependencies are healthy and
+        `degraded` otherwise. HTTP status mirrors that: 200 on `ok`, 503 on
+        `degraded`. Use this for Kubernetes readiness probes.
+      responses:
+        '200':
+          description: All dependencies healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HealthStatus'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  status: ok
+                  services:
+                    postgres: ok
+                    redis: ok
+                    engine:
+                      routers_total: 4
+                      routers_connected: 4
+                error: null
+        '503':
+          description: At least one dependency is unavailable. Body still uses the standard envelope.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HealthStatus'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  status: degraded
+                  services:
+                    postgres: ok
+                    redis: unavailable
+                    engine:
+                      routers_total: 4
+                      routers_connected: 1
+                error: null
+  /status:
+    get:
+      operationId: getUserStatus
+      summary: Hotspot user session status by MAC
+      tags:
+        - status
+      security: []
+      description: |
+        Public endpoint used by the hotspot login page to show whether a
+        device is currently connected. Resolves the router by name and
+        looks up the active session matching the MAC.
+
+        Returns `active: true` with session details when the MAC is in
+        `ip/hotspot/active`. Returns `active: false` (with only `mac`
+        populated) when no matching session exists.
+      parameters:
+        - in: query
+          name: router
+          required: true
+          description: Router name as registered in the system (matches `routers.name`).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: hotspot-1
+        - in: query
+          name: mac
+          required: true
+          description: MAC address of the device whose status is being queried.
+          schema:
+            type: string
+            minLength: 11
+            maxLength: 17
+            pattern: ^[0-9A-Fa-f:.-]+$
+          example: '00:11:22:33:44:55'
+      responses:
+        '200':
+          description: User status (active session details, or inactive shell).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserStatus'
+                  error:
+                    type: 'null'
+              examples:
+                active:
+                  summary: Currently logged in
+                  value:
+                    data:
+                      active: true
+                      username: voucher-7g3pq
+                      profile: 1d-1mbps
+                      ip_address: 10.5.50.23
+                      mac: '00:11:22:33:44:55'
+                      uptime: 1h12m
+                      bytes_in: '15823234'
+                      bytes_out: '982341'
+                      time_left: 22h47m
+                      comment: ''
+                    error: null
+                inactive:
+                  summary: Not logged in
+                  value:
+                    data:
+                      active: false
+                      username: ''
+                      profile: ''
+                      ip_address: ''
+                      mac: '00:11:22:33:44:55'
+                      uptime: ''
+                      bytes_in: ''
+                      bytes_out: ''
+                      time_left: ''
+                      comment: ''
+                    error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/login:
+    post:
+      operationId: login
+      summary: Exchange credentials for an access + refresh token pair
+      tags:
+        - auth
+      security: []
+      description: |
+        Accepts username + password. The response includes the user view
+        plus a JWT pair. Rate-limited to 10 requests/min/IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: alice
+              password: hunter2
+      responses:
+        '200':
+          description: Authenticated. Returns access + refresh tokens.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LoginResult'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  access_token: eyJhbGciOi...
+                  refresh_token: eyJhbGciOi...
+                  expires_in: 900
+                  user:
+                    id: 12
+                    username: alice
+                    role: admin
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      summary: Issue a new access token from a refresh token
+      tags:
+        - auth
+      security: []
+      description: |
+        Exchanges a valid (non-expired, non-revoked) refresh token for a
+        fresh access + refresh token pair. The original refresh token is
+        revoked as part of this call (rotation).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair issued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LoginResult'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current access token (and optionally a refresh token)
+      tags:
+        - auth
+      description: |
+        Adds the current token's JTI to the revocation cache so it cannot
+        be reused even before its `exp`. If `refresh_token` is supplied in
+        the body, that refresh JTI is revoked too.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logged out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: logged out
+                error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Return the authenticated user's identity
+      tags:
+        - auth
+      description: |
+        Echo of the JWT claims as a `UserView`. Useful for the SPA to
+        hydrate user state on page load without round-tripping `/users`.
+      responses:
+        '200':
+          description: User identity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserView'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  id: 12
+                  username: alice
+                  role: admin
+                error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/password:
+    put:
+      operationId: changePassword
+      summary: Change the authenticated user's password
+      tags:
+        - auth
+      description: Requires the old password. New password must be 6–128 chars.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: password changed
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/setup:
+    post:
+      operationId: setupFirstAdmin
+      summary: Bootstrap the first admin account
+      tags:
+        - auth
+      security: []
+      description: |
+        One-shot bootstrap endpoint. Creates the first admin user. Returns
+        403 once any user exists. Rate-limited to 10 requests/min/IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+            example:
+              username: admin
+              password: changeme123
+      responses:
+        '201':
+          description: First admin created and auto-logged-in.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SetupResult'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /settings:
+    get:
+      operationId: getSettings
+      summary: Get application settings
+      tags:
+        - settings
+      description: Returns the global Settings singleton.
+      responses:
+        '200':
+          description: Settings object.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Settings'
+                  error:
+                    type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateSettings
+      summary: Update application settings (partial)
+      tags:
+        - settings
+      description: Partial update — only fields supplied in the body are changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsRequest'
+      responses:
+        '200':
+          description: Updated settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Settings'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /settings/logo:
+    get:
+      operationId: getLogo
+      summary: Download the logo
+      tags:
+        - settings
+      description: Returns the raw image bytes; the Content-Type header reflects the stored format.
+      responses:
+        '200':
+          description: Binary logo image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: uploadLogo
+      summary: Upload a logo image
+      tags:
+        - settings
+      description: |
+        Accepts a `multipart/form-data` body. The uploaded file is stored
+        server-side and referenced by `settings.logo_path`. Use
+        `GET /settings/logo` to fetch it back.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - logo
+              properties:
+                logo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Logo accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: logo uploaded
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /users:
+    get:
+      operationId: listUsers
+      summary: List all users
+      tags:
+        - users
+      responses:
+        '200':
+          description: Array of users.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  - id: 1
+                    username: admin
+                    role: admin
+                    active: true
+                    last_login_at: '2026-04-30T10:11:12Z'
+                    created_at: '2026-04-01T00:00:00Z'
+                    updated_at: '2026-04-30T10:11:12Z'
+                error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createUser
+      summary: Create a user
+      tags:
+        - users
+      description: Admins may create users with role `admin` or `staff`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              username: bob
+              password: secret123
+              role: staff
+      responses:
+        '201':
+          description: User created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: Get a single user by ID
+      tags:
+        - users
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  error:
+                    type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateUser
+      summary: Update a user (partial)
+      tags:
+        - users
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteUser
+      summary: Delete a user (soft delete)
+      tags:
+        - users
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: user deleted
+                error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers:
+    get:
+      operationId: listRouters
+      summary: List all routers
+      tags:
+        - routers
+      responses:
+        '200':
+          description: Array of public router views.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RouterPublicView'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  - id: 7
+                    name: hotspot-1
+                    ip_address: 192.168.88.1
+                    api_port: 8728
+                    api_username: api
+                    status: connected
+                    last_seen_at: '2026-04-30T10:11:12Z'
+                    notes: null
+                error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createRouter
+      summary: Register a new router
+      tags:
+        - routers
+      description: |
+        Creates a router row, encrypts the API password at rest, and
+        registers the router with the orchestrator so streams/pollers
+        attach automatically. Conflict (409) when the name already
+        exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouterRequest'
+            example:
+              name: hotspot-1
+              ip_address: 192.168.88.1
+              api_port: 8728
+              api_username: api
+              password: api-password
+              notes: Lobby AP
+      responses:
+        '201':
+          description: Router created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RouterPublicView'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/migrate:
+    post:
+      operationId: migrateRouterConfig
+      summary: Import a legacy MIKHMON config.php
+      tags:
+        - routers
+      description: |
+        Reads the file path on the server, parses MIKHMON's PHP config,
+        and creates corresponding router + profile-mapping rows. Idempotent
+        on `name` — existing routers are skipped.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MigrateRequest'
+            example:
+              file_path: /data/legacy/mikhmon/config.php
+      responses:
+        '200':
+          description: Migration summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MigrationResult'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  total: 12
+                  imported: 9
+                  skipped: 3
+                  errors: 0
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}:
+    get:
+      operationId: getRouter
+      summary: Get a router by ID
+      tags:
+        - routers
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Router public view.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RouterPublicView'
+                  error:
+                    type: 'null'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateRouter
+      summary: Update router fields (partial)
+      tags:
+        - routers
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRouterRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RouterPublicView'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteRouter
+      summary: Soft-delete a router
+      tags:
+        - routers
+      description: Disconnects the router from the orchestrator pool and soft-deletes the row.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: router deleted
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/test:
+    post:
+      operationId: testRouterConnection
+      summary: Probe an existing router's connectivity
+      tags:
+        - routers
+      description: |
+        Performs a TCP+API roundtrip to the router using its stored
+        credentials. Useful after editing IP/port/credentials to verify
+        everything still works without polluting the orchestrator pool.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Probe result. Always 200 — `data.connected` reflects success.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConnectionTestResult'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  connected: true
+                  latency_ms: 14
+                  routeros_version: 7.20.8
+                  board_model: CCR1009-7G-1C-1S+
+                  identity: MikroTik
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/hotspot/users:
+    get:
+      operationId: listHotspotUsers
+      summary: List hotspot users
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: profile
+          schema:
+            type: string
+          description: Filter by profile name.
+      responses:
+        '200':
+          description: Array of hotspot users (raw RouterOS records).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotspotUserRecord'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  - .id: '*A1'
+                    name: voucher-7g3pq
+                    password: 7g3pq
+                    profile: 1d-1mbps
+                    server: hotspot1
+                    mac-address: '00:11:22:33:44:55'
+                    bytes-in: '15823234'
+                    bytes-out: '982341'
+                    disabled: 'false'
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: addHotspotUser
+      summary: Create a hotspot user
+      tags:
+        - hotspot
+      description: |
+        Body is a free-form `name → value` map mirroring RouterOS
+        `/ip/hotspot/user/add` arguments. Common keys: `name`, `password`,
+        `profile`, `server`, `mac-address`, `limit-uptime`,
+        `limit-bytes-total`, `comment`.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                name: alice
+                password: hunter2
+                profile: 1d-1mbps
+                server: hotspot1
+      responses:
+        '201':
+          description: Created. `data.id` is the new RouterOS `.id`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id:
+                        type: string
+                        example: '*42'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/hotspot/users/count:
+    get:
+      operationId: getHotspotUserCount
+      summary: Total hotspot user count
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: profile
+          schema:
+            type: string
+          description: Optional — count only users in this profile.
+      responses:
+        '200':
+          description: Count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - count
+                    properties:
+                      count:
+                        type: integer
+                        format: int64
+                        minimum: 0
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  count: 42
+                error: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/hotspot/users/export:
+    get:
+      operationId: exportHotspotUsers
+      summary: Export hotspot users (CSV or RouterOS script)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: profile
+          schema:
+            type: string
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum:
+              - csv
+              - script
+            default: script
+          description: |
+            `csv` returns a CSV download. `script` (default) returns a
+            RouterOS `/ip/hotspot/user/add` script that can be pasted
+            directly into a terminal.
+      responses:
+        '200':
+          description: |
+            Response type depends on `format`:
+            - `csv` → `text/csv` with `Content-Disposition: attachment`
+            - `script` → `text/plain` with raw RouterOS commands
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/hotspot/users/{id}:
+    get:
+      operationId: getHotspotUser
+      summary: Get a hotspot user by RouterOS ID or name
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          description: RouterOS `.id` (starts with `*`) or the user name.
+      responses:
+        '200':
+          description: User record.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HotspotUserRecord'
+                  error:
+                    type: 'null'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateHotspotUser
+      summary: Update a hotspot user (partial)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: user updated
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    delete:
+      operationId: removeHotspotUser
+      summary: Delete a hotspot user (with cascade cleanup)
+      tags:
+        - hotspot
+      description: |
+        Removes the user plus any RouterOS scheduler/script that was
+        auto-created for this user (best-effort; errors are logged but do
+        not propagate).
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: user removed
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/hotspot/users/{id}/reset-counters:
+    post:
+      operationId: resetHotspotUserCounters
+      summary: Reset bytes-in/bytes-out for a hotspot user
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Counters reset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: counters reset
+                error: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/hotspot/profiles:
+    get:
+      operationId: listHotspotProfiles
+      summary: List hotspot profiles (enriched with mapping metadata)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Profiles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProfileWithMeta'
+                  error:
+                    type: 'null'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: addHotspotProfile
+      summary: Create a hotspot profile
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotspotProfileParams'
+      responses:
+        '201':
+          description: Profile created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/hotspot/profiles/{id}:
+    get:
+      operationId: getHotspotProfile
+      summary: Get a hotspot profile by RouterOS ID or name
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Profile record.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RouterOSRecord'
+                  error:
+                    type: 'null'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateHotspotProfile
+      summary: Update a hotspot profile (partial)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotspotProfileParams'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: profile updated
+                error: null
+    delete:
+      operationId: removeHotspotProfile
+      summary: Delete a hotspot profile (cascade cleans schedulers)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: profile removed
+                error: null
+  /routers/{routerId}/hotspot/profiles/sync:
+    post:
+      operationId: syncHotspotProfiles
+      summary: Sync on-login scripts from MikroTik to database
+      description: |
+        Reads all hotspot profiles from the router, parses pricing metadata
+        from each on-login script, upserts the data into the
+        `profile_price_mappings` table, and replaces the on-login script
+        with the current format (API URL, webhook token,
+        router name). Scripts that are already up-to-date are skipped.
+
+        **Route:** `POST /routers/{routerId}/hotspot/profiles/sync`
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Sync completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - profiles_scanned
+                      - mappings_synced
+                      - scripts_updated
+                      - scripts_skipped
+                      - scripts_failed
+                    properties:
+                      profiles_scanned:
+                        type: integer
+                        description: Profiles with a parseable on-login script.
+                        example: 5
+                      mappings_synced:
+                        type: integer
+                        description: Profile-price mappings upserted to the database.
+                        example: 5
+                      scripts_updated:
+                        type: integer
+                        description: On-login scripts replaced on the router.
+                        example: 3
+                      scripts_skipped:
+                        type: integer
+                        description: Scripts already up-to-date (no change needed).
+                        example: 2
+                      scripts_failed:
+                        type: integer
+                        description: On-login scripts that could not be updated.
+                        example: 0
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  profiles_scanned: 5
+                  mappings_synced: 5
+                  scripts_updated: 3
+                  scripts_skipped: 2
+                  scripts_failed: 0
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/hotspot/active:
+    get:
+      operationId: listHotspotActive
+      summary: List active hotspot sessions
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Active sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotspotActiveRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/active/{id}:
+    delete:
+      operationId: removeHotspotActive
+      summary: Forcibly drop an active session (no cookie cleanup)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Session removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: session removed
+                error: null
+  /routers/{routerId}/hotspot/active/{id}/disconnect:
+    post:
+      operationId: disconnectHotspotUser
+      summary: Disconnect a hotspot user (active session + cookie)
+      tags:
+        - hotspot
+      description: Drops the active session AND removes the corresponding cookie so re-auth is required.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Disconnected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: user disconnected
+                error: null
+  /routers/{routerId}/hotspot/inactive:
+    get:
+      operationId: listInactiveHotspotUsers
+      summary: List hotspot users without an active session
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Inactive users.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotspotUserRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/inactive/count:
+    get:
+      operationId: getInactiveHotspotUserCount
+      summary: Count users without an active session
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - count
+                    properties:
+                      count:
+                        type: integer
+                        format: int64
+                        minimum: 0
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/hosts:
+    get:
+      operationId: listHotspotHosts
+      summary: List hotspot host learning entries
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Hosts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotspotHostRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/hosts/{id}:
+    delete:
+      operationId: removeHotspotHost
+      summary: Forget a hotspot host
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Host removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: host removed
+                error: null
+  /routers/{routerId}/hotspot/servers:
+    get:
+      operationId: listHotspotServers
+      summary: List hotspot server instances on the router
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Servers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotspotServerRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/cookies:
+    get:
+      operationId: listHotspotCookies
+      summary: List remembered hotspot login cookies
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Cookies.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HotspotCookieRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/cookies/{id}:
+    delete:
+      operationId: removeHotspotCookie
+      summary: Remove a remembered hotspot login cookie
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Cookie removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: cookie removed
+                error: null
+  /routers/{routerId}/hotspot/bindings:
+    get:
+      operationId: listIPBindings
+      summary: List hotspot IP bindings
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Bindings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IPBindingRecord'
+                  error:
+                    type: 'null'
+    post:
+      operationId: addIPBinding
+      summary: Create an IP binding
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                mac-address: '00:11:22:33:44:55'
+                address: 10.5.50.23
+                type: bypassed
+                comment: POS terminal
+      responses:
+        '201':
+          description: Binding created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/bindings/{id}:
+    put:
+      operationId: updateIPBinding
+      summary: Update an IP binding (partial)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: binding updated
+                error: null
+    delete:
+      operationId: removeIPBinding
+      summary: Delete an IP binding (cascade cleans queue/scheduler/ARP/lease)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: binding removed
+                error: null
+  /routers/{routerId}/hotspot/bindings/{id}/enable:
+    post:
+      operationId: enableIPBinding
+      summary: Enable an IP binding
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Enabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: binding enabled
+                error: null
+  /routers/{routerId}/hotspot/bindings/{id}/disable:
+    post:
+      operationId: disableIPBinding
+      summary: Disable an IP binding
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: binding disabled
+                error: null
+  /routers/{routerId}/hotspot/walled-garden:
+    get:
+      operationId: listWalledGarden
+      summary: List walled-garden host rules
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Walled garden entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WalledGardenRecord'
+                  error:
+                    type: 'null'
+    post:
+      operationId: addWalledGarden
+      summary: Add a walled-garden host rule
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                dst-host: youtube.com
+                action: allow
+      responses:
+        '201':
+          description: Rule added.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/walled-garden/{wid}:
+    delete:
+      operationId: removeWalledGarden
+      summary: Remove a walled-garden host rule
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: wid
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          description: Walled-garden rule `.id` from the router.
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: walled garden rule removed
+                error: null
+  /routers/{routerId}/hotspot/walled-garden-ip:
+    get:
+      operationId: listWalledGardenIP
+      summary: List walled-garden IP rules (firewall/NAT level)
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Walled-garden IP entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WalledGardenIPRecord'
+                  error:
+                    type: 'null'
+    post:
+      operationId: addWalledGardenIP
+      summary: Add a walled-garden IP rule
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                dst-address: 142.250.0.0/15
+                action: accept
+      responses:
+        '201':
+          description: Rule added.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  error:
+                    type: 'null'
+  /routers/{routerId}/hotspot/walled-garden-ip/{wid}:
+    delete:
+      operationId: removeWalledGardenIP
+      summary: Remove a walled-garden IP rule
+      tags:
+        - hotspot
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: wid
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: walled garden IP rule removed
+                error: null
+  /routers/{routerId}/ppp/secrets:
+    get:
+      operationId: listPPPSecrets
+      summary: List PPP secrets
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: PPP secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PPPSecretRecord'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  - .id: '*1'
+                    name: alice@vpn
+                    service: pppoe
+                    profile: default
+                    disabled: 'false'
+                error: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: addPPPSecret
+      summary: Create a PPP secret
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                name: alice@vpn
+                password: hunter2
+                service: pppoe
+                profile: default
+      responses:
+        '201':
+          description: PPP secret added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: PPP secret added
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/ppp/secrets/{id}:
+    put:
+      operationId: updatePPPSecret
+      summary: Update a PPP secret (partial)
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: PPP secret updated
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    delete:
+      operationId: removePPPSecret
+      summary: Delete a PPP secret
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: PPP secret removed
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/ppp/active:
+    get:
+      operationId: listPPPActive
+      summary: List active PPP sessions
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Active sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PPPActiveRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/ppp/active/{id}:
+    delete:
+      operationId: disconnectPPPActive
+      summary: Forcibly disconnect a PPP active session
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Disconnected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: PPP active session disconnected
+                error: null
+  /routers/{routerId}/ppp/inactive:
+    get:
+      operationId: listInactivePPPSecrets
+      summary: List PPP secrets without an active session
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Inactive secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PPPSecretRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/ppp/inactive/count:
+    get:
+      operationId: getInactivePPPCount
+      summary: Count PPP secrets without an active session
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CountResponse'
+  /routers/{routerId}/ppp/profiles:
+    get:
+      operationId: listPPPProfiles
+      summary: List PPP profiles
+      tags:
+        - ppp
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Profiles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PPPProfileRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/network/interfaces:
+    get:
+      operationId: listInterfaces
+      summary: List router interfaces
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Interfaces.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterfaceRecord'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  - .id: '*1'
+                    name: ether1
+                    type: ether
+                    mtu: '1500'
+                    running: 'true'
+                    disabled: 'false'
+                error: null
+  /routers/{routerId}/network/traffic/{iface}:
+    get:
+      operationId: getInterfaceTraffic
+      summary: Get current traffic rate for a single interface
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/InterfaceName'
+      responses:
+        '200':
+          description: Live RX/TX snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InterfaceTraffic'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  iface: ether1
+                  rx: 152340
+                  tx: 84211
+                  rx_packets: 245
+                  tx_packets: 198
+                  timestamp: '2026-04-30T10:11:12Z'
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /routers/{routerId}/network/pools:
+    get:
+      operationId: listIPPools
+      summary: List IP pools
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Pools.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PoolRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/network/queues:
+    get:
+      operationId: listSimpleQueues
+      summary: List simple queues
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Queues.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QueueRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/network/nat:
+    get:
+      operationId: listNATRules
+      summary: List firewall NAT rules
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: NAT rules.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NATRuleRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/network/dhcp/leases:
+    get:
+      operationId: listDHCPLeases
+      summary: List DHCP server leases
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Leases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DHCPLeaseRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/network/dhcp/{id}/release:
+    delete:
+      operationId: releaseDHCPLease
+      summary: Release a DHCP lease (remove the binding)
+      tags:
+        - network
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/GenericResourceId'
+      responses:
+        '200':
+          description: Lease released.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: lease released
+                error: null
+  /routers/{routerId}/system/resource:
+    get:
+      operationId: getSystemResource
+      summary: Live `/system/resource/print` snapshot
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Resource snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SystemResource'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/resource/history:
+    get:
+      operationId: getSystemResourceHistory
+      summary: Time-series CPU + memory history (from InfluxDB)
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum:
+              - 15m
+              - 1h
+              - 6h
+              - 12h
+              - 24h
+              - 7d
+              - 30d
+            default: 24h
+          description: Look-back window served by the time-series reader.
+        - in: query
+          name: step
+          schema:
+            type: string
+            example: 5m
+          description: |
+            Aggregation bucket size (e.g. `1m`, `5m`, `15m`, `1h`).
+            When omitted the server picks a sensible default based on `range`.
+      responses:
+        '200':
+          description: History points.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SystemResourceHistoryPoint'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/log:
+    get:
+      operationId: getSystemLog
+      summary: Read RouterOS `/log/print` rows
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+      responses:
+        '200':
+          description: Log rows newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SystemLogEntry'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/clock:
+    get:
+      operationId: getSystemClock
+      summary: Get router clock + timezone
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Clock snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SystemClock'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/identity:
+    get:
+      operationId: getSystemIdentity
+      summary: Get router identity (name)
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Identity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SystemIdentity'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/routerboard:
+    get:
+      operationId: getRouterboard
+      summary: Get RouterBoard hardware/firmware info
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: RouterBoard info.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SystemRouterboard'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/reboot:
+    post:
+      operationId: rebootRouter
+      summary: Reboot the router (destructive)
+      tags:
+        - system
+      description: Issues `/system/reboot`. Connection drops; pool reconnects automatically.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Reboot command accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: reboot scheduled
+                error: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/system/shutdown:
+    post:
+      operationId: shutdownRouter
+      summary: Shutdown the router (destructive)
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Shutdown accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: shutdown scheduled
+                error: null
+  /routers/{routerId}/system/expire-monitor:
+    get:
+      operationId: getExpireMonitor
+      summary: Inspect the expire-monitor scheduler state
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: |
+            Raw RouterOS scheduler record for the expire-monitor job,
+            or an empty object when the scheduler does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RouterOSRecord'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/expire-monitor/deploy:
+    post:
+      operationId: deployExpireMonitor
+      summary: Deploy or refresh the auto-expire scheduler
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeployExpireMonitorRequest'
+            example:
+              interval: 5m
+      responses:
+        '200':
+          description: Monitor deployed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: expire monitor deployed
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/system/expire-monitor/remove:
+    post:
+      operationId: removeExpireMonitor
+      summary: Remove the auto-expire scheduler
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: expire monitor removed
+                error: null
+  /routers/{routerId}/system/schedulers:
+    get:
+      operationId: listSchedulers
+      summary: List `/system/scheduler` entries
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Schedulers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SchedulerRecord'
+                  error:
+                    type: 'null'
+    post:
+      operationId: createScheduler
+      summary: Create a `/system/scheduler` entry
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                name: nightly-cleanup
+                on-event: log info "cleanup"
+                interval: 1d
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/schedulers/{schedulerId}:
+    put:
+      operationId: updateScheduler
+      summary: Update a scheduler (partial)
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: schedulerId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: scheduler updated
+                error: null
+    delete:
+      operationId: deleteScheduler
+      summary: Delete a scheduler
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: schedulerId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: scheduler deleted
+                error: null
+  /routers/{routerId}/system/schedulers/{schedulerId}/enable:
+    post:
+      operationId: enableScheduler
+      summary: Enable a scheduler
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: schedulerId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Enabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: scheduler enabled
+                error: null
+  /routers/{routerId}/system/schedulers/{schedulerId}/disable:
+    post:
+      operationId: disableScheduler
+      summary: Disable a scheduler
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: schedulerId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: scheduler disabled
+                error: null
+  /routers/{routerId}/system/scripts:
+    get:
+      operationId: listScripts
+      summary: List `/system/script` entries
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Scripts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScriptRecord'
+                  error:
+                    type: 'null'
+    post:
+      operationId: createScript
+      summary: Create a `/system/script` entry
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              example:
+                name: cleanup
+                source: ':log info "cleanup"'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/scripts/{scriptId}:
+    put:
+      operationId: updateScript
+      summary: Update a script (partial)
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: scriptId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: script updated
+                error: null
+    delete:
+      operationId: deleteScript
+      summary: Delete a script
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: scriptId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: script deleted
+                error: null
+  /routers/{routerId}/system/scripts/{scriptId}/run:
+    post:
+      operationId: runScript
+      summary: Run a script on the router
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: scriptId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      responses:
+        '200':
+          description: Script invoked. Output (if any) returned in `data.output`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      output:
+                        type: string
+                  error:
+                    type: 'null'
+  /routers/{routerId}/system/setup-logging:
+    post:
+      operationId: setupSystemLogging
+      summary: Configure RouterOS log topics for Roskit ingestion
+      tags:
+        - system
+      description: |
+        Idempotent — adds the `system,info` and `hotspot,info` rules that
+        Roskit expects when ingesting `/log/listen`. Safe to re-run.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Logging rules ensured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: logging configured
+                error: null
+  /routers/{routerId}/system/dashboard:
+    get:
+      operationId: getRouterDashboard
+      summary: Aggregated dashboard summary for one router
+      tags:
+        - system
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Dashboard summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RouterDashboard'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/vouchers/generate:
+    post:
+      operationId: generateVouchers
+      summary: Bulk-create hotspot voucher users on the router
+      tags:
+        - vouchers
+      description: |
+        Generates `qty` hotspot users with random usernames/passwords from
+        the requested character set, attaches them to `profile`, and caches
+        the batch in Redis under a `gencode` so the printer endpoint can
+        pull the same list later.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherGenerateParams'
+            example:
+              qty: 50
+              profile: 1d-1mbps
+              user_type: vc
+              name_length: 6
+              prefix: WIFI-
+              time_limit: 1d
+              comment: 2026-04-30 batch
+      responses:
+        '201':
+          description: Batch generated. `data.gencode` is the print key.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VoucherGenerateResult'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/vouchers/cache:
+    post:
+      operationId: getCachedVoucherBatch
+      summary: Retrieve a cached voucher batch by gencode
+      tags:
+        - vouchers
+      description: |
+        Looks up the cached generation result for `gencode`. Used when the
+        printer page reloads after generation. Cache TTL is enforced
+        server-side (Redis); expired batches return 404.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - gencode
+              properties:
+                gencode:
+                  type: string
+                  minLength: 4
+                  maxLength: 64
+      responses:
+        '200':
+          description: Cached batch.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VoucherGenerateResult'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /routers/{routerId}/vouchers/print-data:
+    get:
+      operationId: getVoucherPrintData
+      summary: Voucher print payload (vouchers + router info)
+      tags:
+        - vouchers
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: gencode
+          required: true
+          schema:
+            type: string
+            minLength: 4
+            maxLength: 64
+      responses:
+        '200':
+          description: Print payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PrintData'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/vouchers/sales:
+    post:
+      operationId: recordVoucherSale
+      summary: Record a voucher as sold (idempotent by user+sold_at)
+      tags:
+        - vouchers
+      description: |
+        Persists a `voucher_sales` row. Idempotency is enforced by a
+        composite key derived from router + username + sold_at, so the
+        same on-login event delivered twice cannot double-count revenue.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordSaleParams'
+            example:
+              username: voucher-7g3pq
+              profile_name: 1d-1mbps
+              price: 7500
+              sold_at: '2026-04-30T10:11:12Z'
+      responses:
+        '200':
+          description: Sale recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: sale recorded
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/vouchers/import:
+    post:
+      operationId: importVoucherSales
+      summary: Import voucher sales from RouterOS
+      tags:
+        - vouchers
+      description: |
+        Reconciliation pass — scans the router for hotspot users that
+        already logged in (have `bytes-in > 0`) and were created from
+        voucher batches, then materialises matching `voucher_sales` rows
+        idempotently.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Import summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ImportResult'
+                  error:
+                    type: 'null'
+              example:
+                data:
+                  total: 42
+                  imported: 5
+                  skipped: 37
+                  errors: 0
+                error: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/vouchers/print:
+    post:
+      operationId: printVouchers
+      summary: Render the voucher batch as printable HTML
+      tags:
+        - vouchers
+      description: |
+        Resolves the requested vouchers (by username list or by RouterOS
+        comment), looks up the active settings (logo, currency,
+        hotspot name), and renders the chosen template. Returns raw HTML
+        that the SPA opens in a print window.
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrintVouchersRequest'
+            example:
+              usernames:
+                - voucher-7g3pq
+                - voucher-92xz1
+              template_type: thermal
+      responses:
+        '200':
+          description: Rendered HTML (UTF-8). Not JSON — `Content-Type` is `text/html`.
+          content:
+            text/html:
+              schema:
+                type: string
+                example: <!doctype html><html>...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /templates:
+    get:
+      operationId: listTemplates
+      summary: List print templates
+      tags:
+        - templates
+      responses:
+        '200':
+          description: Templates.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PrintTemplate'
+                  error:
+                    type: 'null'
+    post:
+      operationId: createTemplate
+      summary: Create a template
+      tags:
+        - templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+            example:
+              name: Custom thermal header
+              type: thermal
+              part: header
+              content: <h1>{{.HotspotName}}</h1>
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PrintTemplate'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /templates/{templateId}:
+    get:
+      operationId: getTemplate
+      summary: Get a template by ID
+      tags:
+        - templates
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: Template.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PrintTemplate'
+                  error:
+                    type: 'null'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateTemplate
+      summary: Update a template (partial)
+      tags:
+        - templates
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PrintTemplate'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteTemplate
+      summary: Delete a template
+      tags:
+        - templates
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: template deleted
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /templates/render:
+    post:
+      operationId: renderTemplate
+      summary: Render a template against cached vouchers
+      tags:
+        - templates
+      description: Returns rendered HTML, not JSON.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenderRequest'
+      responses:
+        '200':
+          description: Rendered HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /templates/seed-defaults:
+    post:
+      operationId: seedDefaultTemplates
+      summary: Seed default templates
+      tags:
+        - templates
+      description: |
+        Idempotent — re-creates the default `(type, part)` rows. Run
+        after editing default content in source.
+      responses:
+        '200':
+          description: Seeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: default templates seeded
+                error: null
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/reports/daily:
+    get:
+      operationId: getDailyReport
+      summary: Sales for a single day
+      tags:
+        - reports
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2026-04-30'
+        - in: query
+          name: profile
+          schema:
+            type: string
+        - in: query
+          name: server
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Free-text filter matched against username and profile name.
+      responses:
+        '200':
+          description: Daily report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DailyReport'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/reports/monthly:
+    get:
+      operationId: getMonthlyReport
+      summary: Daily totals for a single month
+      tags:
+        - reports
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        '200':
+          description: Monthly report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MonthlyReport'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /routers/{routerId}/reports/resume:
+    get:
+      operationId: getResumeReport
+      summary: Per-month totals for a single year
+      tags:
+        - reports
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+      responses:
+        '200':
+          description: Resume report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ResumeReport'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/reports/summary:
+    get:
+      operationId: getDashboardSummary
+      summary: Today + month sales tiles
+      tags:
+        - reports
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Dashboard summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RevenueSummary'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/reports/export/csv:
+    get:
+      operationId: exportSalesCSV
+      summary: Export sales as CSV
+      tags:
+        - reports
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+          description: Inclusive start date.
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+          description: Inclusive end date.
+      responses:
+        '200':
+          description: CSV file. `Content-Disposition` includes a suggested filename.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+  /routers/{routerId}/reports/export/excel:
+    get:
+      operationId: exportSalesExcel
+      summary: Export sales as XLSX
+      tags:
+        - reports
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Excel file (XLSX).
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+  /routers/{routerId}/quick-print:
+    get:
+      operationId: listQuickPrintPackages
+      summary: List quick-print presets for a router
+      tags:
+        - quick-print
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Packages.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuickPrintPackage'
+                  error:
+                    type: 'null'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createQuickPrintPackage
+      summary: Create or replace a quick-print preset
+      tags:
+        - quick-print
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuickPrintPackage'
+      responses:
+        '201':
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: quick print package created
+                error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/quick-print/{name}:
+    get:
+      operationId: getQuickPrintPackage
+      summary: Fetch a quick-print preset by name
+      tags:
+        - quick-print
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Package.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuickPrintPackage'
+                  error:
+                    type: 'null'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateQuickPrintPackage
+      summary: Update a quick-print preset (full replace)
+      tags:
+        - quick-print
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuickPrintPackage'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: quick print package updated
+                error: null
+    delete:
+      operationId: removeQuickPrintPackage
+      summary: Delete a quick-print preset
+      tags:
+        - quick-print
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: quick print package removed
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /routers/{routerId}/profile-mappings:
+    get:
+      operationId: listProfileMappings
+      summary: List profile→price/validity mappings for a router
+      tags:
+        - profile-mappings
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+      responses:
+        '200':
+          description: Mappings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProfilePriceMapping'
+                  error:
+                    type: 'null'
+  /routers/{routerId}/profile-mappings/{profileName}:
+    put:
+      operationId: updateProfileMapping
+      summary: Upsert a profile mapping by profile name
+      tags:
+        - profile-mappings
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: profileName
+          required: true
+          description: RouterOS profile name. URL-encode if it contains spaces.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMappingRequest'
+            example:
+              price: 5000
+              selling_price: 7500
+              validity: 1d
+              exp_mode: rem
+              lock_user: true
+              lock_server: false
+      responses:
+        '200':
+          description: Mapping upserted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProfilePriceMapping'
+                  error:
+                    type: 'null'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteProfileMapping
+      summary: Delete a profile mapping by profile name
+      tags:
+        - profile-mappings
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: path
+          name: profileName
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyOK'
+              example:
+                data:
+                  message: profile mapping deleted
+                error: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /events/on-login:
+    post:
+      operationId: onHotspotLogin
+      summary: Webhook fired by RouterOS when a hotspot user logs in
+      tags:
+        - events
+      security:
+        - webhookToken: []
+      description: |
+        Public webhook. Auth + resolution flow:
+
+        1. RouterOS posts an `X-Router-Token` header (or `token` form field).
+        2. The token is matched against `settings.webhook_token`.
+        3. The router is resolved by `router_name`.
+        4. The voucher sale is recorded idempotently by
+           `(router_id, username, sold_at)`.
+
+        The endpoint always returns 200 (even on validation/auth issues)
+        so a misconfigured RouterOS scheduler does not loop on retries.
+        Operators see issues via warnings in server logs.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OnLoginPayload'
+            example:
+              router_name: hotspot-1
+              server: hotspot1
+              username: voucher-7g3pq
+              mac: '00:11:22:33:44:55'
+              ip: 10.5.50.23
+              date: apr/30/2026
+              time: '10:11:12'
+              profile: 1d-1mbps
+      responses:
+        '200':
+          description: |
+            Always 200 — body is empty. Inspect server logs for failure
+            modes (missing token, bad router name, idempotency hit, etc.).
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /events/health:
+    get:
+      operationId: eventsHealthCheck
+      summary: Public liveness ping for the events surface
+      tags:
+        - events
+      security: []
+      description: Returns 200 unconditionally. Useful for RouterOS to verify reachability without auth.
+      responses:
+        '200':
+          description: Reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+              example:
+                status: ok
+  /routers/{routerId}/logs/stream/all:
+    get:
+      operationId: streamRouterLogsAll
+      summary: SSE stream of all RouterOS log lines for one router
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+          description: Access JWT for clients that cannot send the `Authorization` header (EventSource).
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                description: Each `data:` frame contains a `LogEvent`.
+                $ref: '#/components/schemas/LogEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /routers/{routerId}/logs/stream/hotspot:
+    get:
+      operationId: streamRouterLogsHotspot
+      summary: SSE stream of hotspot-only log lines
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/LogEvent'
+  /routers/{routerId}/logs/stream/ppp:
+    get:
+      operationId: streamRouterLogsPPP
+      summary: SSE stream of PPP-only log lines
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/LogEvent'
+  /routers/{routerId}/sse/hotspot/users:
+    get:
+      operationId: streamHotspotUsersTelemetry
+      summary: SSE — telemetry for measurement `hotspot_user`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/hotspot/active:
+    get:
+      operationId: streamHotspotActiveTelemetry
+      summary: SSE — telemetry for measurement `hotspot_active`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/hotspot/inactive:
+    get:
+      operationId: streamHotspotInactiveTelemetry
+      summary: SSE — telemetry for measurement `hotspot_inactive`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/hotspot/bindings:
+    get:
+      operationId: streamIPBindingsTelemetry
+      summary: SSE — telemetry for measurement `ip_binding`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/ppp/secrets:
+    get:
+      operationId: streamPPPSecretsTelemetry
+      summary: SSE — telemetry for measurement `ppp_secret`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/ppp/active:
+    get:
+      operationId: streamPPPActiveTelemetry
+      summary: SSE — telemetry for measurement `ppp_active`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/ppp/inactive:
+    get:
+      operationId: streamPPPInactiveTelemetry
+      summary: SSE — telemetry for measurement `ppp_inactive`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/system/resource:
+    get:
+      operationId: streamSystemResourceTelemetry
+      summary: SSE — telemetry for measurement `system_resource`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/network/traffic/{iface}:
+    get:
+      operationId: streamInterfaceTrafficTelemetry
+      summary: SSE — per-interface traffic (filtered by `iface`)
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - $ref: '#/components/parameters/InterfaceName'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens — only events whose `tags.interface` (or `tags.name`) matches `iface` are emitted.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+  /routers/{routerId}/sse/network/dhcp/leases:
+    get:
+      operationId: streamDHCPLeasesTelemetry
+      summary: SSE — telemetry for measurement `dhcp_lease`
+      tags:
+        - sse
+      x-sse: true
+      parameters:
+        - $ref: '#/components/parameters/RouterId'
+        - in: query
+          name: token
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream opens.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/TelemetryEvent'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token issued by `POST /auth/login`. Send as
+        `Authorization: Bearer <token>`. SSE endpoints additionally accept
+        `?token=<token>` since EventSource cannot set custom headers.
+    webhookToken:
+      type: apiKey
+      in: header
+      name: X-Router-Token
+      description: |
+        Secret stored in `settings.webhook_token`. Required by
+        `/events/on-login`. May also be supplied as a `token` form
+        field for legacy MikroTik schedulers.
+  schemas:
+    Envelope:
+      type: object
+      required:
+        - data
+        - error
+      description: Universal response shape. Exactly one of `data` / `error` is non-null.
+      properties:
+        data:
+          description: Operation payload, or null on error.
+        error:
+          oneOf:
+            - $ref: '#/components/schemas/APIError'
+            - type: 'null'
+    ErrorEnvelope:
+      type: object
+      required:
+        - data
+        - error
+      description: Convenience alias — same shape as Envelope but with `data` always null.
+      properties:
+        data:
+          type: 'null'
+          example: null
+        error:
+          $ref: '#/components/schemas/APIError'
+    APIError:
+      type: object
+      required:
+        - code
+        - message
+      description: |
+        Error envelope. `code` is a stable identifier (clients may pattern-match);
+        `message` is human-readable English; `details` carries optional
+        structured context (e.g. per-field validation errors).
+      properties:
+        code:
+          type: string
+          example: invalid_input
+        message:
+          type: string
+          example: name is required
+        details:
+          description: Optional structured context (per-field validation, etc.)
+    EmptyOK:
+      type: object
+      required:
+        - data
+        - error
+      description: Generic success body with a single `message` field.
+      properties:
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              example: ok
+        error:
+          type: 'null'
+          example: null
+    PaginationMeta:
+      type: object
+      required:
+        - total
+        - page
+        - limit
+      properties:
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 142
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          example: 50
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - services
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        services:
+          type: object
+          required:
+            - postgres
+            - redis
+            - engine
+          properties:
+            postgres:
+              type: string
+              enum:
+                - ok
+                - unavailable
+            redis:
+              type: string
+              enum:
+                - ok
+                - unavailable
+            engine:
+              type: object
+              required:
+                - routers_total
+                - routers_connected
+              properties:
+                routers_total:
+                  type: integer
+                  minimum: 0
+                  example: 4
+                routers_connected:
+                  type: integer
+                  minimum: 0
+                  example: 4
+    UserStatus:
+      type: object
+      required:
+        - active
+        - mac
+      description: |
+        Hotspot user session snapshot. `active=false` means the MAC is not in
+        `ip/hotspot/active`; in that case all string fields are empty and
+        only `mac` carries the requested value.
+      properties:
+        active:
+          type: boolean
+        username:
+          type: string
+        profile:
+          type: string
+        ip_address:
+          type: string
+        mac:
+          type: string
+        uptime:
+          type: string
+          description: RouterOS-formatted duration (e.g. `1h12m`).
+        bytes_in:
+          type: string
+          description: Decimal byte count as returned by RouterOS (string, not integer).
+        bytes_out:
+          type: string
+        time_left:
+          type: string
+          description: RouterOS-formatted duration; empty when no time limit.
+        comment:
+          type: string
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: alice
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          format: password
+          example: hunter2
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - staff
+      description: User role.
+    UserView:
+      type: object
+      required:
+        - id
+        - username
+        - role
+      description: User identity returned in `/auth/me` and embedded in `LoginResult`.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 12
+        username:
+          type: string
+          example: alice
+        role:
+          $ref: '#/components/schemas/UserRole'
+    LoginResult:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - expires_in
+        - user
+      properties:
+        access_token:
+          type: string
+          description: JWT access token. Short-lived (~15 min).
+        refresh_token:
+          type: string
+          description: Opaque-looking JWT signed with the refresh secret. Longer-lived (~7 d).
+        expires_in:
+          type: integer
+          description: Lifetime of the access token in seconds.
+          example: 900
+        user:
+          $ref: '#/components/schemas/UserView'
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          minLength: 10
+          maxLength: 4096
+    LogoutRequest:
+      type: object
+      description: |
+        Optional body. Logout always revokes the *access* token (via JTI in
+        JWT claims). When `refresh_token` is provided it is revoked too — do
+        this from the original device to log out everywhere.
+      properties:
+        refresh_token:
+          type: string
+          maxLength: 4096
+    ChangePasswordRequest:
+      type: object
+      required:
+        - old_password
+        - new_password
+      properties:
+        old_password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          format: password
+        new_password:
+          type: string
+          minLength: 6
+          maxLength: 128
+          format: password
+    SetupRequest:
+      type: object
+      required:
+        - username
+        - password
+      description: |
+        Bootstrap the first admin user. Available only when the `users`
+        table is empty; subsequent calls return 403.
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: admin
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+          format: password
+    SetupResult:
+      type: object
+      required:
+        - user
+        - access_token
+        - refresh_token
+        - expires_in
+      description: First admin user + auto-issued access tokens.
+      properties:
+        user:
+          type: object
+          required:
+            - id
+            - username
+            - role
+          properties:
+            id:
+              type: integer
+              format: int64
+              example: 1
+            username:
+              type: string
+              example: admin
+            role:
+              $ref: '#/components/schemas/UserRole'
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          example: 900
+    Settings:
+      type: object
+      required:
+        - id
+        - currency
+        - idle_timeout
+        - report_mode
+        - logo_path
+        - timezone
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        hotspot_name:
+          type: string
+          maxLength: 100
+          example: My Hotspot
+        dns_name:
+          type: string
+          maxLength: 100
+          example: login.example.test
+        currency:
+          type: string
+          maxLength: 10
+          example: Rp
+        phone:
+          type: string
+          maxLength: 20
+          example: +62-555-0100
+        email:
+          type: string
+          maxLength: 100
+          example: admin@example.test
+        info_lp:
+          type: string
+          description: Free-form text shown on the hotspot login page.
+        idle_timeout:
+          type: integer
+          minimum: 0
+          maximum: 86400
+          description: Hotspot idle timeout in minutes.
+          example: 30
+        report_mode:
+          type: string
+          enum:
+            - disable
+            - enable
+        logo_path:
+          type: string
+          description: Server-side filesystem path; not directly client-accessible.
+        timezone:
+          type: string
+          maxLength: 50
+          example: Asia/Jakarta
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpdateSettingsRequest:
+      type: object
+      description: |
+        Partial update — every field is optional. Omitted fields are left
+        unchanged on the existing Settings row.
+      properties:
+        hotspot_name:
+          type: string
+          maxLength: 100
+        dns_name:
+          type: string
+          maxLength: 100
+        currency:
+          type: string
+          maxLength: 10
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          maxLength: 100
+        info_lp:
+          type: string
+        idle_timeout:
+          type: integer
+          minimum: 0
+          maximum: 86400
+        report_mode:
+          type: string
+          enum:
+            - disable
+            - enable
+        timezone:
+          type: string
+          maxLength: 50
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - role
+        - active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 12
+        username:
+          type: string
+          maxLength: 100
+          example: alice
+        role:
+          $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+          example: true
+        last_login_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - role
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: alice
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+          format: password
+        role:
+          $ref: '#/components/schemas/UserRole'
+    UpdateUserRequest:
+      type: object
+      description: Partial update; omitted fields are unchanged.
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+          format: password
+        role:
+          $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+    RouterStatus:
+      type: string
+      enum:
+        - unknown
+        - connecting
+        - connected
+        - disconnected
+        - auth_failed
+    RouterPublicView:
+      type: object
+      required:
+        - id
+        - name
+        - ip_address
+        - api_port
+        - api_username
+        - status
+      description: |
+        Public-facing router shape. Sensitive fields (encrypted password,
+        SSH password) are stripped before serialisation.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 7
+        name:
+          type: string
+          example: hotspot-1
+        ip_address:
+          type: string
+          example: 192.168.88.1
+        api_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          example: 8728
+        api_username:
+          type: string
+          example: api
+        status:
+          $ref: '#/components/schemas/RouterStatus'
+        last_seen_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        notes:
+          oneOf:
+            - type: string
+            - type: 'null'
+    CreateRouterRequest:
+      type: object
+      required:
+        - name
+        - ip_address
+        - api_username
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Unique display name.
+        ip_address:
+          type: string
+          maxLength: 255
+          description: |
+            Accepts an IP, hostname, or `host:port` form. The service layer
+            normalises and persists the IP/host separately from `api_port`.
+          example: 192.168.88.1
+        api_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 8728
+        api_username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          format: password
+          description: Stored AES-encrypted at rest; never returned in responses.
+        notes:
+          type: string
+          maxLength: 500
+    MigrateRequest:
+      type: object
+      required:
+        - file_path
+      properties:
+        file_path:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Server-side filesystem path to the legacy `config.php`.
+    MigrationResult:
+      type: object
+      required:
+        - total
+        - imported
+        - skipped
+        - errors
+      description: |
+        Summary of `POST /routers/migrate` — imports legacy MIKHMON
+        `config.php` data into the router/profile tables.
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        imported:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+        errors:
+          type: integer
+          minimum: 0
+    UpdateRouterRequest:
+      type: object
+      description: Partial router update. Only fields provided are persisted.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        ip_address:
+          type: string
+          maxLength: 255
+        api_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        api_username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          format: password
+        notes:
+          type: string
+          maxLength: 500
+    ConnectionTestResult:
+      type: object
+      required:
+        - connected
+        - latency_ms
+      description: |
+        Result of an active TCP+API probe to the router. `connected: true`
+        means the API replied to `/system/identity/print` within the
+        configured timeout.
+      properties:
+        connected:
+          type: boolean
+        latency_ms:
+          type: integer
+          format: int64
+          minimum: 0
+        routeros_version:
+          type: string
+          example: 7.20.8
+        board_model:
+          type: string
+          example: CCR1009-7G-1C-1S+
+        identity:
+          type: string
+          example: MikroTik
+        error:
+          type: string
+          description: 'Populated only when `connected: false`.'
+    RouterOSRecord:
+      type: object
+      additionalProperties:
+        type: string
+      description: |
+        A RouterOS sentence rendered as a flat string→string map. Keys are
+        the original MikroTik names with hyphens preserved (`mac-address`,
+        `bytes-in`, `dst-host`, …). The `.id` key is the RouterOS-internal
+        identifier (e.g. `*A1`) and is stable across calls. Extra keys not
+        listed in the property hints below may appear depending on the
+        RouterOS version.
+      properties:
+        .id:
+          type: string
+          description: RouterOS internal identifier.
+          example: '*A1'
+    HotspotUserRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: voucher-7g3pq
+            password:
+              type: string
+              example: 7g3pq
+            profile:
+              type: string
+              example: 1d-1mbps
+            server:
+              type: string
+              example: hotspot1
+            mac-address:
+              type: string
+              example: '00:11:22:33:44:55'
+            limit-uptime:
+              type: string
+              example: 1d
+            limit-bytes-total:
+              type: string
+              example: '0'
+            bytes-in:
+              type: string
+              example: '15823234'
+            bytes-out:
+              type: string
+              example: '982341'
+            uptime:
+              type: string
+              example: 1h12m
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+            comment:
+              type: string
+    ProfileWithMeta:
+      type: object
+      required:
+        - id
+        - name
+      description: |
+        Hotspot profile augmented with profile-mapping metadata
+        (price, validity, exp-mode, lock-user, lock-server). Use this shape
+        for `/hotspot/profiles` GET responses; mutation endpoints return
+        `RouterOSRecord` with the freshly-set fields.
+      properties:
+        id:
+          type: string
+          example: '*A1'
+        name:
+          type: string
+          example: 1d-1mbps
+        address_pool:
+          type: string
+        rate_limit:
+          type: string
+          example: 1M/2M
+        shared_users:
+          type: string
+          example: '1'
+        status_autorefresh:
+          type: string
+        on_login:
+          type: string
+        on_logout:
+          type: string
+        parent_queue:
+          type: string
+        exp_mode:
+          type: string
+          example: rem
+        price:
+          type: string
+          example: '5000'
+        selling_price:
+          type: string
+          example: '7500'
+        validity:
+          type: string
+          example: 1d
+        no_expiry:
+          type: boolean
+        lock_user:
+          type: string
+        lock_server:
+          type: string
+    HotspotProfileParams:
+      type: object
+      required:
+        - name
+      description: Request body for creating or updating a hotspot profile.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        rate_limit:
+          type: string
+          maxLength: 64
+          example: 1M/2M
+        address_pool:
+          type: string
+          maxLength: 64
+        shared_users:
+          type: string
+          maxLength: 8
+          example: '1'
+        parent_queue:
+          type: string
+          maxLength: 64
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+        selling_price:
+          type: integer
+          format: int64
+          minimum: 0
+        validity:
+          type: string
+          maxLength: 64
+          example: 1d
+        expire_mode:
+          type: string
+          maxLength: 32
+        lock_user:
+          type: string
+          maxLength: 16
+          example: enable
+        lock_server:
+          type: string
+          maxLength: 16
+          example: enable
+    HotspotActiveRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            user:
+              type: string
+              example: voucher-7g3pq
+            address:
+              type: string
+              example: 10.5.50.23
+            mac-address:
+              type: string
+              example: '00:11:22:33:44:55'
+            server:
+              type: string
+              example: hotspot1
+            uptime:
+              type: string
+              example: 1h12m
+            session-time-left:
+              type: string
+              example: 22h47m
+            keepalive-timeout:
+              type: string
+            login-by:
+              type: string
+              example: http-chap
+    HotspotHostRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            mac-address:
+              type: string
+            address:
+              type: string
+            server:
+              type: string
+            to-address:
+              type: string
+            authorized:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    HotspotServerRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: hotspot1
+            interface:
+              type: string
+              example: ether1
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    HotspotCookieRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            user:
+              type: string
+            mac-address:
+              type: string
+            address:
+              type: string
+    IPBindingRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            mac-address:
+              type: string
+              example: '00:11:22:33:44:55'
+            address:
+              type: string
+              example: 10.5.50.23
+            type:
+              type: string
+              enum:
+                - regular
+                - blocked
+                - bypassed
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+            comment:
+              type: string
+    WalledGardenRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            dst-host:
+              type: string
+              example: youtube.com
+            dst-port:
+              type: string
+              example: '443'
+            src-address:
+              type: string
+            protocol:
+              type: string
+              example: tcp
+            action:
+              type: string
+              enum:
+                - allow
+                - deny
+              example: allow
+            comment:
+              type: string
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+            server:
+              type: string
+    WalledGardenIPRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            dst-address:
+              type: string
+              example: 142.250.0.0/15
+            dst-port:
+              type: string
+            protocol:
+              type: string
+            action:
+              type: string
+              enum:
+                - accept
+                - drop
+            comment:
+              type: string
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    PPPSecretRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: alice@vpn
+            password:
+              type: string
+            service:
+              type: string
+              enum:
+                - pppoe
+                - l2tp
+                - pptp
+                - sstp
+                - ovpn
+                - any
+              example: pppoe
+            profile:
+              type: string
+              example: default
+            local-address:
+              type: string
+              example: 10.10.0.1
+            remote-address:
+              type: string
+              example: 10.10.0.10
+            last-logged-out:
+              type: string
+            comment:
+              type: string
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    PPPActiveRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+            service:
+              type: string
+            caller-id:
+              type: string
+            address:
+              type: string
+            uptime:
+              type: string
+              example: 1h12m
+            encoding:
+              type: string
+            session-id:
+              type: string
+    CountResponse:
+      type: object
+      required:
+        - data
+        - error
+      description: Reusable shape for `GET .../count` style endpoints.
+      properties:
+        data:
+          type: object
+          required:
+            - count
+          properties:
+            count:
+              type: integer
+              format: int64
+              minimum: 0
+        error:
+          type: 'null'
+          example: null
+    PPPProfileRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: default
+            local-address:
+              type: string
+            remote-address:
+              type: string
+            rate-limit:
+              type: string
+            only-one:
+              type: string
+              enum:
+                - default
+                - 'yes'
+                - 'no'
+    InterfaceRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: ether1
+            type:
+              type: string
+              example: ether
+            mtu:
+              type: string
+              example: '1500'
+            mac-address:
+              type: string
+            running:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    InterfaceTraffic:
+      type: object
+      required:
+        - iface
+        - rx
+        - tx
+      description: |
+        Snapshot or rolling-window of an interface's RX/TX rate.
+        `rx` / `tx` are bits-per-second; `rx_packets` / `tx_packets` are
+        packets-per-second.
+      properties:
+        iface:
+          type: string
+          example: ether1
+        rx:
+          type: integer
+          format: int64
+        tx:
+          type: integer
+          format: int64
+        rx_packets:
+          type: integer
+          format: int64
+        tx_packets:
+          type: integer
+          format: int64
+        timestamp:
+          type: string
+          format: date-time
+    PoolRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: hs-pool-1
+            ranges:
+              type: string
+              example: 10.5.50.2-10.5.50.254
+    QueueRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+            target:
+              type: string
+              example: 10.5.50.23/32
+            max-limit:
+              type: string
+              example: 1M/2M
+            burst-limit:
+              type: string
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    NATRuleRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            chain:
+              type: string
+              example: srcnat
+            action:
+              type: string
+              example: masquerade
+            out-interface:
+              type: string
+              example: ether1
+            comment:
+              type: string
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+    DHCPLeaseRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            address:
+              type: string
+              example: 10.5.50.23
+            mac-address:
+              type: string
+              example: '00:11:22:33:44:55'
+            host-name:
+              type: string
+            server:
+              type: string
+              example: dhcp1
+            status:
+              type: string
+              enum:
+                - bound
+                - waiting
+                - busy
+                - offered
+                - expired
+    SystemResource:
+      type: object
+      description: Snapshot of `/system/resource/print`.
+      properties:
+        uptime:
+          type: string
+          example: 1d2h3m
+        version:
+          type: string
+          example: 7.20.8
+        board-name:
+          type: string
+        cpu:
+          type: string
+          example: ARM
+        cpu-load:
+          type: string
+          example: '12'
+        cpu-frequency:
+          type: string
+          example: '1400'
+        cpu-count:
+          type: string
+          example: '4'
+        free-memory:
+          type: string
+        total-memory:
+          type: string
+        free-hdd-space:
+          type: string
+        total-hdd-space:
+          type: string
+        architecture-name:
+          type: string
+    SystemResourceHistoryPoint:
+      type: object
+      required:
+        - timestamp
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        cpu_load:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 100
+        free_memory:
+          type: integer
+          format: int64
+        total_memory:
+          type: integer
+          format: int64
+    SystemLogEntry:
+      type: object
+      description: A row from `/log/print`.
+      properties:
+        .id:
+          type: string
+        time:
+          type: string
+          example: apr/30 10:11:12
+        topics:
+          type: string
+          example: system,info
+        message:
+          type: string
+    SystemClock:
+      type: object
+      properties:
+        time:
+          type: string
+          example: '10:11:12'
+        date:
+          type: string
+          example: apr/30/2026
+        time-zone-name:
+          type: string
+          example: Asia/Jakarta
+        gmt-offset:
+          type: string
+          example: '+07:00'
+    SystemIdentity:
+      type: object
+      properties:
+        name:
+          type: string
+          example: MikroTik
+    SystemRouterboard:
+      type: object
+      properties:
+        routerboard:
+          type: string
+          enum:
+            - 'true'
+            - 'false'
+        model:
+          type: string
+          example: CCR1009-7G-1C-1S+
+        serial-number:
+          type: string
+        firmware-type:
+          type: string
+        factory-firmware:
+          type: string
+        current-firmware:
+          type: string
+        upgrade-firmware:
+          type: string
+    DeployExpireMonitorRequest:
+      type: object
+      required:
+        - interval
+      properties:
+        interval:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: RouterOS-formatted interval (e.g. `5m`, `30s`, `1h`).
+          example: 5m
+    SchedulerRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: voucher-cleanup
+            on-event:
+              type: string
+            interval:
+              type: string
+            start-date:
+              type: string
+            start-time:
+              type: string
+            disabled:
+              type: string
+              enum:
+                - 'true'
+                - 'false'
+            comment:
+              type: string
+    ScriptRecord:
+      allOf:
+        - $ref: '#/components/schemas/RouterOSRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+              example: voucher-expire
+            source:
+              type: string
+            owner:
+              type: string
+            policy:
+              type: string
+            comment:
+              type: string
+    RevenueSummary:
+      type: object
+      required:
+        - today_count
+        - today_sum
+        - month_count
+        - month_sum
+      description: |
+        Top-of-page revenue tiles for the SPA. Distinct from
+        `system.yaml#/DashboardSummary` which carries router CPU / memory.
+      properties:
+        today_count:
+          type: integer
+          format: int64
+        today_sum:
+          type: integer
+          format: int64
+        month_count:
+          type: integer
+          format: int64
+        month_sum:
+          type: integer
+          format: int64
+    RouterDashboard:
+      type: object
+      description: |
+        Aggregated per-router dashboard. All nested objects are returned
+        verbatim from RouterOS or the internal cache.
+      properties:
+        resource:
+          $ref: '#/components/schemas/SystemResource'
+        identity:
+          $ref: '#/components/schemas/SystemIdentity'
+        hotspot_users:
+          type: integer
+          description: Total hotspot user count.
+        active_sessions:
+          type: integer
+          description: Currently active hotspot sessions.
+        system_health:
+          $ref: '#/components/schemas/RouterOSRecord'
+        income:
+          $ref: '#/components/schemas/RevenueSummary'
+        recent_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SystemLogEntry'
+    VoucherGenerateParams:
+      type: object
+      required:
+        - qty
+        - profile
+      description: Bulk-generate hotspot voucher users on the router.
+      properties:
+        qty:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          example: 50
+        server:
+          type: string
+          maxLength: 64
+          example: hotspot1
+        user_type:
+          type: string
+          maxLength: 32
+          description: Generation mode (e.g. `vc` for username==password, `up` for separate fields).
+          example: vc
+        name_length:
+          type: integer
+          minimum: 3
+          maximum: 32
+          default: 8
+        prefix:
+          type: string
+          maxLength: 16
+          example: WIFI-
+        char_set:
+          type: string
+          maxLength: 64
+          description: Optional explicit character set; defaults to alpha+numeric.
+        profile:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: 1d-1mbps
+        time_limit:
+          type: string
+          maxLength: 64
+          example: 1d
+        data_limit:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Bytes total; 0 means no limit.
+        comment:
+          type: string
+          maxLength: 200
+        gencode:
+          type: string
+          maxLength: 64
+          description: |
+            Optional batch identifier. When omitted Roskit generates one and
+            returns it; clients should keep this for the cache + print flow.
+    GeneratedVoucher:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: voucher-7g3pq
+        password:
+          type: string
+          example: 7g3pq
+    VoucherGenerateResult:
+      type: object
+      required:
+        - count
+        - gencode
+        - profile
+        - vouchers
+      properties:
+        count:
+          type: integer
+          example: 50
+        gencode:
+          type: string
+          example: 7g3pq
+        profile:
+          type: string
+          example: 1d-1mbps
+        vouchers:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedVoucher'
+    PrintData:
+      type: object
+      description: Voucher print payload returned by `GET /vouchers/print-data?gencode=...`.
+      properties:
+        vouchers:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedVoucher'
+        router_info:
+          type: object
+          properties:
+            hotspot_name:
+              type: string
+            dns_name:
+              type: string
+            currency:
+              type: string
+            phone:
+              type: string
+            email:
+              type: string
+            info_lp:
+              type: string
+    RecordSaleParams:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: voucher-7g3pq
+        profile_name:
+          type: string
+          maxLength: 64
+          example: 1d-1mbps
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 7500
+        server:
+          type: string
+          maxLength: 64
+        ip_address:
+          type: string
+          maxLength: 45
+        mac_address:
+          type: string
+          maxLength: 17
+        sold_at:
+          type: string
+          format: date-time
+          description: When the sale occurred. Defaults to server now if omitted.
+    ImportResult:
+      type: object
+      required:
+        - total
+        - imported
+        - skipped
+        - errors
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        imported:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+        errors:
+          type: integer
+          minimum: 0
+    PrintVouchersRequest:
+      type: object
+      description: |
+        Render an HTML page of vouchers for printing. Either `usernames` OR
+        `comment` must be supplied — `usernames` selects specific RouterOS
+        users, `comment` selects all users whose RouterOS comment matches.
+      properties:
+        usernames:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          maxItems: 500
+        comment:
+          type: string
+          maxLength: 200
+        template_type:
+          type: string
+          enum:
+            - default
+            - small
+            - thermal
+          default: default
+    PrintTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - part
+        - content
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 12
+        name:
+          type: string
+          maxLength: 100
+          example: Default thermal
+        type:
+          type: string
+          enum:
+            - default
+            - small
+            - thermal
+        part:
+          type: string
+          enum:
+            - header
+            - row
+            - footer
+        content:
+          type: string
+          maxLength: 65536
+          description: Raw template body. HTML for `default`/`small`, plain text/HTML for `thermal`.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateTemplateRequest:
+      type: object
+      required:
+        - name
+        - type
+        - part
+        - content
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum:
+            - default
+            - small
+            - thermal
+        part:
+          type: string
+          enum:
+            - header
+            - row
+            - footer
+        content:
+          type: string
+          minLength: 1
+          maxLength: 65536
+    UpdateTemplateRequest:
+      type: object
+      description: Patch — every field optional.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum:
+            - default
+            - small
+            - thermal
+        part:
+          type: string
+          enum:
+            - header
+            - row
+            - footer
+        content:
+          type: string
+          maxLength: 65536
+    RenderRequest:
+      type: object
+      required:
+        - gencode
+        - template_type
+        - router_id
+      description: Render a template against cached vouchers identified by `gencode`.
+      properties:
+        gencode:
+          type: string
+          minLength: 4
+          maxLength: 64
+        template_type:
+          type: string
+          enum:
+            - default
+            - small
+            - thermal
+        profile:
+          type: string
+          maxLength: 64
+        validity:
+          type: string
+          maxLength: 64
+        time_limit:
+          type: string
+          maxLength: 64
+        data_limit:
+          type: string
+          maxLength: 64
+        price:
+          type: string
+          maxLength: 64
+        comment:
+          type: string
+          maxLength: 200
+        user_mode:
+          type: string
+          maxLength: 32
+        logo:
+          type: string
+          maxLength: 255
+        router_id:
+          type: integer
+          format: int64
+          minimum: 1
+    VoucherSale:
+      type: object
+      required:
+        - id
+        - sold_at
+        - username
+        - profile_name
+      properties:
+        id:
+          type: integer
+          format: int64
+        router_id:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        sold_at:
+          type: string
+          format: date-time
+        username:
+          type: string
+        profile_name:
+          type: string
+        price:
+          type: integer
+          format: int64
+        selling_price:
+          type: integer
+          format: int64
+        server:
+          type: string
+        ip_address:
+          type: string
+        mac_address:
+          type: string
+        validity:
+          type: string
+        idempotency_key:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    DailyReport:
+      type: object
+      required:
+        - date
+        - sales
+        - total
+        - count
+      properties:
+        date:
+          type: string
+          format: date
+        sales:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoucherSale'
+        total:
+          type: integer
+          format: int64
+        count:
+          type: integer
+    DailySummaryRow:
+      type: object
+      required:
+        - day
+        - count
+        - total
+      properties:
+        day:
+          type: string
+          format: date
+          example: '2026-04-30'
+        count:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    MonthlyReport:
+      type: object
+      required:
+        - year
+        - month
+        - daily
+        - total
+        - count
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        daily:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailySummaryRow'
+        total:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+    MonthSummaryRow:
+      type: object
+      required:
+        - month
+        - count
+        - total
+      properties:
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        count:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    ResumeReport:
+      type: object
+      required:
+        - year
+        - months
+        - total
+        - count
+      properties:
+        year:
+          type: integer
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthSummaryRow'
+        total:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+    QuickPrintPackage:
+      type: object
+      required:
+        - name
+      description: Voucher-generation preset.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 1d-1mbps-25k
+        server:
+          type: string
+          maxLength: 64
+        user_mode:
+          type: string
+          maxLength: 32
+          example: vc
+        user_length:
+          type: string
+          maxLength: 8
+          example: '6'
+        prefix:
+          type: string
+          maxLength: 16
+        char_mode:
+          type: string
+          maxLength: 32
+        profile:
+          type: string
+          maxLength: 64
+        time_limit:
+          type: string
+          maxLength: 64
+        data_limit:
+          type: string
+          maxLength: 64
+        comment:
+          type: string
+          maxLength: 200
+        validity:
+          type: string
+          maxLength: 64
+        price:
+          type: string
+          maxLength: 64
+        selling_price:
+          type: string
+          maxLength: 64
+        lock_user:
+          type: string
+          maxLength: 32
+    ProfilePriceMapping:
+      type: object
+      required:
+        - id
+        - router_id
+        - profile_name
+      description: |
+        Per-router metadata for a hotspot profile name. Roskit overlays
+        these values onto `/hotspot/profiles` responses (price, validity,
+        expiration mode, lock flags). Profiles missing a mapping fall back
+        to defaults defined elsewhere.
+      properties:
+        id:
+          type: integer
+          format: int64
+        router_id:
+          type: integer
+          format: int64
+        profile_name:
+          type: string
+          maxLength: 100
+          example: 1d-1mbps
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 5000
+        selling_price:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 7500
+        validity:
+          type: string
+          maxLength: 20
+          example: 1d
+        exp_mode:
+          type: string
+          maxLength: 10
+          example: rem
+        lock_user:
+          type: boolean
+        lock_server:
+          type: boolean
+    UpdateMappingRequest:
+      type: object
+      description: Patch — only supplied fields are applied.
+      properties:
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+        selling_price:
+          type: integer
+          format: int64
+          minimum: 0
+        validity:
+          type: string
+          maxLength: 64
+        exp_mode:
+          type: string
+          maxLength: 32
+        lock_user:
+          type: boolean
+        lock_server:
+          type: boolean
+    OnLoginPayload:
+      type: object
+      description: |
+        Form-encoded body POSTed by the on-login RouterOS scheduler.
+        `username` and `router_name` are required; everything else is
+        informational.
+      properties:
+        router_name:
+          type: string
+          maxLength: 100
+          example: hotspot-1
+        server:
+          type: string
+          maxLength: 64
+          example: hotspot1
+        username:
+          type: string
+          maxLength: 64
+          example: voucher-7g3pq
+        mac:
+          type: string
+          maxLength: 17
+          example: '00:11:22:33:44:55'
+        ip:
+          type: string
+          maxLength: 45
+          example: 10.5.50.23
+        date:
+          type: string
+          maxLength: 32
+          example: apr/30/2026
+        time:
+          type: string
+          maxLength: 32
+          example: '10:11:12'
+        profile:
+          type: string
+          maxLength: 64
+          example: 1d-1mbps
+        token:
+          type: string
+          description: Webhook token. Use the `X-Router-Token` header instead when possible.
+    LogEvent:
+      type: object
+      description: One row from the RouterOS log stream.
+      properties:
+        time:
+          type: string
+          example: apr/30 10:11:12
+        topics:
+          type: string
+          example: hotspot,info
+        message:
+          type: string
+        router_id:
+          type: string
+    TelemetryEvent:
+      type: object
+      required:
+        - measurement
+        - tags
+      description: |
+        A single telemetry event multiplexed via Redis pub-sub. Clients
+        filter by `measurement`; the SPA also filters by `tags.interface`
+        or `tags.name` for per-interface streams.
+      properties:
+        measurement:
+          type: string
+          description: One of the telemetry topics — see the per-endpoint description.
+          example: hotspot_user
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+          description: RouterOS-style tags propagated by the pipeline (`router_id`, `name`, `profile`, `interface`, …).
+        fields:
+          type: object
+          additionalProperties: true
+          description: Numeric/boolean payload (e.g. `bytes_in`, `cpu_load`). Shape varies per measurement.
+        timestamp:
+          type: string
+          format: date-time
+  parameters:
+    RouterId:
+      in: path
+      name: routerId
+      required: true
+      description: |
+        Numeric ID of a router. Validated by `RouterOwnershipMiddleware`;
+        returns 404 if the router does not exist.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 7
+    UserId:
+      in: path
+      name: id
+      required: true
+      description: User ID.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 12
+    TemplateId:
+      in: path
+      name: templateId
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    GenericResourceId:
+      in: path
+      name: id
+      required: true
+      description: |
+        RouterOS-side resource identifier as returned by `/print` calls.
+        Often shaped like `*A1` for hex IDs; sometimes a numeric `numbers=`
+        reference for enable/disable. Treat as opaque string.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+      example: '*A1'
+    InterfaceName:
+      in: path
+      name: iface
+      required: true
+      description: MikroTik interface name (e.g. `ether1`, `wlan1`).
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+      example: ether1
+    PageQuery:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitQuery:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+  responses:
+    BadRequest:
+      description: Invalid input — body validation failed or path/query parameter rejected.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: invalid_input
+              message: 'invalid request body: Key: ''createUserRequest.Username'' Error:Field validation for ''Username'' failed on the ''min'' tag'
+    Unauthorized:
+      description: Missing, malformed, expired, or revoked authentication.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: unauthorized
+              message: invalid or expired access token
+    Forbidden:
+      description: Authentication succeeded but the principal lacks the required role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: forbidden
+              message: access denied
+    NotFound:
+      description: Resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: not_found
+              message: router not found
+    Conflict:
+      description: Resource already exists or version conflict (e.g. duplicate username).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: conflict
+              message: user already exists
+    RateLimited:
+      description: Rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: rate_limited
+              message: too many requests
+    InternalError:
+      description: Internal server error. Message is sanitised — does not leak stack or DB internals.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: internal
+              message: internal server error

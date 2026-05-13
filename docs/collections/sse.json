@@ -1,0 +1,1182 @@
+{
+  "v": 12,
+  "name": "sse",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "streamRouterLogsAll",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/all",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": "Access JWT for clients that cannot send the `Authorization` header (EventSource)."
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamRouterLogsAll",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/all",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": "Access JWT for clients that cannot send the `Authorization` header (EventSource)."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"time\": \"apr/30 10:11:12\",\n  \"topics\": \"hotspot,info\",\n  \"message\": \"string\",\n  \"router_id\": \"string\"\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamRouterLogsAll",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/all",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": "Access JWT for clients that cannot send the `Authorization` header (EventSource)."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Missing, malformed, expired, or revoked authentication.": {
+          "name": "Missing, malformed, expired, or revoked authentication.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamRouterLogsAll",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/all",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": "Access JWT for clients that cannot send the `Authorization` header (EventSource)."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"unauthorized\",\n    \"message\": \"invalid or expired access token\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamRouterLogsAll",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/all",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": "Access JWT for clients that cannot send the `Authorization` header (EventSource)."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamRouterLogsHotspot",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/hotspot",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamRouterLogsHotspot",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/hotspot",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"time\": \"apr/30 10:11:12\",\n  \"topics\": \"hotspot,info\",\n  \"message\": \"string\",\n  \"router_id\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamRouterLogsPPP",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/ppp",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamRouterLogsPPP",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/logs/stream/ppp",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"time\": \"apr/30 10:11:12\",\n  \"topics\": \"hotspot,info\",\n  \"message\": \"string\",\n  \"router_id\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamHotspotUsersTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/users",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamHotspotUsersTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/users",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamHotspotActiveTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/active",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamHotspotActiveTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/active",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamHotspotInactiveTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/inactive",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamHotspotInactiveTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/inactive",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamIPBindingsTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/bindings",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamIPBindingsTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/hotspot/bindings",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamPPPSecretsTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/ppp/secrets",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamPPPSecretsTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/ppp/secrets",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamPPPActiveTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/ppp/active",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamPPPActiveTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/ppp/active",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamPPPInactiveTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/ppp/inactive",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamPPPInactiveTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/ppp/inactive",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamSystemResourceTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/system/resource",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamSystemResourceTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/system/resource",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamInterfaceTrafficTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/network/traffic/<<iface>>",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "iface",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens — only events whose `tags.interface` (or `tags.name`) matches `iface` are emitted.": {
+          "name": "Stream opens — only events whose `tags.interface` (or `tags.name`) matches `iface` are emitted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamInterfaceTrafficTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/network/traffic/<<iface>>",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "iface",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "streamDHCPLeasesTelemetry",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/sse/network/dhcp/leases",
+      "params": [
+        {
+          "key": "token",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Stream opens.": {
+          "name": "Stream opens.",
+          "originalRequest": {
+            "v": "6",
+            "name": "streamDHCPLeasesTelemetry",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/sse/network/dhcp/leases",
+            "headers": [],
+            "params": [
+              {
+                "key": "token",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "text/event-stream"
+            }
+          ],
+          "body": "{\n  \"measurement\": \"hotspot_user\",\n  \"tags\": {},\n  \"fields\": {},\n  \"timestamp\": \"string\"\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Server-Sent Events streams (logs + telemetry).",
+  "preRequestScript": "",
+  "testScript": ""
+}

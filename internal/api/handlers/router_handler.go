@@ -107,7 +107,11 @@ func (h *RouterHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.svc.DeleteRouter(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
+		if isNotFound(err) {
+			c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "router not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
+		}
 		return
 	}
 

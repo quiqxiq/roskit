@@ -1,0 +1,1758 @@
+{
+  "v": 12,
+  "name": "system",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "getSystemResource",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/resource",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Resource snapshot.": {
+          "name": "Resource snapshot.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSystemResource",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/resource",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"uptime\": \"1d2h3m\",\n    \"version\": \"7.20.8\",\n    \"board-name\": \"string\",\n    \"cpu\": \"ARM\",\n    \"cpu-load\": \"12\",\n    \"cpu-frequency\": \"1400\",\n    \"cpu-count\": \"4\",\n    \"free-memory\": \"string\",\n    \"total-memory\": \"string\",\n    \"free-hdd-space\": \"string\",\n    \"total-hdd-space\": \"string\",\n    \"architecture-name\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getSystemResourceHistory",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/resource/history",
+      "params": [
+        {
+          "key": "range",
+          "value": "",
+          "active": true,
+          "description": "Look-back window served by the time-series reader."
+        },
+        {
+          "key": "step",
+          "value": "",
+          "active": true,
+          "description": "Aggregation bucket size (e.g. `1m`, `5m`, `15m`, `1h`).\nWhen omitted the server picks a sensible default based on `range`.\n"
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "History points.": {
+          "name": "History points.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSystemResourceHistory",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/resource/history",
+            "headers": [],
+            "params": [
+              {
+                "key": "range",
+                "value": "",
+                "active": true,
+                "description": "Look-back window served by the time-series reader."
+              },
+              {
+                "key": "step",
+                "value": "",
+                "active": true,
+                "description": "Aggregation bucket size (e.g. `1m`, `5m`, `15m`, `1h`).\nWhen omitted the server picks a sensible default based on `range`.\n"
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"timestamp\": \"string\",\n      \"cpu_load\": 0,\n      \"free_memory\": 0,\n      \"total_memory\": 0\n    }\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getSystemLog",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/log",
+      "params": [
+        {
+          "key": "limit",
+          "value": "",
+          "active": true,
+          "description": ""
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Log rows newest first.": {
+          "name": "Log rows newest first.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSystemLog",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/log",
+            "headers": [],
+            "params": [
+              {
+                "key": "limit",
+                "value": "",
+                "active": true,
+                "description": ""
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \".id\": \"string\",\n      \"time\": \"apr/30 10:11:12\",\n      \"topics\": \"system,info\",\n      \"message\": \"string\"\n    }\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getSystemClock",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/clock",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Clock snapshot.": {
+          "name": "Clock snapshot.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSystemClock",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/clock",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"time\": \"10:11:12\",\n    \"date\": \"apr/30/2026\",\n    \"time-zone-name\": \"Asia/Jakarta\",\n    \"gmt-offset\": \"+07:00\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getSystemIdentity",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/identity",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Identity.": {
+          "name": "Identity.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getSystemIdentity",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/identity",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"name\": \"MikroTik\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getRouterboard",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/routerboard",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "RouterBoard info.": {
+          "name": "RouterBoard info.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getRouterboard",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/routerboard",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"routerboard\": \"string\",\n    \"model\": \"CCR1009-7G-1C-1S+\",\n    \"serial-number\": \"string\",\n    \"firmware-type\": \"string\",\n    \"factory-firmware\": \"string\",\n    \"current-firmware\": \"string\",\n    \"upgrade-firmware\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "getExpireMonitor",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Raw RouterOS scheduler record for the expire-monitor job,\nor an empty object when the scheduler does not exist.\n": {
+          "name": "Raw RouterOS scheduler record for the expire-monitor job,\nor an empty object when the scheduler does not exist.\n",
+          "originalRequest": {
+            "v": "6",
+            "name": "getExpireMonitor",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \".id\": \"*A1\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "deployExpireMonitor",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor/deploy",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"interval\": \"5m\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Monitor deployed.": {
+          "name": "Monitor deployed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deployExpireMonitor",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor/deploy",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"interval\": \"5m\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"expire monitor deployed\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deployExpireMonitor",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor/deploy",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"interval\": \"5m\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "removeExpireMonitor",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor/remove",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Removed.": {
+          "name": "Removed.",
+          "originalRequest": {
+            "v": "6",
+            "name": "removeExpireMonitor",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/expire-monitor/remove",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"expire monitor removed\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listSchedulers",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Schedulers.": {
+          "name": "Schedulers.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listSchedulers",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "createScheduler",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"nightly-cleanup\",\n  \"on-event\": \"log info \\\"cleanup\\\"\",\n  \"interval\": \"1d\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Created.": {
+          "name": "Created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createScheduler",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"nightly-cleanup\",\n  \"on-event\": \"log info \\\"cleanup\\\"\",\n  \"interval\": \"1d\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateScheduler",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "schedulerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateScheduler",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "schedulerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"scheduler updated\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "deleteScheduler",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "schedulerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Deleted.": {
+          "name": "Deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteScheduler",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "schedulerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"scheduler deleted\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "enableScheduler",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>/enable",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "schedulerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Enabled.": {
+          "name": "Enabled.",
+          "originalRequest": {
+            "v": "6",
+            "name": "enableScheduler",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>/enable",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "schedulerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"scheduler enabled\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "disableScheduler",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>/disable",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "schedulerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Disabled.": {
+          "name": "Disabled.",
+          "originalRequest": {
+            "v": "6",
+            "name": "disableScheduler",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/schedulers/<<schedulerId>>/disable",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "schedulerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"scheduler disabled\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "listScripts",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Scripts.": {
+          "name": "Scripts.",
+          "originalRequest": {
+            "v": "6",
+            "name": "listScripts",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": [\n    \"\"\n  ],\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "createScript",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"name\": \"cleanup\",\n  \"source\": \":log info \\\"cleanup\\\"\"\n}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Created.": {
+          "name": "Created.",
+          "originalRequest": {
+            "v": "6",
+            "name": "createScript",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{\n  \"name\": \"cleanup\",\n  \"source\": \":log info \\\"cleanup\\\"\"\n}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Created",
+          "code": 201,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"id\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "updateScript",
+      "method": "PUT",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts/<<scriptId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": "application/json",
+        "body": "{}"
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "scriptId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Updated.": {
+          "name": "Updated.",
+          "originalRequest": {
+            "v": "6",
+            "name": "updateScript",
+            "method": "PUT",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts/<<scriptId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": "application/json",
+              "body": "{}"
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "scriptId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"script updated\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "deleteScript",
+      "method": "DELETE",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts/<<scriptId>>",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "scriptId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Deleted.": {
+          "name": "Deleted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "deleteScript",
+            "method": "DELETE",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts/<<scriptId>>",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "scriptId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"script deleted\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "runScript",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts/<<scriptId>>/run",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        },
+        {
+          "key": "scriptId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Script invoked. Output (if any) returned in `data.output`.": {
+          "name": "Script invoked. Output (if any) returned in `data.output`.",
+          "originalRequest": {
+            "v": "6",
+            "name": "runScript",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/scripts/<<scriptId>>/run",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              },
+              {
+                "key": "scriptId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"output\": \"string\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "setupSystemLogging",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/setup-logging",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Logging rules ensured.": {
+          "name": "Logging rules ensured.",
+          "originalRequest": {
+            "v": "6",
+            "name": "setupSystemLogging",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/setup-logging",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"logging configured\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": "Idempotent — adds the `system,info` and `hotspot,info` rules that\nRoskit expects when ingesting `/log/listen`. Safe to re-run.\n"
+    },
+    {
+      "v": "17",
+      "name": "getRouterDashboard",
+      "method": "GET",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/dashboard",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Dashboard summary.": {
+          "name": "Dashboard summary.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getRouterDashboard",
+            "method": "GET",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/dashboard",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"resource\": {\n      \"uptime\": \"1d2h3m\",\n      \"version\": \"7.20.8\",\n      \"board-name\": \"string\",\n      \"cpu\": \"ARM\",\n      \"cpu-load\": \"12\",\n      \"cpu-frequency\": \"1400\",\n      \"cpu-count\": \"4\",\n      \"free-memory\": \"string\",\n      \"total-memory\": \"string\",\n      \"free-hdd-space\": \"string\",\n      \"total-hdd-space\": \"string\",\n      \"architecture-name\": \"string\"\n    },\n    \"identity\": {\n      \"name\": \"MikroTik\"\n    },\n    \"hotspot_users\": 0,\n    \"active_sessions\": 0,\n    \"system_health\": {\n      \".id\": \"*A1\"\n    },\n    \"income\": {\n      \"today_count\": 0,\n      \"today_sum\": 0,\n      \"month_count\": 0,\n      \"month_sum\": 0\n    },\n    \"recent_logs\": [\n      {\n        \".id\": \"string\",\n        \"time\": \"apr/30 10:11:12\",\n        \"topics\": \"system,info\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    },
+    {
+      "v": "17",
+      "name": "rebootRouter",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/reboot",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Reboot command accepted.": {
+          "name": "Reboot command accepted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "rebootRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/reboot",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"reboot scheduled\"\n  },\n  \"error\": null\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "rebootRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/reboot",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Issues `/system/reboot`. Connection drops; pool reconnects automatically."
+    },
+    {
+      "v": "17",
+      "name": "shutdownRouter",
+      "method": "POST",
+      "endpoint": "<<base_url>>/routers/<<routerId>>/system/shutdown",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "bearer",
+        "token": "<<access_token>>",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [
+        {
+          "key": "routerId",
+          "value": "",
+          "active": true
+        }
+      ],
+      "responses": {
+        "Shutdown accepted.": {
+          "name": "Shutdown accepted.",
+          "originalRequest": {
+            "v": "6",
+            "name": "shutdownRouter",
+            "method": "POST",
+            "endpoint": "<<base_url>>/routers/<<routerId>>/system/shutdown",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "bearer",
+              "token": "<<access_token>>",
+              "authActive": true
+            },
+            "requestVariables": [
+              {
+                "key": "routerId",
+                "value": "",
+                "active": true
+              }
+            ]
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"shutdown scheduled\"\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Router system resource, scheduler, scripts, expire-monitor.",
+  "preRequestScript": "",
+  "testScript": ""
+}

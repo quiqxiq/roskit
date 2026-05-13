@@ -1,0 +1,219 @@
+{
+  "v": 12,
+  "name": "status",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "getUserStatus",
+      "method": "GET",
+      "endpoint": "<<base_url>>/status",
+      "params": [
+        {
+          "key": "router",
+          "value": "<<routerName>>",
+          "active": true,
+          "description": "Router name as registered in the system (matches `routers.name`)."
+        },
+        {
+          "key": "mac",
+          "value": "<<mac>>",
+          "active": true,
+          "description": "MAC address of the device whose status is being queried."
+        }
+      ],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "none",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "User status (active session details, or inactive shell).": {
+          "name": "User status (active session details, or inactive shell).",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUserStatus",
+            "method": "GET",
+            "endpoint": "<<base_url>>/status",
+            "headers": [],
+            "params": [
+              {
+                "key": "router",
+                "value": "",
+                "active": true,
+                "description": "Router name as registered in the system (matches `routers.name`)."
+              },
+              {
+                "key": "mac",
+                "value": "",
+                "active": true,
+                "description": "MAC address of the device whose status is being queried."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"active\": true,\n    \"username\": \"voucher-7g3pq\",\n    \"profile\": \"1d-1mbps\",\n    \"ip_address\": \"10.5.50.23\",\n    \"mac\": \"00:11:22:33:44:55\",\n    \"uptime\": \"1h12m\",\n    \"bytes_in\": \"15823234\",\n    \"bytes_out\": \"982341\",\n    \"time_left\": \"22h47m\",\n    \"comment\": \"\"\n  },\n  \"error\": null\n}"
+        },
+        "Invalid input — body validation failed or path/query parameter rejected.": {
+          "name": "Invalid input — body validation failed or path/query parameter rejected.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUserStatus",
+            "method": "GET",
+            "endpoint": "<<base_url>>/status",
+            "headers": [],
+            "params": [
+              {
+                "key": "router",
+                "value": "",
+                "active": true,
+                "description": "Router name as registered in the system (matches `routers.name`)."
+              },
+              {
+                "key": "mac",
+                "value": "",
+                "active": true,
+                "description": "MAC address of the device whose status is being queried."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"invalid_input\",\n    \"message\": \"invalid request body: Key: 'createUserRequest.Username' Error:Field validation for 'Username' failed on the 'min' tag\"\n  }\n}"
+        },
+        "Resource does not exist.": {
+          "name": "Resource does not exist.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUserStatus",
+            "method": "GET",
+            "endpoint": "<<base_url>>/status",
+            "headers": [],
+            "params": [
+              {
+                "key": "router",
+                "value": "",
+                "active": true,
+                "description": "Router name as registered in the system (matches `routers.name`)."
+              },
+              {
+                "key": "mac",
+                "value": "",
+                "active": true,
+                "description": "MAC address of the device whose status is being queried."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Not Found",
+          "code": 404,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"router not found\"\n  }\n}"
+        },
+        "Internal server error. Message is sanitised — does not leak stack or DB internals.": {
+          "name": "Internal server error. Message is sanitised — does not leak stack or DB internals.",
+          "originalRequest": {
+            "v": "6",
+            "name": "getUserStatus",
+            "method": "GET",
+            "endpoint": "<<base_url>>/status",
+            "headers": [],
+            "params": [
+              {
+                "key": "router",
+                "value": "",
+                "active": true,
+                "description": "Router name as registered in the system (matches `routers.name`)."
+              },
+              {
+                "key": "mac",
+                "value": "",
+                "active": true,
+                "description": "MAC address of the device whose status is being queried."
+              }
+            ],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": null,\n  \"error\": {\n    \"code\": \"internal\",\n    \"message\": \"internal server error\"\n  }\n}"
+        }
+      },
+      "description": "Public endpoint used by the hotspot login page to show whether a\ndevice is currently connected. Resolves the router by name and\nlooks up the active session matching the MAC.\n\nReturns `active: true` with session details when the MAC is in\n`ip/hotspot/active`. Returns `active: false` (with only `mac`\npopulated) when no matching session exists.\n"
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Public connectivity probe used by the login page.",
+  "preRequestScript": "",
+  "testScript": ""
+}

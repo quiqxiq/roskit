@@ -1,0 +1,96 @@
+{
+  "v": 12,
+  "name": "health",
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "name": "checkHealth",
+      "method": "GET",
+      "endpoint": "<<base_url>>/health",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "",
+      "auth": {
+        "authType": "none",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {
+        "All dependencies healthy.": {
+          "name": "All dependencies healthy.",
+          "originalRequest": {
+            "v": "6",
+            "name": "checkHealth",
+            "method": "GET",
+            "endpoint": "<<base_url>>/health",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "OK",
+          "code": 200,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"status\": \"ok\",\n    \"services\": {\n      \"postgres\": \"ok\",\n      \"redis\": \"ok\",\n      \"engine\": {\n        \"routers_total\": 4,\n        \"routers_connected\": 4\n      }\n    }\n  },\n  \"error\": null\n}"
+        },
+        "At least one dependency is unavailable. Body still uses the standard envelope.": {
+          "name": "At least one dependency is unavailable. Body still uses the standard envelope.",
+          "originalRequest": {
+            "v": "6",
+            "name": "checkHealth",
+            "method": "GET",
+            "endpoint": "<<base_url>>/health",
+            "headers": [],
+            "params": [],
+            "body": {
+              "contentType": null,
+              "body": null
+            },
+            "auth": {
+              "authType": "none",
+              "authActive": true
+            },
+            "requestVariables": []
+          },
+          "status": "Service Unavailable",
+          "code": 503,
+          "headers": [
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"status\": \"degraded\",\n    \"services\": {\n      \"postgres\": \"ok\",\n      \"redis\": \"unavailable\",\n      \"engine\": {\n        \"routers_total\": 4,\n        \"routers_connected\": 1\n      }\n    }\n  },\n  \"error\": null\n}"
+        }
+      },
+      "description": "Returns the health of Postgres, Redis, and the MikroTik connection\npool. `data.status` is `ok` when all dependencies are healthy and\n`degraded` otherwise. HTTP status mirrors that: 200 on `ok`, 503 on\n`degraded`. Use this for Kubernetes readiness probes.\n"
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": "Liveness / readiness checks. No auth.",
+  "preRequestScript": "",
+  "testScript": ""
+}

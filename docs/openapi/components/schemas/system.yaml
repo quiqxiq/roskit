@@ -63,17 +63,6 @@ SystemRouterboard:
     current-firmware: { type: string }
     upgrade-firmware: { type: string }
 
-ExpireMonitorStatus:
-  type: object
-  description: |
-    State of the auto-expire RouterOS scheduler that Roskit deploys to
-    keep voucher TTLs in sync without manual intervention.
-  properties:
-    deployed:      { type: boolean }
-    interval:      { type: string, example: '5m' }
-    last-run:      { type: string }
-    scheduler-id:  { type: string }
-
 DeployExpireMonitorRequest:
   type: object
   required: [interval]
@@ -109,15 +98,26 @@ ScriptRecord:
         policy:  { type: string }
         comment: { type: string }
 
-DashboardSummary:
+RouterDashboard:
   type: object
-  description: Aggregated overview shown on the per-router dashboard.
+  description: |
+    Aggregated per-router dashboard. All nested objects are returned
+    verbatim from RouterOS or the internal cache.
   properties:
-    hotspot_users_total:  { type: integer, format: int64 }
-    hotspot_active_total: { type: integer, format: int64 }
-    ppp_secrets_total:    { type: integer, format: int64 }
-    ppp_active_total:     { type: integer, format: int64 }
-    cpu_load:             { type: integer, minimum: 0, maximum: 100 }
-    free_memory:          { type: integer, format: int64 }
-    total_memory:         { type: integer, format: int64 }
-    uptime:               { type: string }
+    resource:
+      $ref: '#/SystemResource'
+    identity:
+      $ref: '#/SystemIdentity'
+    hotspot_users:
+      type: integer
+      description: Total hotspot user count.
+    active_sessions:
+      type: integer
+      description: Currently active hotspot sessions.
+    system_health:
+      $ref: 'common.yaml#/RouterOSRecord'
+    income:
+      $ref: 'report.yaml#/RevenueSummary'
+    recent_logs:
+      type: array
+      items: { $ref: '#/SystemLogEntry' }
