@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
+	"github.com/quiqxiq/roskit/internal/roskit/core"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 )
@@ -14,24 +15,35 @@ import (
 // ConcurrentRunner runs all provided poll commands simultaneously on a single
 // router connection using go-routeros async tag-multiplexing.
 type ConcurrentRunner struct {
-	pool   *execution.Pool
-	sink   behavior.PollSink
-	logger *slog.Logger
+	pool             *execution.Pool
+	sink             behavior.PollSink
+	logger           *slog.Logger
+	permanentlyFailed map[string]struct{}
+	mu               sync.RWMutex
 }
 
 func NewConcurrentRunner(pool *execution.Pool, sink behavior.PollSink, logger *slog.Logger) *ConcurrentRunner {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &ConcurrentRunner{pool: pool, sink: sink, logger: logger}
+	return &ConcurrentRunner{
+		pool:              pool,
+		sink:              sink,
+		logger:            logger,
+		permanentlyFailed: make(map[string]struct{}),
+	}
 }
 
-// RunAll fires all metas concurrently and waits until every one completes.
-// The underlying client connection is in async mode, so all commands run
-// over the same TCP connection via tag multiplexing.
 func (r *ConcurrentRunner) RunAll(ctx context.Context, routerID string, metas []*command.CommandMeta) {
+	r.mu.RLock()
+	failed := r.permanentlyFailed
+	r.mu.RUnlock()
+
 	var wg sync.WaitGroup
 	for _, meta := range metas {
+		if _, ok := failed[meta.Measurement]; ok {
+			continue
+		}
 		wg.Add(1)
 		go func(m *command.CommandMeta) {
 			defer wg.Done()
@@ -62,6 +74,18 @@ func (r *ConcurrentRunner) runOne(ctx context.Context, routerID string, meta *co
 	sentence := command.BuildPollSentence(meta)
 	reply, err := conn.RunContext(ctx, sentence...)
 	if err != nil {
+		if core.IsRouterOSPermanentError(err) {
+			r.logger.Info("concurrent poll: RouterOS feature unavailable, skipping permanently",
+				"router_id", routerID,
+				"measurement", meta.Measurement,
+				"err", err,
+			)
+			r.mu.Lock()
+			r.permanentlyFailed[meta.Measurement] = struct{}{}
+			r.mu.Unlock()
+			return
+		}
+
 		r.logger.Warn("concurrent poll: command failed",
 			"router_id", routerID,
 			"measurement", meta.Measurement,
