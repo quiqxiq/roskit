@@ -12,12 +12,10 @@ func init() {
 
 func registerUserManager() {
 	command.Register(command.PollDef("user-manager/user/print", 2*time.Minute))
-	command.Register(command.StreamDef("user-manager/session/print", "", "user_manager_session"))
 	command.Register(command.PollDef("user-manager/profile/print", 10*time.Minute))
 	command.Register(command.PollDef("user-manager/router/print", 10*time.Minute))
 
 	command.Register(command.QueryDef("user-manager/user/find"))
-	command.Register(command.QueryDef("user-manager/session/find"))
 
 	for _, verb := range []string{"add", "set", "remove"} {
 		command.Register(command.MutationDef("user-manager/user/" + verb))

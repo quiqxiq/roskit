@@ -12,19 +12,9 @@ func init() {
 
 func registerRouting() {
 	// -------------------------------------------------------------------------
-	// STREAM — routing/route (complete routing table, changes with dynamic routing)
-	// -------------------------------------------------------------------------
-	command.Register(command.StreamDef("routing/route/print", "", "routing_route"))
-
-	// -------------------------------------------------------------------------
 	// POLL — routing/ospf/instance (admin-only config)
 	// -------------------------------------------------------------------------
 	command.Register(command.PollDef("routing/ospf/instance/print", 5*time.Minute))
-
-	// -------------------------------------------------------------------------
-	// STREAM — routing/ospf/neighbor (state berubah saat link flap)
-	// -------------------------------------------------------------------------
-	command.Register(command.StreamDef("routing/ospf/neighbor/print", "", "ospf_neighbor"))
 
 	// -------------------------------------------------------------------------
 	// POLL — routing/ospf/interface (mapping config, jarang berubah)
@@ -37,14 +27,8 @@ func registerRouting() {
 	command.Register(command.PollDef("routing/bgp/connection/print", 5*time.Minute))
 
 	// -------------------------------------------------------------------------
-	// STREAM — routing/bgp/session (state berubah saat peer flap)
-	// -------------------------------------------------------------------------
-	command.Register(command.StreamDef("routing/bgp/session/print", "", "bgp_session"))
-
-	// -------------------------------------------------------------------------
 	// QUERIES
 	// -------------------------------------------------------------------------
-	command.Register(command.QueryDef("routing/route/find"))
 	command.Register(command.QueryDef("routing/ospf/instance/find"))
 	command.Register(command.QueryDef("routing/bgp/connection/find"))
 

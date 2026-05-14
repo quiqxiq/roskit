@@ -47,20 +47,6 @@ func registerInterfaces() {
 	))
 
 	// -------------------------------------------------------------------------
-	// POLL — interface/wifi (WiFi 6, admin-only config)
-	// -------------------------------------------------------------------------
-	command.Register(command.PollDef("interface/wifi/print", 5*time.Minute))
-
-	// -------------------------------------------------------------------------
-	// STREAM — interface/wifi/registration-table (WiFi 6 client connect/disconnect)
-	// -------------------------------------------------------------------------
-	command.Register(command.StreamDef(
-		"interface/wifi/registration-table/print",
-		"",
-		"wifi_registration_table",
-	))
-
-	// -------------------------------------------------------------------------
 	// POLL — interface/wireguard (admin-only config)
 	// -------------------------------------------------------------------------
 	command.Register(command.PollDef("interface/wireguard/print", 5*time.Minute))
@@ -88,7 +74,6 @@ func registerInterfaces() {
 	command.Register(command.QueryDef("interface/bridge/port/find"))
 	command.Register(command.QueryDef("interface/ethernet/find"))
 	command.Register(command.QueryDef("interface/wireless/find"))
-	command.Register(command.QueryDef("interface/wifi/find"))
 	command.Register(command.QueryDef("interface/wireguard/find"))
 	command.Register(command.QueryDef("interface/wireguard/peers/find"))
 	command.Register(command.QueryDef("interface/pppoe-client/find"))
@@ -122,7 +107,6 @@ func registerInterfaces() {
 	// -------------------------------------------------------------------------
 	for _, verb := range []string{"set", "enable", "disable"} {
 		command.Register(command.MutationDef("interface/wireless/" + verb))
-		command.Register(command.MutationDef("interface/wifi/" + verb))
 	}
 
 	// -------------------------------------------------------------------------
