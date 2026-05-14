@@ -1,0 +1,140 @@
+# /users/* — user management.
+# Source: internal/api/handlers/user_handler.go.
+# Admin-only (RequireRole admin middleware).
+
+list:
+  get:
+    operationId: listUsers
+    summary: List all users
+    tags: [users]
+    responses:
+      '200':
+        description: Array of users.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+            example:
+              data:
+                - id: 1
+                  username: admin
+                  role: admin
+                  active: true
+                  last_login_at: '2026-04-30T10:11:12Z'
+                  created_at: '2026-04-01T00:00:00Z'
+                  updated_at: '2026-04-30T10:11:12Z'
+              error: null
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+create:
+  post:
+    operationId: createUser
+    summary: Create a user
+    tags: [users]
+    description: Admins may create users with role `admin` or `staff`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/user.yaml#/CreateUserRequest' }
+          example:
+            username: bob
+            password: secret123
+            role: staff
+    responses:
+      '201':
+        description: User created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+get:
+  get:
+    operationId: getUser
+    summary: Get a single user by ID
+    tags: [users]
+    parameters:
+      - $ref: '../components/parameters.yaml#/UserId'
+    responses:
+      '200':
+        description: User found.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+update:
+  put:
+    operationId: updateUser
+    summary: Update a user (partial)
+    tags: [users]
+    parameters:
+      - $ref: '../components/parameters.yaml#/UserId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/user.yaml#/UpdateUserRequest' }
+    responses:
+      '200':
+        description: Updated user.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/user.yaml#/User' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+delete:
+  delete:
+    operationId: deleteUser
+    summary: Delete a user (soft delete)
+    tags: [users]
+    parameters:
+      - $ref: '../components/parameters.yaml#/UserId'
+    responses:
+      '200':
+        description: User deleted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: user deleted }
+              error: null
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }

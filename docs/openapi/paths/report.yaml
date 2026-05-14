@@ -1,0 +1,151 @@
+# /routers/{routerId}/reports/* operations.
+# Source: internal/api/handlers/report_handler.go.
+#
+# Reports are scoped per-router by URL.
+
+getDailyReport:
+  get:
+    operationId: getDailyReport
+    summary: Sales for a single day
+    tags: [reports]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: date
+        required: true
+        schema: { type: string, format: date }
+        example: '2026-04-30'
+      - in: query
+        name: profile
+        schema: { type: string }
+      - in: query
+        name: server
+        schema: { type: string }
+      - in: query
+        name: search
+        schema: { type: string }
+        description: Free-text filter matched against username and profile name.
+    responses:
+      '200':
+        description: Daily report.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/report.yaml#/DailyReport' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+getMonthlyReport:
+  get:
+    operationId: getMonthlyReport
+    summary: Daily totals for a single month
+    tags: [reports]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: year
+        required: true
+        schema: { type: integer, minimum: 2000, maximum: 2100 }
+      - in: query
+        name: month
+        required: true
+        schema: { type: integer, minimum: 1, maximum: 12 }
+    responses:
+      '200':
+        description: Monthly report.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/report.yaml#/MonthlyReport' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+getResumeReport:
+  get:
+    operationId: getResumeReport
+    summary: Per-month totals for a single year
+    tags: [reports]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: year
+        required: true
+        schema: { type: integer, minimum: 2000, maximum: 2100 }
+    responses:
+      '200':
+        description: Resume report.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/report.yaml#/ResumeReport' }
+                error: { type: 'null' }
+
+getDashboardSummary:
+  get:
+    operationId: getDashboardSummary
+    summary: Today + month sales tiles
+    tags: [reports]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Dashboard summary.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/report.yaml#/RevenueSummary' }
+                error: { type: 'null' }
+
+exportCSV:
+  get:
+    operationId: exportSalesCSV
+    summary: Export sales as CSV
+    tags: [reports]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: from
+        schema: { type: string, format: date }
+        description: 'Inclusive start date.'
+      - in: query
+        name: to
+        schema: { type: string, format: date }
+        description: 'Inclusive end date.'
+    responses:
+      '200':
+        description: CSV file. `Content-Disposition` includes a suggested filename.
+        content:
+          text/csv:
+            schema: { type: string, format: binary }
+
+exportExcel:
+  get:
+    operationId: exportSalesExcel
+    summary: Export sales as XLSX
+    tags: [reports]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: from
+        schema: { type: string, format: date }
+      - in: query
+        name: to
+        schema: { type: string, format: date }
+    responses:
+      '200':
+        description: Excel file (XLSX).
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { type: string, format: binary }

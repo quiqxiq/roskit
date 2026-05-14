@@ -1,0 +1,18 @@
+# Redocly lint configuration tuned for the Roskit spec.
+# Rules tightened: every operation must have an operationId, summary, and
+# response examples. Rules relaxed: localhost server URL is fine for dev,
+# license name-only is fine, server-example.com placeholder is allowed.
+
+extends:
+  - recommended
+
+rules:
+  no-server-example.com: off
+  info-license-strict: off
+  no-empty-servers: error
+  operation-operationId: error
+  operation-summary: error
+  no-invalid-media-type-examples: warn
+  tag-description: warn
+  # Health probes legitimately have no 4xx responses (Kubernetes readiness).
+  operation-4xx-response: off

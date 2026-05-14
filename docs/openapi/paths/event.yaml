@@ -1,0 +1,86 @@
+# /events/* operations.
+# Source: internal/api/handlers/event_handler.go.
+#
+# These are public webhook endpoints called by RouterOS schedulers via
+# `/tool/fetch`. Authentication is by webhook token (header or
+# form field), not JWT. Rate-limited to 100 req/min/IP.
+
+OnLoginPayload:
+  type: object
+  description: |
+    Form-encoded body POSTed by the on-login RouterOS scheduler.
+    `username` and `router_name` are required; everything else is
+    informational.
+  properties:
+    router_name: { type: string, maxLength: 100, example: hotspot-1 }
+    server:      { type: string, maxLength: 64,  example: hotspot1 }
+    username:    { type: string, maxLength: 64,  example: voucher-7g3pq }
+    mac:         { type: string, maxLength: 17,  example: '00:11:22:33:44:55' }
+    ip:          { type: string, maxLength: 45,  example: 10.5.50.23 }
+    date:        { type: string, maxLength: 32,  example: 'apr/30/2026' }
+    time:        { type: string, maxLength: 32,  example: '10:11:12' }
+    profile:     { type: string, maxLength: 64,  example: 1d-1mbps }
+    token:       { type: string, description: 'Webhook token. Use the `X-Router-Token` header instead when possible.' }
+
+# --- operations ---------------------------------------------------------------
+
+onLogin:
+  post:
+    operationId: onHotspotLogin
+    summary: Webhook fired by RouterOS when a hotspot user logs in
+    tags: [events]
+    security:
+      - webhookToken: []
+    description: |
+      Public webhook. Auth + resolution flow:
+
+      1. RouterOS posts an `X-Router-Token` header (or `token` form field).
+      2. The token is matched against `settings.webhook_token`.
+      3. The router is resolved by `router_name`.
+      4. The voucher sale is recorded idempotently by
+         `(router_id, username, sold_at)`.
+
+      The endpoint always returns 200 (even on validation/auth issues)
+      so a misconfigured RouterOS scheduler does not loop on retries.
+      Operators see issues via warnings in server logs.
+    requestBody:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema: { $ref: '#/OnLoginPayload' }
+          example:
+            router_name: hotspot-1
+            server: hotspot1
+            username: voucher-7g3pq
+            mac: '00:11:22:33:44:55'
+            ip: 10.5.50.23
+            date: 'apr/30/2026'
+            time: '10:11:12'
+            profile: 1d-1mbps
+    responses:
+      '200':
+        description: |
+          Always 200 — body is empty. Inspect server logs for failure
+          modes (missing token, bad router name, idempotency hit, etc.).
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+healthCheck:
+  get:
+    operationId: eventsHealthCheck
+    summary: Public liveness ping for the events surface
+    tags: [events]
+    security: []
+    description: 'Returns 200 unconditionally. Useful for RouterOS to verify reachability without auth.'
+    responses:
+      '200':
+        description: Reachable.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: ok
+            example:
+              status: ok

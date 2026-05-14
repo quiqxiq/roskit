@@ -1,6 +1,10 @@
 package service
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 func (b *Bridge) GetSystemResource(ctx context.Context, routerID string) (map[string]string, error) {
 	return b.QueryOne(ctx, routerID, "system/resource/print")
@@ -112,4 +116,48 @@ func (b *Bridge) SetupLogging(ctx context.Context, routerID string) error {
 		"topics": "hotspot,debug,info",
 	})
 	return err
+}
+
+// LogStream opens a live /log/print =follow stream against routerID.
+// filter selects a topic group: "" = all, "hotspot", "ppp".
+// The returned channel closes when ctx is cancelled or the connection drops.
+func (b *Bridge) LogStream(ctx context.Context, routerID, filter string) (<-chan map[string]string, error) {
+	sentence := []string{"/log/print", "=follow"}
+	switch filter {
+	case "hotspot":
+		sentence = append(sentence, "?topics=hotspot,info,debug")
+	case "ppp":
+		sentence = append(sentence, "?topics=pppoe,info,debug")
+	}
+
+	reply, err := b.dispatcher.RunListen(ctx, routerID, sentence)
+	if err != nil {
+		return nil, fmt.Errorf("log stream: %w", err)
+	}
+
+	out := make(chan map[string]string, 32)
+	go func() {
+		defer close(out)
+		defer func() {
+			stopCtx, stopFn := context.WithTimeout(context.Background(), 3*time.Second)
+			defer stopFn()
+			reply.CancelContext(stopCtx)
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case s, ok := <-reply.Chan():
+				if !ok {
+					return
+				}
+				select {
+				case out <- s.Map:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return out, nil
 }

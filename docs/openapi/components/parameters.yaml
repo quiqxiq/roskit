@@ -1,0 +1,77 @@
+# Reusable parameters. Path parameters mirror `internal/api/router.go`
+# verbatim. Query parameters use the same names handlers expect.
+
+RouterId:
+  in: path
+  name: routerId
+  required: true
+  description: |
+    Numeric ID of a router. Validated by `RouterOwnershipMiddleware`;
+    returns 404 if the router does not exist.
+  schema:
+    type: integer
+    format: int64
+    minimum: 1
+  example: 7
+
+UserId:
+  in: path
+  name: id
+  required: true
+  description: User ID.
+  schema:
+    type: integer
+    format: int64
+    minimum: 1
+  example: 12
+
+TemplateId:
+  in: path
+  name: templateId
+  required: true
+  schema:
+    type: integer
+    format: int64
+    minimum: 1
+
+GenericResourceId:
+  in: path
+  name: id
+  required: true
+  description: |
+    RouterOS-side resource identifier as returned by `/print` calls.
+    Often shaped like `*A1` for hex IDs; sometimes a numeric `numbers=`
+    reference for enable/disable. Treat as opaque string.
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 64
+  example: '*A1'
+
+InterfaceName:
+  in: path
+  name: iface
+  required: true
+  description: MikroTik interface name (e.g. `ether1`, `wlan1`).
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 64
+  example: ether1
+
+PageQuery:
+  in: query
+  name: page
+  schema:
+    type: integer
+    minimum: 1
+    default: 1
+
+LimitQuery:
+  in: query
+  name: limit
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 500
+    default: 50

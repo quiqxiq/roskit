@@ -1,0 +1,195 @@
+# Operations for /api/v1/auth/*.
+#
+# Source: internal/api/handlers/auth_handler.go.
+# All operations except /me, /password, /logout are public.
+
+login:
+  post:
+    operationId: login
+    summary: Exchange credentials for an access + refresh token pair
+    tags: [auth]
+    security: []
+    description: |
+      Accepts username + password. The response includes the user view
+      plus a JWT pair. Rate-limited to 10 requests/min/IP.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/LoginRequest'
+          example:
+            username: alice
+            password: hunter2
+    responses:
+      '200':
+        description: Authenticated. Returns access + refresh tokens.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data: { $ref: '../components/schemas/auth.yaml#/LoginResult' }
+                error: { type: 'null' }
+            example:
+              data:
+                access_token: eyJhbGciOi...
+                refresh_token: eyJhbGciOi...
+                expires_in: 900
+                user:
+                  id: 12
+                  username: alice
+                  role: admin
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+refresh:
+  post:
+    operationId: refreshToken
+    summary: Issue a new access token from a refresh token
+    tags: [auth]
+    security: []
+    description: |
+      Exchanges a valid (non-expired, non-revoked) refresh token for a
+      fresh access + refresh token pair. The original refresh token is
+      revoked as part of this call (rotation).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/RefreshRequest'
+    responses:
+      '200':
+        description: New token pair issued.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data: { $ref: '../components/schemas/auth.yaml#/LoginResult' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+logout:
+  post:
+    operationId: logout
+    summary: Revoke the current access token (and optionally a refresh token)
+    tags: [auth]
+    description: |
+      Adds the current token's JTI to the revocation cache so it cannot
+      be reused even before its `exp`. If `refresh_token` is supplied in
+      the body, that refresh JTI is revoked too.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/LogoutRequest'
+    responses:
+      '200':
+        description: Logged out.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data:
+                message: logged out
+              error: null
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+me:
+  get:
+    operationId: getCurrentUser
+    summary: Return the authenticated user's identity
+    tags: [auth]
+    description: |
+      Echo of the JWT claims as a `UserView`. Useful for the SPA to
+      hydrate user state on page load without round-tripping `/users`.
+    responses:
+      '200':
+        description: User identity.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data: { $ref: '../components/schemas/auth.yaml#/UserView' }
+                error: { type: 'null' }
+            example:
+              data:
+                id: 12
+                username: alice
+                role: admin
+              error: null
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+
+changePassword:
+  put:
+    operationId: changePassword
+    summary: Change the authenticated user's password
+    tags: [auth]
+    description: Requires the old password. New password must be 6–128 chars.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/auth.yaml#/ChangePasswordRequest'
+    responses:
+      '200':
+        description: Password updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data:
+                message: password changed
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+setup:
+  post:
+    operationId: setupFirstAdmin
+    summary: Bootstrap the first admin account
+    tags: [auth]
+    security: []
+    description: |
+      One-shot bootstrap endpoint. Creates the first admin user. Returns
+      403 once any user exists. Rate-limited to 10 requests/min/IP.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/auth.yaml#/SetupRequest' }
+          example:
+            username: admin
+            password: changeme123
+    responses:
+      '201':
+        description: First admin created and auto-logged-in.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data: { $ref: '../components/schemas/auth.yaml#/SetupResult' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }

@@ -1,0 +1,208 @@
+# /routers and /routers/{routerId} operations.
+# Source: internal/api/handlers/router_handler.go.
+#
+# All routes under /routers/{routerId} are additionally guarded by
+# RouterOwnershipMiddleware (404 if router does not exist).
+
+list:
+  get:
+    operationId: listRouters
+    summary: List all routers
+    tags: [routers]
+    responses:
+      '200':
+        description: Array of public router views.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/router.yaml#/RouterPublicView' }
+                error: { type: 'null' }
+            example:
+              data:
+                - id: 7
+                  name: hotspot-1
+                  ip_address: 192.168.88.1
+                  api_port: 8728
+                  api_username: api
+                  status: connected
+                  last_seen_at: '2026-04-30T10:11:12Z'
+                  notes: null
+              error: null
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+create:
+  post:
+    operationId: createRouter
+    summary: Register a new router
+    tags: [routers]
+    description: |
+      Creates a router row, encrypts the API password at rest, and
+      registers the router with the orchestrator so streams/pollers
+      attach automatically. Conflict (409) when the name already
+      exists.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/router.yaml#/CreateRouterRequest' }
+          example:
+            name: hotspot-1
+            ip_address: 192.168.88.1
+            api_port: 8728
+            api_username: api
+            password: api-password
+            notes: 'Lobby AP'
+    responses:
+      '201':
+        description: Router created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/router.yaml#/RouterPublicView' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '409': { $ref: '../components/responses.yaml#/Conflict' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+migrate:
+  post:
+    operationId: migrateRouterConfig
+    summary: Import a legacy MIKHMON config.php
+    tags: [routers]
+    description: |
+      Reads the file path on the server, parses MIKHMON's PHP config,
+      and creates corresponding router + profile-mapping rows. Idempotent
+      on `name` — existing routers are skipped.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/router.yaml#/MigrateRequest' }
+          example:
+            file_path: '/data/legacy/mikhmon/config.php'
+    responses:
+      '200':
+        description: Migration summary.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/router.yaml#/MigrationResult' }
+                error: { type: 'null' }
+            example:
+              data: { total: 12, imported: 9, skipped: 3, errors: 0 }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+get:
+  get:
+    operationId: getRouter
+    summary: Get a router by ID
+    tags: [routers]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Router public view.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/router.yaml#/RouterPublicView' }
+                error: { type: 'null' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+update:
+  put:
+    operationId: updateRouter
+    summary: Update router fields (partial)
+    tags: [routers]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/router.yaml#/UpdateRouterRequest' }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/router.yaml#/RouterPublicView' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+delete:
+  delete:
+    operationId: deleteRouter
+    summary: Soft-delete a router
+    tags: [routers]
+    description: Disconnects the router from the orchestrator pool and soft-deletes the row.
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: router deleted }
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+testConnection:
+  post:
+    operationId: testRouterConnection
+    summary: Probe an existing router's connectivity
+    tags: [routers]
+    description: |
+      Performs a TCP+API roundtrip to the router using its stored
+      credentials. Useful after editing IP/port/credentials to verify
+      everything still works without polluting the orchestrator pool.
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Probe result. Always 200 — `data.connected` reflects success.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/router.yaml#/ConnectionTestResult' }
+                error: { type: 'null' }
+            example:
+              data:
+                connected: true
+                latency_ms: 14
+                routeros_version: 7.20.8
+                board_model: 'CCR1009-7G-1C-1S+'
+                identity: MikroTik
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }

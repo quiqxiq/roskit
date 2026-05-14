@@ -1,0 +1,170 @@
+# Voucher schemas. Source:
+#   internal/services/voucher_service.go (request/result params)
+#   internal/roskit/adapter/service/voucher.go (GeneratedVoucher)
+#   internal/models/voucher_sale.go (VoucherSale).
+
+VoucherGenerateParams:
+  type: object
+  required: [qty, profile]
+  description: Bulk-generate hotspot voucher users on the router.
+  properties:
+    qty:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      example: 50
+    server:
+      type: string
+      maxLength: 64
+      example: hotspot1
+    user_type:
+      type: string
+      maxLength: 32
+      description: 'Generation mode (e.g. `vc` for username==password, `up` for separate fields).'
+      example: vc
+    name_length:
+      type: integer
+      minimum: 3
+      maximum: 32
+      default: 8
+    prefix:
+      type: string
+      maxLength: 16
+      example: 'WIFI-'
+    char_set:
+      type: string
+      maxLength: 64
+      description: 'Optional explicit character set; defaults to alpha+numeric.'
+    profile:
+      type: string
+      minLength: 1
+      maxLength: 64
+      example: 1d-1mbps
+    time_limit:
+      type: string
+      maxLength: 64
+      example: '1d'
+    data_limit:
+      type: integer
+      format: int64
+      minimum: 0
+      description: 'Bytes total; 0 means no limit.'
+    comment:
+      type: string
+      maxLength: 200
+    gencode:
+      type: string
+      maxLength: 64
+      description: |
+        Optional batch identifier. When omitted Roskit generates one and
+        returns it; clients should keep this for the cache + print flow.
+
+GeneratedVoucher:
+  type: object
+  required: [username, password]
+  properties:
+    username: { type: string, example: voucher-7g3pq }
+    password: { type: string, example: 7g3pq }
+
+VoucherGenerateResult:
+  type: object
+  required: [count, gencode, profile, vouchers]
+  properties:
+    count:
+      type: integer
+      example: 50
+    gencode:
+      type: string
+      example: 7g3pq
+    profile:
+      type: string
+      example: 1d-1mbps
+    vouchers:
+      type: array
+      items: { $ref: '#/GeneratedVoucher' }
+
+CachedVouchers:
+  description: Same shape as `VoucherGenerateResult`. Returned by the cache lookup endpoint.
+  $ref: '#/VoucherGenerateResult'
+
+RecordSaleParams:
+  type: object
+  required: [username]
+  properties:
+    username:     { type: string, minLength: 1, maxLength: 64, example: voucher-7g3pq }
+    profile_name: { type: string, maxLength: 64, example: 1d-1mbps }
+    price:        { type: integer, format: int64, minimum: 0, example: 7500 }
+    server:       { type: string, maxLength: 64 }
+    ip_address:   { type: string, maxLength: 45 }
+    mac_address:  { type: string, maxLength: 17 }
+    sold_at:
+      type: string
+      format: date-time
+      description: 'When the sale occurred. Defaults to server now if omitted.'
+
+ImportResult:
+  type: object
+  required: [total, imported, skipped, errors]
+  properties:
+    total:    { type: integer, minimum: 0 }
+    imported: { type: integer, minimum: 0 }
+    skipped:  { type: integer, minimum: 0 }
+    errors:   { type: integer, minimum: 0 }
+
+VoucherSale:
+  type: object
+  required: [id, sold_at, username, profile_name]
+  properties:
+    id:              { type: integer, format: int64 }
+    router_id:
+      oneOf:
+        - type: integer
+          format: int64
+        - type: 'null'
+    sold_at:         { type: string, format: date-time }
+    username:        { type: string }
+    profile_name:    { type: string }
+    price:           { type: integer, format: int64 }
+    selling_price:   { type: integer, format: int64 }
+    server:          { type: string }
+    ip_address:      { type: string }
+    mac_address:     { type: string }
+    validity:        { type: string }
+    idempotency_key: { type: string }
+    created_at:      { type: string, format: date-time }
+
+PrintVouchersRequest:
+  type: object
+  description: |
+    Render an HTML page of vouchers for printing. Either `usernames` OR
+    `comment` must be supplied — `usernames` selects specific RouterOS
+    users, `comment` selects all users whose RouterOS comment matches.
+  properties:
+    usernames:
+      type: array
+      items: { type: string, minLength: 1, maxLength: 64 }
+      maxItems: 500
+    comment:
+      type: string
+      maxLength: 200
+    template_type:
+      type: string
+      enum: [default, small, thermal]
+      default: default
+
+PrintData:
+  type: object
+  description: Voucher print payload returned by `GET /vouchers/print-data?gencode=...`.
+  properties:
+    vouchers:
+      type: array
+      items: { $ref: '#/GeneratedVoucher' }
+    router_info:
+      type: object
+      properties:
+        hotspot_name: { type: string }
+        dns_name:     { type: string }
+        currency:     { type: string }
+        phone:        { type: string }
+        email:        { type: string }
+        info_lp:      { type: string }

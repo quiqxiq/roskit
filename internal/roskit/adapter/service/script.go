@@ -109,20 +109,7 @@ func GenerateOnLoginScript(params OnLoginParams) string {
 		mode, validity,
 	)
 
-	safetyNet := ""
-	if price != "0" {
-		safetyNet = fmt.Sprintf(
-			`:local _t [ /system clock get time ]; `+
-				`:local _smac $"mac-address"; `+
-				`:local _mon [:pick $date 0 3]; `+
-				`:local _yr [:pick $date 7 11]; `+
-				`:do {/system script add name="$date-|-$_t-|-$user-|-%s-|-$address-|-$_smac-|-%s-|-%s" `+
-				`owner="$_mon$_yr" comment="mikhmon"} on-error={}; `,
-			price, validity, params.ProfileName,
-		)
-	}
-
-	script := fmt.Sprintf(`%s %s %s %s}%s%s`, fetch, put, expiry, safetyNet, lock, slock)
+	script := fmt.Sprintf(`%s %s %s}%s%s`, fetch, put, expiry, lock, slock)
 	script = strings.ReplaceAll(script, "\n", " ")
 	return script
 }

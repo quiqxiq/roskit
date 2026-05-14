@@ -1,0 +1,393 @@
+openapi: 3.1.0
+
+info:
+  title: Roskit API
+  version: 0.1.0
+  summary: MikroTik RouterOS management API.
+  description: |
+    Roskit exposes hotspot, PPP, network, system, voucher, and reporting
+    operations across MikroTik routers.
+
+    ## Conventions
+
+    - All responses use the same envelope: `{ data, error }`. Exactly one
+      of `data` / `error` is non-null.
+    - Authentication: `Authorization: Bearer <jwt>` issued by `/auth/login`.
+  contact:
+    name: Roskit
+    url: https://github.com/quiqxiq/roskit
+  license:
+    name: See repository LICENSE
+    identifier: LicenseRef-Repo-LICENSE
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://{host}/api/v1
+    description: Production
+    variables:
+      host:
+        default: api.example.com
+        description: Public host where Roskit is deployed.
+
+tags:
+  - name: health
+    description: Liveness / readiness checks. No auth.
+  - name: status
+    description: Public connectivity probe used by the login page.
+  - name: auth
+    description: Login, refresh, logout, password change, first-time setup.
+  - name: settings
+    description: Application settings and logo management (admin only).
+  - name: users
+    description: User management.
+  - name: routers
+    description: Router CRUD, connection test, config migration.
+  - name: hotspot
+    description: MikroTik hotspot users, profiles, sessions, hosts, bindings, walled-garden.
+  - name: ppp
+    description: PPP secrets, profiles, active/inactive sessions.
+  - name: network
+    description: Interfaces, traffic, pools, queues, NAT, DHCP.
+  - name: system
+    description: Router system resource, scheduler, scripts, expire-monitor.
+  - name: vouchers
+    description: Voucher generation, sale recording, printing.
+  - name: templates
+    description: Print template CRUD.
+  - name: reports
+    description: Daily / monthly / dashboard reports + CSV / Excel export.
+  - name: quick-print
+    description: Quick-print package preset CRUD (per router).
+  - name: profile-mappings
+    description: Per-router profile → price/validity mapping.
+  - name: events
+    description: Public webhook from RouterOS (on-login).
+  - name: sse
+    description: Server-Sent Events streams (logs + telemetry).
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: 'components/securitySchemes.yaml#/bearerAuth'
+    webhookToken:
+      $ref: 'components/securitySchemes.yaml#/webhookToken'
+
+  schemas:
+    Envelope:        { $ref: 'components/schemas/common.yaml#/Envelope' }
+    ErrorEnvelope:   { $ref: 'components/schemas/common.yaml#/ErrorEnvelope' }
+    APIError:        { $ref: 'components/schemas/common.yaml#/APIError' }
+    EmptyOK:         { $ref: 'components/schemas/common.yaml#/EmptyOK' }
+    PaginationMeta:  { $ref: 'components/schemas/common.yaml#/PaginationMeta' }
+
+  parameters:
+    RouterId:              { $ref: 'components/parameters.yaml#/RouterId' }
+    UserId:                { $ref: 'components/parameters.yaml#/UserId' }
+    TemplateId:            { $ref: 'components/parameters.yaml#/TemplateId' }
+    GenericResourceId:     { $ref: 'components/parameters.yaml#/GenericResourceId' }
+    InterfaceName:         { $ref: 'components/parameters.yaml#/InterfaceName' }
+    PageQuery:             { $ref: 'components/parameters.yaml#/PageQuery' }
+    LimitQuery:            { $ref: 'components/parameters.yaml#/LimitQuery' }
+
+  responses:
+    BadRequest:    { $ref: 'components/responses.yaml#/BadRequest' }
+    Unauthorized:  { $ref: 'components/responses.yaml#/Unauthorized' }
+    Forbidden:     { $ref: 'components/responses.yaml#/Forbidden' }
+    NotFound:      { $ref: 'components/responses.yaml#/NotFound' }
+    Conflict:      { $ref: 'components/responses.yaml#/Conflict' }
+    RateLimited:   { $ref: 'components/responses.yaml#/RateLimited' }
+    InternalError: { $ref: 'components/responses.yaml#/InternalError' }
+
+paths:
+  /health:
+    get: { $ref: 'paths/health.yaml#/check/get' }
+  /status:
+    get: { $ref: 'paths/status.yaml#/getUserStatus/get' }
+
+  /auth/login:
+    post: { $ref: 'paths/auth.yaml#/login/post' }
+  /auth/refresh:
+    post: { $ref: 'paths/auth.yaml#/refresh/post' }
+  /auth/logout:
+    post: { $ref: 'paths/auth.yaml#/logout/post' }
+  /auth/me:
+    get: { $ref: 'paths/auth.yaml#/me/get' }
+  /auth/password:
+    put: { $ref: 'paths/auth.yaml#/changePassword/put' }
+  /auth/setup:
+    post: { $ref: 'paths/auth.yaml#/setup/post' }
+
+  /settings:
+    get: { $ref: 'paths/settings.yaml#/get/get' }
+    put: { $ref: 'paths/settings.yaml#/update/put' }
+  /settings/logo:
+    get:  { $ref: 'paths/settings.yaml#/getLogo/get' }
+    post: { $ref: 'paths/settings.yaml#/uploadLogo/post' }
+
+  /users:
+    get:  { $ref: 'paths/users.yaml#/list/get' }
+    post: { $ref: 'paths/users.yaml#/create/post' }
+  /users/{id}:
+    get:    { $ref: 'paths/users.yaml#/get/get' }
+    put:    { $ref: 'paths/users.yaml#/update/put' }
+    delete: { $ref: 'paths/users.yaml#/delete/delete' }
+
+  /routers:
+    get:  { $ref: 'paths/routers.yaml#/list/get' }
+    post: { $ref: 'paths/routers.yaml#/create/post' }
+  /routers/migrate:
+    post: { $ref: 'paths/routers.yaml#/migrate/post' }
+  /routers/{routerId}:
+    get:    { $ref: 'paths/routers.yaml#/get/get' }
+    put:    { $ref: 'paths/routers.yaml#/update/put' }
+    delete: { $ref: 'paths/routers.yaml#/delete/delete' }
+  /routers/{routerId}/test:
+    post: { $ref: 'paths/routers.yaml#/testConnection/post' }
+
+  # ----- Hotspot ---------------------------------------------------------------
+  /routers/{routerId}/hotspot/users:
+    get:  { $ref: 'paths/hotspot.yaml#/listUsers/get' }
+    post: { $ref: 'paths/hotspot.yaml#/addUser/post' }
+  /routers/{routerId}/hotspot/users/count:
+    get:  { $ref: 'paths/hotspot.yaml#/getUserCount/get' }
+  /routers/{routerId}/hotspot/users/export:
+    get:  { $ref: 'paths/hotspot.yaml#/exportUsers/get' }
+  /routers/{routerId}/hotspot/users/{id}:
+    get:    { $ref: 'paths/hotspot.yaml#/getUser/get' }
+    put:    { $ref: 'paths/hotspot.yaml#/updateUser/put' }
+    delete: { $ref: 'paths/hotspot.yaml#/removeUser/delete' }
+  /routers/{routerId}/hotspot/users/{id}/reset-counters:
+    post: { $ref: 'paths/hotspot.yaml#/resetUserCounters/post' }
+
+  /routers/{routerId}/hotspot/profiles:
+    get:  { $ref: 'paths/hotspot.yaml#/listProfiles/get' }
+    post: { $ref: 'paths/hotspot.yaml#/addProfile/post' }
+  /routers/{routerId}/hotspot/profiles/{id}:
+    get:    { $ref: 'paths/hotspot.yaml#/getProfile/get' }
+    put:    { $ref: 'paths/hotspot.yaml#/updateProfile/put' }
+    delete: { $ref: 'paths/hotspot.yaml#/removeProfile/delete' }
+  /routers/{routerId}/hotspot/profiles/sync:
+    post: { $ref: 'paths/hotspot.yaml#/syncProfiles/post' }
+
+  /routers/{routerId}/hotspot/active:
+    get: { $ref: 'paths/hotspot.yaml#/listActive/get' }
+  /routers/{routerId}/hotspot/active/{id}:
+    delete: { $ref: 'paths/hotspot.yaml#/removeActive/delete' }
+  /routers/{routerId}/hotspot/active/{id}/disconnect:
+    post: { $ref: 'paths/hotspot.yaml#/disconnectUser/post' }
+
+  /routers/{routerId}/hotspot/inactive:
+    get: { $ref: 'paths/hotspot.yaml#/listInactive/get' }
+  /routers/{routerId}/hotspot/inactive/count:
+    get: { $ref: 'paths/hotspot.yaml#/getInactiveCount/get' }
+
+  /routers/{routerId}/hotspot/hosts:
+    get: { $ref: 'paths/hotspot.yaml#/listHosts/get' }
+  /routers/{routerId}/hotspot/hosts/{id}:
+    delete: { $ref: 'paths/hotspot.yaml#/removeHost/delete' }
+
+  /routers/{routerId}/hotspot/servers:
+    get: { $ref: 'paths/hotspot.yaml#/listServers/get' }
+
+  /routers/{routerId}/hotspot/cookies:
+    get: { $ref: 'paths/hotspot.yaml#/listCookies/get' }
+  /routers/{routerId}/hotspot/cookies/{id}:
+    delete: { $ref: 'paths/hotspot.yaml#/removeCookie/delete' }
+
+  /routers/{routerId}/hotspot/bindings:
+    get:  { $ref: 'paths/hotspot.yaml#/listBindings/get' }
+    post: { $ref: 'paths/hotspot.yaml#/addBinding/post' }
+  /routers/{routerId}/hotspot/bindings/{id}:
+    put:    { $ref: 'paths/hotspot.yaml#/updateBinding/put' }
+    delete: { $ref: 'paths/hotspot.yaml#/removeBinding/delete' }
+  /routers/{routerId}/hotspot/bindings/{id}/enable:
+    post: { $ref: 'paths/hotspot.yaml#/enableBinding/post' }
+  /routers/{routerId}/hotspot/bindings/{id}/disable:
+    post: { $ref: 'paths/hotspot.yaml#/disableBinding/post' }
+
+  /routers/{routerId}/hotspot/walled-garden:
+    get:  { $ref: 'paths/hotspot.yaml#/listWalledGarden/get' }
+    post: { $ref: 'paths/hotspot.yaml#/addWalledGarden/post' }
+  /routers/{routerId}/hotspot/walled-garden/{wid}:
+    delete: { $ref: 'paths/hotspot.yaml#/removeWalledGarden/delete' }
+  /routers/{routerId}/hotspot/walled-garden-ip:
+    get:  { $ref: 'paths/hotspot.yaml#/listWalledGardenIP/get' }
+    post: { $ref: 'paths/hotspot.yaml#/addWalledGardenIP/post' }
+  /routers/{routerId}/hotspot/walled-garden-ip/{wid}:
+    delete: { $ref: 'paths/hotspot.yaml#/removeWalledGardenIP/delete' }
+
+  # ----- PPP -------------------------------------------------------------------
+  /routers/{routerId}/ppp/secrets:
+    get:  { $ref: 'paths/ppp.yaml#/listSecrets/get' }
+    post: { $ref: 'paths/ppp.yaml#/addSecret/post' }
+  /routers/{routerId}/ppp/secrets/{id}:
+    put:    { $ref: 'paths/ppp.yaml#/updateSecret/put' }
+    delete: { $ref: 'paths/ppp.yaml#/removeSecret/delete' }
+  /routers/{routerId}/ppp/active:
+    get: { $ref: 'paths/ppp.yaml#/listActive/get' }
+  /routers/{routerId}/ppp/active/{id}:
+    delete: { $ref: 'paths/ppp.yaml#/disconnectActive/delete' }
+  /routers/{routerId}/ppp/inactive:
+    get: { $ref: 'paths/ppp.yaml#/listInactive/get' }
+  /routers/{routerId}/ppp/inactive/count:
+    get: { $ref: 'paths/ppp.yaml#/getInactiveCount/get' }
+  /routers/{routerId}/ppp/profiles:
+    get: { $ref: 'paths/ppp.yaml#/listProfiles/get' }
+
+  # ----- Network ---------------------------------------------------------------
+  /routers/{routerId}/network/interfaces:
+    get: { $ref: 'paths/network.yaml#/listInterfaces/get' }
+  /routers/{routerId}/network/traffic/{iface}:
+    get: { $ref: 'paths/network.yaml#/getInterfaceTraffic/get' }
+  /routers/{routerId}/network/pools:
+    get: { $ref: 'paths/network.yaml#/listPools/get' }
+  /routers/{routerId}/network/queues:
+    get: { $ref: 'paths/network.yaml#/listQueues/get' }
+  /routers/{routerId}/network/nat:
+    get: { $ref: 'paths/network.yaml#/listNATRules/get' }
+  /routers/{routerId}/network/dhcp/leases:
+    get: { $ref: 'paths/network.yaml#/listDHCPLeases/get' }
+  /routers/{routerId}/network/dhcp/{id}/release:
+    delete: { $ref: 'paths/network.yaml#/releaseDHCPLease/delete' }
+
+  # ----- System ----------------------------------------------------------------
+  /routers/{routerId}/system/resource:
+    get: { $ref: 'paths/system.yaml#/getResource/get' }
+  /routers/{routerId}/system/resource/history:
+    get: { $ref: 'paths/system.yaml#/getResourceHistory/get' }
+  /routers/{routerId}/system/log:
+    get: { $ref: 'paths/system.yaml#/getLog/get' }
+  /routers/{routerId}/system/clock:
+    get: { $ref: 'paths/system.yaml#/getClock/get' }
+  /routers/{routerId}/system/identity:
+    get: { $ref: 'paths/system.yaml#/getIdentity/get' }
+  /routers/{routerId}/system/routerboard:
+    get: { $ref: 'paths/system.yaml#/getRouterboard/get' }
+  /routers/{routerId}/system/reboot:
+    post: { $ref: 'paths/system.yaml#/reboot/post' }
+  /routers/{routerId}/system/shutdown:
+    post: { $ref: 'paths/system.yaml#/shutdown/post' }
+  /routers/{routerId}/system/expire-monitor:
+    get: { $ref: 'paths/system.yaml#/getExpireMonitor/get' }
+  /routers/{routerId}/system/expire-monitor/deploy:
+    post: { $ref: 'paths/system.yaml#/deployExpireMonitor/post' }
+  /routers/{routerId}/system/expire-monitor/remove:
+    post: { $ref: 'paths/system.yaml#/removeExpireMonitor/post' }
+  /routers/{routerId}/system/schedulers:
+    get:  { $ref: 'paths/system.yaml#/listSchedulers/get' }
+    post: { $ref: 'paths/system.yaml#/createScheduler/post' }
+  /routers/{routerId}/system/schedulers/{schedulerId}:
+    put:    { $ref: 'paths/system.yaml#/updateScheduler/put' }
+    delete: { $ref: 'paths/system.yaml#/deleteScheduler/delete' }
+  /routers/{routerId}/system/schedulers/{schedulerId}/enable:
+    post: { $ref: 'paths/system.yaml#/enableSchedulerByID/post' }
+  /routers/{routerId}/system/schedulers/{schedulerId}/disable:
+    post: { $ref: 'paths/system.yaml#/disableSchedulerByID/post' }
+  /routers/{routerId}/system/scripts:
+    get:  { $ref: 'paths/system.yaml#/listScripts/get' }
+    post: { $ref: 'paths/system.yaml#/createScript/post' }
+  /routers/{routerId}/system/scripts/{scriptId}:
+    put:    { $ref: 'paths/system.yaml#/updateScript/put' }
+    delete: { $ref: 'paths/system.yaml#/deleteScript/delete' }
+  /routers/{routerId}/system/scripts/{scriptId}/run:
+    post: { $ref: 'paths/system.yaml#/runScriptByID/post' }
+  /routers/{routerId}/system/setup-logging:
+    post: { $ref: 'paths/system.yaml#/setupLogging/post' }
+  /routers/{routerId}/system/dashboard:
+    get: { $ref: 'paths/system.yaml#/getDashboard/get' }
+
+  # ----- Vouchers --------------------------------------------------------------
+  /routers/{routerId}/vouchers/generate:
+    post: { $ref: 'paths/voucher.yaml#/generate/post' }
+  /routers/{routerId}/vouchers/cache:
+    post: { $ref: 'paths/voucher.yaml#/cacheVoucher/post' }
+  /routers/{routerId}/vouchers/print-data:
+    get:  { $ref: 'paths/voucher.yaml#/printData/get' }
+  /routers/{routerId}/vouchers/sales:
+    post: { $ref: 'paths/voucher.yaml#/recordSale/post' }
+  /routers/{routerId}/vouchers/import:
+    post: { $ref: 'paths/voucher.yaml#/importSales/post' }
+  /routers/{routerId}/vouchers/print:
+    post: { $ref: 'paths/voucher.yaml#/printVouchers/post' }
+
+  # ----- Templates -------------------------------------------------------------
+  /templates:
+    get:  { $ref: 'paths/template.yaml#/list/get' }
+    post: { $ref: 'paths/template.yaml#/create/post' }
+  /templates/{templateId}:
+    get:    { $ref: 'paths/template.yaml#/get/get' }
+    put:    { $ref: 'paths/template.yaml#/update/put' }
+    delete: { $ref: 'paths/template.yaml#/delete/delete' }
+  /templates/render:
+    post: { $ref: 'paths/template.yaml#/render/post' }
+  /templates/seed-defaults:
+    post: { $ref: 'paths/template.yaml#/seedDefaults/post' }
+
+  # ----- Reports ---------------------------------------------------------------
+  /routers/{routerId}/reports/daily:
+    get: { $ref: 'paths/report.yaml#/getDailyReport/get' }
+  /routers/{routerId}/reports/monthly:
+    get: { $ref: 'paths/report.yaml#/getMonthlyReport/get' }
+  /routers/{routerId}/reports/resume:
+    get: { $ref: 'paths/report.yaml#/getResumeReport/get' }
+  /routers/{routerId}/reports/summary:
+    get: { $ref: 'paths/report.yaml#/getDashboardSummary/get' }
+  /routers/{routerId}/reports/export/csv:
+    get: { $ref: 'paths/report.yaml#/exportCSV/get' }
+  /routers/{routerId}/reports/export/excel:
+    get: { $ref: 'paths/report.yaml#/exportExcel/get' }
+
+  # ----- Quick-print presets ---------------------------------------------------
+  /routers/{routerId}/quick-print:
+    get:  { $ref: 'paths/quickprint.yaml#/listPackages/get' }
+    post: { $ref: 'paths/quickprint.yaml#/createPackage/post' }
+  /routers/{routerId}/quick-print/{name}:
+    get:    { $ref: 'paths/quickprint.yaml#/getPackage/get' }
+    put:    { $ref: 'paths/quickprint.yaml#/updatePackage/put' }
+    delete: { $ref: 'paths/quickprint.yaml#/removePackage/delete' }
+
+  # ----- Profile-mappings ------------------------------------------------------
+  /routers/{routerId}/profile-mappings:
+    get: { $ref: 'paths/profile_mapping.yaml#/list/get' }
+  /routers/{routerId}/profile-mappings/{profileName}:
+    put:    { $ref: 'paths/profile_mapping.yaml#/update/put' }
+    delete: { $ref: 'paths/profile_mapping.yaml#/delete/delete' }
+
+  # ----- Events (webhook) ------------------------------------------------------
+  /events/on-login:
+    post: { $ref: 'paths/event.yaml#/onLogin/post' }
+  /events/health:
+    get:  { $ref: 'paths/event.yaml#/healthCheck/get' }
+
+  # ----- SSE streams -----------------------------------------------------------
+  /routers/{routerId}/logs/stream/all:
+    get: { $ref: 'paths/sse.yaml#/logsAll/get' }
+  /routers/{routerId}/logs/stream/hotspot:
+    get: { $ref: 'paths/sse.yaml#/logsHotspot/get' }
+  /routers/{routerId}/logs/stream/ppp:
+    get: { $ref: 'paths/sse.yaml#/logsPPP/get' }
+  /routers/{routerId}/sse/hotspot/users:
+    get: { $ref: 'paths/sse.yaml#/hotspotUsers/get' }
+  /routers/{routerId}/sse/hotspot/active:
+    get: { $ref: 'paths/sse.yaml#/hotspotActive/get' }
+  /routers/{routerId}/sse/hotspot/inactive:
+    get: { $ref: 'paths/sse.yaml#/hotspotInactive/get' }
+  /routers/{routerId}/sse/hotspot/bindings:
+    get: { $ref: 'paths/sse.yaml#/bindings/get' }
+  /routers/{routerId}/sse/ppp/secrets:
+    get: { $ref: 'paths/sse.yaml#/pppSecrets/get' }
+  /routers/{routerId}/sse/ppp/active:
+    get: { $ref: 'paths/sse.yaml#/pppActive/get' }
+  /routers/{routerId}/sse/ppp/inactive:
+    get: { $ref: 'paths/sse.yaml#/pppInactive/get' }
+  /routers/{routerId}/sse/system/resource:
+    get: { $ref: 'paths/sse.yaml#/systemResource/get' }
+  /routers/{routerId}/sse/network/traffic/{iface}:
+    get: { $ref: 'paths/sse.yaml#/interfaceTraffic/get' }
+  /routers/{routerId}/sse/network/dhcp/leases:
+    get: { $ref: 'paths/sse.yaml#/dhcpLeases/get' }
+  /routers/{routerId}/sse/ping:
+    get: { $ref: 'paths/sse.yaml#/ping/get' }

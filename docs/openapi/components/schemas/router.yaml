@@ -1,0 +1,115 @@
+# Router schemas. Source: internal/models/router.go +
+# internal/services/router_service.go.
+#
+# `password` and `ssh_password` are encrypted server-side and `json:"-"`
+# — they never appear in API responses. Only the public view is exposed.
+
+RouterStatus:
+  type: string
+  enum: [unknown, connecting, connected, disconnected, auth_failed]
+
+RouterPublicView:
+  type: object
+  required: [id, name, ip_address, api_port, api_username, status]
+  description: |
+    Public-facing router shape. Sensitive fields (encrypted password,
+    SSH password) are stripped before serialisation.
+  properties:
+    id:           { type: integer, format: int64, example: 7 }
+    name:         { type: string, example: hotspot-1 }
+    ip_address:   { type: string, example: 192.168.88.1 }
+    api_port:     { type: integer, minimum: 1, maximum: 65535, example: 8728 }
+    api_username: { type: string, example: api }
+    status:       { $ref: '#/RouterStatus' }
+    last_seen_at:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+    notes:
+      oneOf:
+        - type: string
+        - type: 'null'
+
+CreateRouterRequest:
+  type: object
+  required: [name, ip_address, api_username, password]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Unique display name.
+    ip_address:
+      type: string
+      maxLength: 255
+      description: |
+        Accepts an IP, hostname, or `host:port` form. The service layer
+        normalises and persists the IP/host separately from `api_port`.
+      example: 192.168.88.1
+    api_port:
+      type: integer
+      minimum: 1
+      maximum: 65535
+      default: 8728
+    api_username:
+      type: string
+      minLength: 1
+      maxLength: 64
+    password:
+      type: string
+      minLength: 1
+      maxLength: 128
+      format: password
+      description: Stored AES-encrypted at rest; never returned in responses.
+    notes:
+      type: string
+      maxLength: 500
+
+UpdateRouterRequest:
+  type: object
+  description: Partial router update. Only fields provided are persisted.
+  properties:
+    name:         { type: string, minLength: 1, maxLength: 100 }
+    ip_address:   { type: string, maxLength: 255 }
+    api_port:     { type: integer, minimum: 1, maximum: 65535 }
+    api_username: { type: string, minLength: 1, maxLength: 64 }
+    password:     { type: string, minLength: 1, maxLength: 128, format: password }
+    notes:        { type: string, maxLength: 500 }
+
+ConnectionTestResult:
+  type: object
+  required: [connected, latency_ms]
+  description: |
+    Result of an active TCP+API probe to the router. `connected: true`
+    means the API replied to `/system/identity/print` within the
+    configured timeout.
+  properties:
+    connected:        { type: boolean }
+    latency_ms:       { type: integer, format: int64, minimum: 0 }
+    routeros_version: { type: string, example: 7.20.8 }
+    board_model:      { type: string, example: 'CCR1009-7G-1C-1S+' }
+    identity:         { type: string, example: MikroTik }
+    error:            { type: string, description: 'Populated only when `connected: false`.' }
+
+MigrationResult:
+  type: object
+  required: [total, imported, skipped, errors]
+  description: |
+    Summary of `POST /routers/migrate` — imports legacy MIKHMON
+    `config.php` data into the router/profile tables.
+  properties:
+    total:    { type: integer, minimum: 0 }
+    imported: { type: integer, minimum: 0 }
+    skipped:  { type: integer, minimum: 0 }
+    errors:   { type: integer, minimum: 0 }
+
+MigrateRequest:
+  type: object
+  required: [file_path]
+  properties:
+    file_path:
+      type: string
+      minLength: 1
+      maxLength: 512
+      description: Server-side filesystem path to the legacy `config.php`.

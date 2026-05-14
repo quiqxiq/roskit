@@ -10,7 +10,7 @@ COMPOSE_PRD := docker compose -f docker/docker-compose.yml
 API_URL     := http://localhost:8080
 
 .PHONY: all build build-api build-migrate build-worker build-seed \
-        run docker-up docker-down docker-logs docker-build docker-clean \
+        run docker-up docker-down docker-logs docker-build docker-clean docker-rebuild \
         migrate-up migrate-import sync-profiles seed seed-docker \
         test test-mikrotik test-redis test-influxdb test-integration \
         clean env curl-health curl-setup curl-login \
@@ -66,6 +66,15 @@ docker-logs:
 
 docker-clean:
 	$(COMPOSE) down -v --remove-orphans
+
+docker-rebuild: docker-down docker-clean
+	$(COMPOSE) up -d --build
+	@echo "Waiting for api container to be ready..."
+	@until $(COMPOSE) exec -T api echo "ready" 2>/dev/null; do sleep 2; done
+	$(COMPOSE) exec api /migrate up
+	$(COMPOSE) exec api /seed
+	$(COMPOSE) restart api
+	@echo "Rebuild complete. API is ready."
 
 # Run migrations inside the running api container
 migrate-up-docker:

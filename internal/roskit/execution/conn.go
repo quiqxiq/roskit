@@ -3,7 +3,9 @@ package execution
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,6 +100,13 @@ func (pc *PersistentConn) ConnectWithBackoff(ctx context.Context) error {
 			return ErrAuthFailed
 		}
 
+		pc.mu.RLock()
+		if pc.closed {
+			pc.mu.RUnlock()
+			return err
+		}
+		pc.mu.RUnlock()
+
 		shift := attempt
 		if shift > 5 {
 			shift = 5
@@ -162,8 +171,16 @@ func (pc *PersistentConn) State() ConnState {
 func (pc *PersistentConn) watchAsync(errCh <-chan error) {
 	select {
 	case err := <-errCh:
+		pc.mu.RLock()
+		wasClosed := pc.closed
+		pc.mu.RUnlock()
+
 		if err != nil {
-			pc.logger.Warn("async loop ended", "err", err)
+			if wasClosed || isRoutineDisconnect(err) {
+				pc.logger.Debug("async loop ended", "err", err)
+			} else {
+				pc.logger.Warn("async loop ended (unexpected)", "err", err)
+			}
 		}
 	case <-pc.asyncCtx.Done():
 		return
@@ -187,7 +204,14 @@ func (pc *PersistentConn) reconnect() {
 	pc.logger.Info("reconnecting")
 	err := pc.ConnectWithBackoff(pc.asyncCtx)
 	if err != nil {
-		pc.logger.Error("reconnect gave up", "err", err)
+		pc.mu.RLock()
+		wasClosed := pc.closed
+		pc.mu.RUnlock()
+		if wasClosed {
+			pc.logger.Debug("reconnect skipped (closed)", "err", err)
+		} else {
+			pc.logger.Error("reconnect gave up", "err", err)
+		}
 	}
 }
 
@@ -204,4 +228,17 @@ func (pc *PersistentConn) Close() {
 		conn.Close()
 	}
 	pc.logger.Info("closed")
+}
+
+func isRoutineDisconnect(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err == io.EOF {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "connection reset by peer") ||
+		strings.Contains(msg, "use of closed network connection") ||
+		strings.Contains(msg, "EOF")
 }

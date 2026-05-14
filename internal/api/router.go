@@ -65,8 +65,9 @@ func NewRouter(
 	networkH := handlers.NewNetworkHandler(bridge)
 	qpH := handlers.NewQuickPrintHandler(bridge)
 	templateH := handlers.NewTemplateHandler(templateSvc, voucherSvc, settingsRepo)
-	logSSEH := sse.NewLogSSEHandler(subscriber, bridge)
-	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber)
+	logSSEH := sse.NewLogSSEHandler(bridge)
+	telemetrySSEH := sse.NewTelemetrySSEHandler(subscriber, bridge)
+	pingSSEH := sse.NewPingSSEHandler(bridge)
 	statusSvc := services.NewStatusService(routerRepo, bridge)
 	statusH := handlers.NewStatusHandler(statusSvc)
 	healthH := handlers.NewHealthHandler(db, cache, bridge)
@@ -289,6 +290,9 @@ func NewRouter(
 				routerOne.GET("/logs/stream/hotspot", logSSEH.StreamHotspot)
 				routerOne.GET("/logs/stream/ppp", logSSEH.StreamPPP)
 
+				// Ping SSE
+				routerOne.GET("/sse/ping", pingSSEH.Stream)
+
 				// Telemetry SSE
 				routerOne.GET("/sse/hotspot/users", telemetrySSEH.Stream("hotspot_user"))
 				routerOne.GET("/sse/hotspot/active", telemetrySSEH.Stream("hotspot_active"))
@@ -298,7 +302,7 @@ func NewRouter(
 				routerOne.GET("/sse/ppp/active", telemetrySSEH.Stream("ppp_active"))
 				routerOne.GET("/sse/ppp/inactive", telemetrySSEH.Stream("ppp_inactive"))
 				routerOne.GET("/sse/system/resource", telemetrySSEH.Stream("system_resource"))
-				routerOne.GET("/sse/network/traffic/:iface", telemetrySSEH.Stream("interface_traffic"))
+				routerOne.GET("/sse/network/traffic/:iface", telemetrySSEH.StreamInterface)
 				routerOne.GET("/sse/network/dhcp/leases", telemetrySSEH.Stream("dhcp_lease"))
 
 				// Profile mappings

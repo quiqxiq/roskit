@@ -1,0 +1,155 @@
+# Hotspot domain schemas.
+#
+# Most hotspot endpoints return RouterOS sentence pairs verbatim — a
+# `map[string]string` with hyphenated MikroTik keys (e.g. `mac-address`,
+# `bytes-in`). We document this via the shared `RouterOSRecord` schema
+# in `common.yaml`, with the most common keys called out as `properties`
+# so the generated docs/Swagger UI shows them while still allowing extras.
+#
+# `ProfileWithMeta` is the only typed response — profiles get enriched
+# with mapping metadata from the local DB (price, validity, etc.).
+#
+# Source:
+#   internal/roskit/core/model/hotspot.go (cache/wire field map)
+#   internal/services/hotspot_service.go (ProfileParams, ProfileWithMeta)
+
+HotspotUserRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:              { type: string, example: voucher-7g3pq }
+        password:          { type: string, example: 7g3pq }
+        profile:           { type: string, example: 1d-1mbps }
+        server:            { type: string, example: hotspot1 }
+        mac-address:       { type: string, example: '00:11:22:33:44:55' }
+        limit-uptime:      { type: string, example: 1d }
+        limit-bytes-total: { type: string, example: '0' }
+        bytes-in:          { type: string, example: '15823234' }
+        bytes-out:         { type: string, example: '982341' }
+        uptime:            { type: string, example: 1h12m }
+        disabled:          { type: string, enum: ['true', 'false'] }
+        comment:           { type: string }
+
+HotspotActiveRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        user:              { type: string, example: voucher-7g3pq }
+        address:           { type: string, example: 10.5.50.23 }
+        mac-address:       { type: string, example: '00:11:22:33:44:55' }
+        server:            { type: string, example: hotspot1 }
+        uptime:            { type: string, example: 1h12m }
+        session-time-left: { type: string, example: 22h47m }
+        keepalive-timeout: { type: string }
+        login-by:          { type: string, example: 'http-chap' }
+
+HotspotProfileParams:
+  type: object
+  required: [name]
+  description: Request body for creating or updating a hotspot profile.
+  properties:
+    name:          { type: string, minLength: 1, maxLength: 64 }
+    rate_limit:    { type: string, maxLength: 64, example: '1M/2M' }
+    address_pool:  { type: string, maxLength: 64 }
+    shared_users:  { type: string, maxLength: 8, example: '1' }
+    parent_queue:  { type: string, maxLength: 64 }
+    price:         { type: integer, format: int64, minimum: 0 }
+    selling_price: { type: integer, format: int64, minimum: 0 }
+    validity:      { type: string, maxLength: 64, example: 1d }
+    expire_mode:   { type: string, maxLength: 32 }
+    lock_user:     { type: string, maxLength: 16, example: 'enable' }
+    lock_server:   { type: string, maxLength: 16, example: 'enable' }
+
+ProfileWithMeta:
+  type: object
+  required: [id, name]
+  description: |
+    Hotspot profile augmented with profile-mapping metadata
+    (price, validity, exp-mode, lock-user, lock-server). Use this shape
+    for `/hotspot/profiles` GET responses; mutation endpoints return
+    `RouterOSRecord` with the freshly-set fields.
+  properties:
+    id:                 { type: string, example: '*A1' }
+    name:               { type: string, example: 1d-1mbps }
+    address_pool:       { type: string }
+    rate_limit:         { type: string, example: '1M/2M' }
+    shared_users:       { type: string, example: '1' }
+    status_autorefresh: { type: string }
+    on_login:           { type: string }
+    on_logout:          { type: string }
+    parent_queue:       { type: string }
+    exp_mode:           { type: string, example: 'rem' }
+    price:              { type: string, example: '5000' }
+    selling_price:      { type: string, example: '7500' }
+    validity:           { type: string, example: 1d }
+    no_expiry:          { type: boolean }
+    lock_user:          { type: string }
+    lock_server:        { type: string }
+
+HotspotHostRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        mac-address: { type: string }
+        address:     { type: string }
+        server:      { type: string }
+        to-address:  { type: string }
+        authorized:  { type: string, enum: ['true', 'false'] }
+
+HotspotCookieRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        user:        { type: string }
+        mac-address: { type: string }
+        address:     { type: string }
+
+HotspotServerRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:      { type: string, example: hotspot1 }
+        interface: { type: string, example: ether1 }
+        disabled:  { type: string, enum: ['true', 'false'] }
+
+IPBindingRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        mac-address: { type: string, example: '00:11:22:33:44:55' }
+        address:     { type: string, example: 10.5.50.23 }
+        type:        { type: string, enum: [regular, blocked, bypassed] }
+        disabled:    { type: string, enum: ['true', 'false'] }
+        comment:     { type: string }
+
+WalledGardenRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        dst-host:   { type: string, example: 'youtube.com' }
+        dst-port:   { type: string, example: '443' }
+        src-address: { type: string }
+        protocol:   { type: string, example: tcp }
+        action:     { type: string, enum: [allow, deny], example: allow }
+        comment:    { type: string }
+        disabled:   { type: string, enum: ['true', 'false'] }
+        server:     { type: string }
+
+WalledGardenIPRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        dst-address: { type: string, example: '142.250.0.0/15' }
+        dst-port:    { type: string }
+        protocol:    { type: string }
+        action:      { type: string, enum: [accept, drop] }
+        comment:     { type: string }
+        disabled:    { type: string, enum: ['true', 'false'] }

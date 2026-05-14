@@ -1,0 +1,100 @@
+# /settings and /settings/logo operations.
+# Source: internal/api/handlers/settings_handler.go.
+# Admin-only (RequireRole admin middleware).
+
+get:
+  get:
+    operationId: getSettings
+    summary: Get application settings
+    tags: [settings]
+    description: Returns the global Settings singleton.
+    responses:
+      '200':
+        description: Settings object.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/settings.yaml#/Settings' }
+                error: { type: 'null' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+update:
+  put:
+    operationId: updateSettings
+    summary: Update application settings (partial)
+    tags: [settings]
+    description: Partial update — only fields supplied in the body are changed.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/settings.yaml#/UpdateSettingsRequest' }
+    responses:
+      '200':
+        description: Updated settings.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/settings.yaml#/Settings' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+uploadLogo:
+  post:
+    operationId: uploadLogo
+    summary: Upload a logo image
+    tags: [settings]
+    description: |
+      Accepts a `multipart/form-data` body. The uploaded file is stored
+      server-side and referenced by `settings.logo_path`. Use
+      `GET /settings/logo` to fetch it back.
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [logo]
+            properties:
+              logo:
+                type: string
+                format: binary
+    responses:
+      '200':
+        description: Logo accepted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: logo uploaded }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '401': { $ref: '../components/responses.yaml#/Unauthorized' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+getLogo:
+  get:
+    operationId: getLogo
+    summary: Download the logo
+    tags: [settings]
+    description: Returns the raw image bytes; the Content-Type header reflects the stored format.
+    responses:
+      '200':
+        description: Binary logo image.
+        content:
+          image/png:  { schema: { type: string, format: binary } }
+          image/jpeg: { schema: { type: string, format: binary } }
+          image/webp: { schema: { type: string, format: binary } }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

@@ -1,0 +1,532 @@
+# /routers/{routerId}/system/* operations.
+# Source: internal/api/handlers/system_handler.go.
+
+getResource:
+  get:
+    operationId: getSystemResource
+    summary: Live `/system/resource/print` snapshot
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Resource snapshot.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/system.yaml#/SystemResource' }
+                error: { type: 'null' }
+
+getResourceHistory:
+  get:
+    operationId: getSystemResourceHistory
+    summary: Time-series CPU + memory history (from InfluxDB)
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: range
+        schema:
+          type: string
+          enum: ['15m', '1h', '6h', '12h', '24h', '7d', '30d']
+          default: '24h'
+        description: Look-back window served by the time-series reader.
+      - in: query
+        name: step
+        schema:
+          type: string
+          example: '5m'
+        description: |
+          Aggregation bucket size (e.g. `1m`, `5m`, `15m`, `1h`).
+          When omitted the server picks a sensible default based on `range`.
+    responses:
+      '200':
+        description: History points.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/system.yaml#/SystemResourceHistoryPoint' }
+                error: { type: 'null' }
+
+getLog:
+  get:
+    operationId: getSystemLog
+    summary: Read RouterOS `/log/print` rows
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: limit
+        schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+    responses:
+      '200':
+        description: Log rows newest first.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/system.yaml#/SystemLogEntry' }
+                error: { type: 'null' }
+
+getClock:
+  get:
+    operationId: getSystemClock
+    summary: Get router clock + timezone
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Clock snapshot.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/system.yaml#/SystemClock' }
+                error: { type: 'null' }
+
+getIdentity:
+  get:
+    operationId: getSystemIdentity
+    summary: Get router identity (name)
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Identity.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/system.yaml#/SystemIdentity' }
+                error: { type: 'null' }
+
+getRouterboard:
+  get:
+    operationId: getRouterboard
+    summary: Get RouterBoard hardware/firmware info
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: RouterBoard info.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/system.yaml#/SystemRouterboard' }
+                error: { type: 'null' }
+
+reboot:
+  post:
+    operationId: rebootRouter
+    summary: Reboot the router (destructive)
+    tags: [system]
+    description: Issues `/system/reboot`. Connection drops; pool reconnects automatically.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Reboot command accepted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: reboot initiated }
+              error: null
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+shutdown:
+  post:
+    operationId: shutdownRouter
+    summary: Shutdown the router (destructive)
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Shutdown accepted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: shutdown scheduled }
+              error: null
+
+getExpireMonitor:
+  get:
+    operationId: getExpireMonitor
+    summary: Inspect the expire-monitor scheduler state
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: |
+          Raw RouterOS scheduler record for the expire-monitor job,
+          or an empty object when the scheduler does not exist.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/common.yaml#/RouterOSRecord' }
+                error: { type: 'null' }
+
+deployExpireMonitor:
+  post:
+    operationId: deployExpireMonitor
+    summary: Deploy or refresh the auto-expire scheduler
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/system.yaml#/DeployExpireMonitorRequest' }
+          example:
+            interval: 5m
+    responses:
+      '200':
+        description: Monitor deployed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'expire monitor deployed' }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+removeExpireMonitor:
+  post:
+    operationId: removeExpireMonitor
+    summary: Remove the auto-expire scheduler
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'expire monitor removed' }
+              error: null
+
+listSchedulers:
+  get:
+    operationId: listSchedulers
+    summary: List `/system/scheduler` entries
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Schedulers.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/system.yaml#/SchedulerRecord' }
+                error: { type: 'null' }
+
+createScheduler:
+  post:
+    operationId: createScheduler
+    summary: Create a `/system/scheduler` entry
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              name: nightly-cleanup
+              on-event: 'log info "cleanup"'
+              interval: 1d
+    responses:
+      '201':
+        description: Created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties: { id: { type: string } }
+                error: { type: 'null' }
+
+updateScheduler:
+  put:
+    operationId: updateScheduler
+    summary: Update a scheduler (partial)
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: schedulerId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'scheduler updated' }
+              error: null
+
+deleteScheduler:
+  delete:
+    operationId: deleteScheduler
+    summary: Delete a scheduler
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: schedulerId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'scheduler deleted' }
+              error: null
+
+enableSchedulerByID:
+  post:
+    operationId: enableScheduler
+    summary: Enable a scheduler
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: schedulerId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    responses:
+      '200':
+        description: Enabled.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'scheduler enabled' }
+              error: null
+
+disableSchedulerByID:
+  post:
+    operationId: disableScheduler
+    summary: Disable a scheduler
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: schedulerId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    responses:
+      '200':
+        description: Disabled.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'scheduler disabled' }
+              error: null
+
+listScripts:
+  get:
+    operationId: listScripts
+    summary: List `/system/script` entries
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Scripts.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/system.yaml#/ScriptRecord' }
+                error: { type: 'null' }
+
+createScript:
+  post:
+    operationId: createScript
+    summary: Create a `/system/script` entry
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              name: cleanup
+              source: ':log info "cleanup"'
+    responses:
+      '201':
+        description: Created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties: { id: { type: string } }
+                error: { type: 'null' }
+
+updateScript:
+  put:
+    operationId: updateScript
+    summary: Update a script (partial)
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: scriptId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'script updated' }
+              error: null
+
+deleteScript:
+  delete:
+    operationId: deleteScript
+    summary: Delete a script
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: scriptId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'script deleted' }
+              error: null
+
+runScriptByID:
+  post:
+    operationId: runScript
+    summary: Run a script on the router
+    tags: [system]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: scriptId
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    responses:
+      '200':
+        description: Script invoked. Output (if any) returned in `data.output`.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties:
+                    output: { type: string }
+                error: { type: 'null' }
+
+setupLogging:
+  post:
+    operationId: setupSystemLogging
+    summary: Configure RouterOS log topics for Roskit ingestion
+    tags: [system]
+    description: |
+      Idempotent — adds the `system,info` and `hotspot,info` rules that
+      Roskit expects when ingesting `/log/listen`. Safe to re-run.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Logging rules ensured.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'logging configured' }
+              error: null
+
+getDashboard:
+  get:
+    operationId: getRouterDashboard
+    summary: Aggregated dashboard summary for one router
+    tags: [system]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Dashboard summary.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/system.yaml#/RouterDashboard' }
+                error: { type: 'null' }

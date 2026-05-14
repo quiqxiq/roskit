@@ -13,6 +13,18 @@ func init() {
 	RegisterStreamParser("ip_pool", parseIPPool)
 	RegisterStreamParser("firewall_nat", parseFirewallNAT)
 	RegisterStreamParser("queue_simple", parseQueueSimple)
+	RegisterStreamParser("interface_traffic", parseInterfaceTraffic)
+}
+
+func parseInterfaceTraffic(_ string, pairs map[string]string) *ParseResult {
+	name := pairs["name"]
+	if name == "" {
+		name = "singleton"
+	}
+	return &ParseResult{
+		EntityID:  name,
+		CacheData: pairs,
+	}
 }
 
 func parseInterface(_ string, pairs map[string]string) *ParseResult {

@@ -1,0 +1,913 @@
+# /routers/{routerId}/hotspot/* operations.
+# Source: internal/api/handlers/hotspot_handler.go +
+#         internal/roskit/adapter/service/hotspot.go.
+
+# ===== Users ==================================================================
+
+listUsers:
+  get:
+    operationId: listHotspotUsers
+    summary: List hotspot users
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: profile
+        schema: { type: string }
+        description: Filter by profile name.
+    responses:
+      '200':
+        description: Array of hotspot users (raw RouterOS records).
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/HotspotUserRecord' }
+                error: { type: 'null' }
+            example:
+              data:
+                - .id: '*A1'
+                  name: voucher-7g3pq
+                  password: 7g3pq
+                  profile: 1d-1mbps
+                  server: hotspot1
+                  mac-address: '00:11:22:33:44:55'
+                  bytes-in: '15823234'
+                  bytes-out: '982341'
+                  disabled: 'false'
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+getUserCount:
+  get:
+    operationId: getHotspotUserCount
+    summary: Total hotspot user count
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: profile
+        schema: { type: string }
+        description: Optional — count only users in this profile.
+    responses:
+      '200':
+        description: Count.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  required: [count]
+                  properties:
+                    count: { type: integer, format: int64, minimum: 0 }
+                error: { type: 'null' }
+            example:
+              data: { count: 42 }
+              error: null
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+exportUsers:
+  get:
+    operationId: exportHotspotUsers
+    summary: Export hotspot users (CSV or RouterOS script)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: profile
+        schema: { type: string }
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum: [csv, script]
+          default: script
+        description: |
+          `csv` returns a CSV download. `script` (default) returns a
+          RouterOS `/ip/hotspot/user/add` script that can be pasted
+          directly into a terminal.
+    responses:
+      '200':
+        description: |
+          Response type depends on `format`:
+          - `csv` → `text/csv` with `Content-Disposition: attachment`
+          - `script` → `text/plain` with raw RouterOS commands
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+          text/plain:
+            schema:
+              type: string
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+getUser:
+  get:
+    operationId: getHotspotUser
+    summary: Get a hotspot user by RouterOS ID or name
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+        description: RouterOS `.id` (starts with `*`) or the user name.
+    responses:
+      '200':
+        description: User record.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/hotspot.yaml#/HotspotUserRecord' }
+                error: { type: 'null' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+addUser:
+  post:
+    operationId: addHotspotUser
+    summary: Create a hotspot user
+    tags: [hotspot]
+    description: |
+      Body is a free-form `name → value` map mirroring RouterOS
+      `/ip/hotspot/user/add` arguments. Common keys: `name`, `password`,
+      `profile`, `server`, `mac-address`, `limit-uptime`,
+      `limit-bytes-total`, `comment`.
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              name: alice
+              password: hunter2
+              profile: 1d-1mbps
+              server: hotspot1
+    responses:
+      '201':
+        description: Created. `data.id` is the new RouterOS `.id`.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: string, example: '*42' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+updateUser:
+  put:
+    operationId: updateHotspotUser
+    summary: Update a hotspot user (partial)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: user updated }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+removeUser:
+  delete:
+    operationId: removeHotspotUser
+    summary: Delete a hotspot user (with cascade cleanup)
+    tags: [hotspot]
+    description: |
+      Removes the user plus any RouterOS scheduler/script that was
+      auto-created for this user (best-effort; errors are logged but do
+      not propagate).
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: user removed }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+resetUserCounters:
+  post:
+    operationId: resetHotspotUserCounters
+    summary: Reset bytes-in/bytes-out for a hotspot user
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Counters reset.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: counters reset }
+              error: null
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+# ===== Profiles ===============================================================
+
+listProfiles:
+  get:
+    operationId: listHotspotProfiles
+    summary: List hotspot profiles (enriched with mapping metadata)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Profiles.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/ProfileWithMeta' }
+                error: { type: 'null' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+getProfile:
+  get:
+    operationId: getHotspotProfile
+    summary: Get a hotspot profile by RouterOS ID or name
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Profile record.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/common.yaml#/RouterOSRecord' }
+                error: { type: 'null' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+addProfile:
+  post:
+    operationId: addHotspotProfile
+    summary: Create a hotspot profile
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/hotspot.yaml#/HotspotProfileParams' }
+    responses:
+      '201':
+        description: Profile created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id: { type: string }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+updateProfile:
+  put:
+    operationId: updateHotspotProfile
+    summary: Update a hotspot profile (partial)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/hotspot.yaml#/HotspotProfileParams' }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: profile updated }
+              error: null
+
+removeProfile:
+  delete:
+    operationId: removeHotspotProfile
+    summary: Delete a hotspot profile (cascade cleans schedulers)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: profile removed }
+              error: null
+
+syncProfiles:
+  post:
+    operationId: syncHotspotProfiles
+    summary: Sync on-login scripts from MikroTik to database
+    description: |
+      Reads all hotspot profiles from the router, parses pricing metadata
+      from each on-login script, upserts the data into the
+      `profile_price_mappings` table, and replaces the on-login script
+      with the current format (API URL, webhook token,
+      router name). Scripts that are already up-to-date are skipped.
+
+      **Route:** `POST /routers/{routerId}/hotspot/profiles/sync`
+    tags: [hotspot]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Sync completed successfully.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  required: [profiles_scanned, mappings_synced, scripts_updated, scripts_skipped, scripts_failed]
+                  properties:
+                    profiles_scanned:
+                      type: integer
+                      description: Profiles with a parseable on-login script.
+                      example: 5
+                    mappings_synced:
+                      type: integer
+                      description: Profile-price mappings upserted to the database.
+                      example: 5
+                    scripts_updated:
+                      type: integer
+                      description: On-login scripts replaced on the router.
+                      example: 3
+                    scripts_skipped:
+                      type: integer
+                      description: Scripts already up-to-date (no change needed).
+                      example: 2
+                    scripts_failed:
+                      type: integer
+                      description: On-login scripts that could not be updated.
+                      example: 0
+                error: { type: 'null' }
+            example:
+              data:
+                profiles_scanned: 5
+                mappings_synced: 5
+                scripts_updated: 3
+                scripts_skipped: 2
+                scripts_failed: 0
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+# ===== Active sessions ========================================================
+
+listActive:
+  get:
+    operationId: listHotspotActive
+    summary: List active hotspot sessions
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Active sessions.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/HotspotActiveRecord' }
+                error: { type: 'null' }
+
+removeActive:
+  delete:
+    operationId: removeHotspotActive
+    summary: Forcibly drop an active session (no cookie cleanup)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Session removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: session removed }
+              error: null
+
+disconnectUser:
+  post:
+    operationId: disconnectHotspotUser
+    summary: Disconnect a hotspot user (active session + cookie)
+    tags: [hotspot]
+    description: Drops the active session AND removes the corresponding cookie so re-auth is required.
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Disconnected.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: user disconnected }
+              error: null
+
+# ===== Inactive ===============================================================
+
+listInactive:
+  get:
+    operationId: listInactiveHotspotUsers
+    summary: List hotspot users without an active session
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Inactive users.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/HotspotUserRecord' }
+                error: { type: 'null' }
+
+getInactiveCount:
+  get:
+    operationId: getInactiveHotspotUserCount
+    summary: Count users without an active session
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Count.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  required: [count]
+                  properties:
+                    count: { type: integer, format: int64, minimum: 0 }
+                error: { type: 'null' }
+
+# ===== Hosts / Cookies / Servers ==============================================
+
+listHosts:
+  get:
+    operationId: listHotspotHosts
+    summary: List hotspot host learning entries
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Hosts.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/HotspotHostRecord' }
+                error: { type: 'null' }
+
+removeHost:
+  delete:
+    operationId: removeHotspotHost
+    summary: Forget a hotspot host
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Host removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: host removed }
+              error: null
+
+listServers:
+  get:
+    operationId: listHotspotServers
+    summary: List hotspot server instances on the router
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Servers.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/HotspotServerRecord' }
+                error: { type: 'null' }
+
+listCookies:
+  get:
+    operationId: listHotspotCookies
+    summary: List remembered hotspot login cookies
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Cookies.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/HotspotCookieRecord' }
+                error: { type: 'null' }
+
+removeCookie:
+  delete:
+    operationId: removeHotspotCookie
+    summary: Remove a remembered hotspot login cookie
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Cookie removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: cookie removed }
+              error: null
+
+# ===== IP bindings ============================================================
+
+listBindings:
+  get:
+    operationId: listIPBindings
+    summary: List hotspot IP bindings
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Bindings.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/IPBindingRecord' }
+                error: { type: 'null' }
+
+addBinding:
+  post:
+    operationId: addIPBinding
+    summary: Create an IP binding
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              mac-address: '00:11:22:33:44:55'
+              address: 10.5.50.23
+              type: bypassed
+              comment: 'POS terminal'
+    responses:
+      '201':
+        description: Binding created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id: { type: string }
+                error: { type: 'null' }
+
+updateBinding:
+  put:
+    operationId: updateIPBinding
+    summary: Update an IP binding (partial)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: binding updated }
+              error: null
+
+removeBinding:
+  delete:
+    operationId: removeIPBinding
+    summary: Delete an IP binding (cascade cleans queue/scheduler/ARP/lease)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: binding removed }
+              error: null
+
+enableBinding:
+  post:
+    operationId: enableIPBinding
+    summary: Enable an IP binding
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Enabled.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: binding enabled }
+              error: null
+
+disableBinding:
+  post:
+    operationId: disableIPBinding
+    summary: Disable an IP binding
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - $ref: '../components/parameters.yaml#/GenericResourceId'
+    responses:
+      '200':
+        description: Disabled.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: binding disabled }
+              error: null
+
+# ===== Walled garden ==========================================================
+
+listWalledGarden:
+  get:
+    operationId: listWalledGarden
+    summary: List walled-garden host rules
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Walled garden entries.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/WalledGardenRecord' }
+                error: { type: 'null' }
+
+addWalledGarden:
+  post:
+    operationId: addWalledGarden
+    summary: Add a walled-garden host rule
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              dst-host: 'youtube.com'
+              action: allow
+    responses:
+      '201':
+        description: Rule added.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id: { type: string }
+                error: { type: 'null' }
+
+removeWalledGarden:
+  delete:
+    operationId: removeWalledGarden
+    summary: Remove a walled-garden host rule
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: wid
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+        description: Walled-garden rule `.id` from the router.
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: walled garden rule removed }
+              error: null
+
+listWalledGardenIP:
+  get:
+    operationId: listWalledGardenIP
+    summary: List walled-garden IP rules (firewall/NAT level)
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    responses:
+      '200':
+        description: Walled-garden IP entries.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/hotspot.yaml#/WalledGardenIPRecord' }
+                error: { type: 'null' }
+
+addWalledGardenIP:
+  post:
+    operationId: addWalledGardenIP
+    summary: Add a walled-garden IP rule
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: { type: string }
+            example:
+              dst-address: '142.250.0.0/15'
+              action: accept
+    responses:
+      '201':
+        description: Rule added.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id: { type: string }
+                error: { type: 'null' }
+
+removeWalledGardenIP:
+  delete:
+    operationId: removeWalledGardenIP
+    summary: Remove a walled-garden IP rule
+    tags: [hotspot]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: wid
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    responses:
+      '200':
+        description: Removed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: walled garden IP rule removed }
+              error: null

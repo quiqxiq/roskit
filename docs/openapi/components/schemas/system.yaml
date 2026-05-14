@@ -1,0 +1,123 @@
+# System domain schemas.
+#
+# Source:
+#   internal/roskit/core/model/system.go (cache shape)
+#   internal/api/handlers/system_handler.go.
+
+SystemResource:
+  type: object
+  description: Snapshot of `/system/resource/print`.
+  properties:
+    uptime:           { type: string, example: 1d2h3m }
+    version:          { type: string, example: 7.20.8 }
+    board-name:       { type: string }
+    cpu:              { type: string, example: 'ARM' }
+    cpu-load:         { type: string, example: '12' }
+    cpu-frequency:    { type: string, example: '1400' }
+    cpu-count:        { type: string, example: '4' }
+    free-memory:      { type: string }
+    total-memory:     { type: string }
+    free-hdd-space:   { type: string }
+    total-hdd-space:  { type: string }
+    architecture-name: { type: string }
+
+SystemResourceHistoryPoint:
+  type: object
+  required: [timestamp]
+  properties:
+    timestamp: { type: string, format: date-time }
+    cpu_load:  { type: integer, format: int64, minimum: 0, maximum: 100 }
+    free_memory: { type: integer, format: int64 }
+    total_memory: { type: integer, format: int64 }
+
+SystemLogEntry:
+  type: object
+  description: A row from `/log/print`.
+  properties:
+    .id:     { type: string }
+    time:    { type: string, example: 'apr/30 10:11:12' }
+    topics:  { type: string, example: 'system,info' }
+    message: { type: string }
+
+SystemClock:
+  type: object
+  properties:
+    time:        { type: string, example: '10:11:12' }
+    date:        { type: string, example: 'apr/30/2026' }
+    time-zone-name: { type: string, example: 'Asia/Jakarta' }
+    gmt-offset:  { type: string, example: '+07:00' }
+
+SystemIdentity:
+  type: object
+  properties:
+    name: { type: string, example: MikroTik }
+
+SystemRouterboard:
+  type: object
+  properties:
+    routerboard:    { type: string, enum: ['true', 'false'] }
+    model:          { type: string, example: 'CCR1009-7G-1C-1S+' }
+    serial-number:  { type: string }
+    firmware-type:  { type: string }
+    factory-firmware: { type: string }
+    current-firmware: { type: string }
+    upgrade-firmware: { type: string }
+
+DeployExpireMonitorRequest:
+  type: object
+  required: [interval]
+  properties:
+    interval:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: RouterOS-formatted interval (e.g. `5m`, `30s`, `1h`).
+      example: 5m
+
+SchedulerRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:      { type: string, example: voucher-cleanup }
+        on-event:  { type: string }
+        interval:  { type: string }
+        start-date: { type: string }
+        start-time: { type: string }
+        disabled:  { type: string, enum: ['true', 'false'] }
+        comment:   { type: string }
+
+ScriptRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:    { type: string, example: voucher-expire }
+        source:  { type: string }
+        owner:   { type: string }
+        policy:  { type: string }
+        comment: { type: string }
+
+RouterDashboard:
+  type: object
+  description: |
+    Aggregated per-router dashboard. All nested objects are returned
+    verbatim from RouterOS or the internal cache.
+  properties:
+    resource:
+      $ref: '#/SystemResource'
+    identity:
+      $ref: '#/SystemIdentity'
+    hotspot_users:
+      type: integer
+      description: Total hotspot user count.
+    active_sessions:
+      type: integer
+      description: Currently active hotspot sessions.
+    system_health:
+      $ref: 'common.yaml#/RouterOSRecord'
+    income:
+      $ref: 'report.yaml#/RevenueSummary'
+    recent_logs:
+      type: array
+      items: { $ref: '#/SystemLogEntry' }

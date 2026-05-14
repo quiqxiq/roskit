@@ -1,0 +1,45 @@
+# PPP domain schemas. Source:
+#   internal/roskit/core/model/ppp.go (cache shape)
+#   internal/roskit/adapter/service/ppp.go (Bridge methods)
+#
+# Like the hotspot domain, PPP responses are RouterOS sentence pairs
+# (`map[string]string`). Common keys are hinted; extras may appear.
+
+PPPSecretRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:           { type: string, example: alice@vpn }
+        password:       { type: string }
+        service:        { type: string, enum: [pppoe, l2tp, pptp, sstp, ovpn, any], example: pppoe }
+        profile:        { type: string, example: default }
+        local-address:  { type: string, example: 10.10.0.1 }
+        remote-address: { type: string, example: 10.10.0.10 }
+        last-logged-out: { type: string }
+        comment:        { type: string }
+        disabled:       { type: string, enum: ['true', 'false'] }
+
+PPPActiveRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:        { type: string }
+        service:     { type: string }
+        caller-id:   { type: string }
+        address:     { type: string }
+        uptime:      { type: string, example: 1h12m }
+        encoding:    { type: string }
+        session-id:  { type: string }
+
+PPPProfileRecord:
+  allOf:
+    - $ref: 'common.yaml#/RouterOSRecord'
+    - type: object
+      properties:
+        name:           { type: string, example: default }
+        local-address:  { type: string }
+        remote-address: { type: string }
+        rate-limit:     { type: string }
+        only-one:       { type: string, enum: ['default', 'yes', 'no'] }

@@ -1,0 +1,126 @@
+# Auth-related request/response schemas.
+#
+# Source: internal/api/handlers/auth_handler.go (request structs) +
+#         internal/services/auth_service.go (LoginResult, UserView, Claims).
+
+UserRole:
+  type: string
+  enum: [admin, staff]
+  description: User role.
+
+UserView:
+  type: object
+  required: [id, username, role]
+  description: User identity returned in `/auth/me` and embedded in `LoginResult`.
+  properties:
+    id:
+      type: integer
+      format: int64
+      example: 12
+    username:
+      type: string
+      example: alice
+    role:
+      $ref: '#/UserRole'
+
+LoginRequest:
+  type: object
+  required: [username, password]
+  properties:
+    username:
+      type: string
+      minLength: 1
+      maxLength: 64
+      example: alice
+    password:
+      type: string
+      minLength: 1
+      maxLength: 128
+      format: password
+      example: hunter2
+
+LoginResult:
+  type: object
+  required: [access_token, refresh_token, expires_in, user]
+  properties:
+    access_token:
+      type: string
+      description: JWT access token. Short-lived (~15 min).
+    refresh_token:
+      type: string
+      description: Opaque-looking JWT signed with the refresh secret. Longer-lived (~7 d).
+    expires_in:
+      type: integer
+      description: Lifetime of the access token in seconds.
+      example: 900
+    user:
+      $ref: '#/UserView'
+
+RefreshRequest:
+  type: object
+  required: [refresh_token]
+  properties:
+    refresh_token:
+      type: string
+      minLength: 10
+      maxLength: 4096
+
+LogoutRequest:
+  type: object
+  description: |
+    Optional body. Logout always revokes the *access* token (via JTI in
+    JWT claims). When `refresh_token` is provided it is revoked too — do
+    this from the original device to log out everywhere.
+  properties:
+    refresh_token:
+      type: string
+      maxLength: 4096
+
+ChangePasswordRequest:
+  type: object
+  required: [old_password, new_password]
+  properties:
+    old_password:
+      type: string
+      minLength: 1
+      maxLength: 128
+      format: password
+    new_password:
+      type: string
+      minLength: 6
+      maxLength: 128
+      format: password
+
+SetupRequest:
+  type: object
+  required: [username, password]
+  description: |
+    Bootstrap the first admin user. Available only when the `users`
+    table is empty; subsequent calls return 403.
+  properties:
+    username:
+      type: string
+      minLength: 3
+      maxLength: 64
+      example: admin
+    password:
+      type: string
+      minLength: 6
+      maxLength: 128
+      format: password
+
+SetupResult:
+  type: object
+  required: [user, access_token, refresh_token, expires_in]
+  description: First admin user + auto-issued access tokens.
+  properties:
+    user:
+      type: object
+      required: [id, username, role]
+      properties:
+        id:       { type: integer, format: int64, example: 1 }
+        username: { type: string, example: admin }
+        role:     { $ref: '#/UserRole' }
+    access_token:  { type: string }
+    refresh_token: { type: string }
+    expires_in:    { type: integer, example: 900 }

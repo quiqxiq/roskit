@@ -142,6 +142,21 @@ func (d *Dispatcher) Run(ctx context.Context, routerID string, sentence ...strin
 	return conn.RunContext(ctx, sentence...)
 }
 
+// RunListen starts a listen (streaming) command on the client connection and
+// returns a ListenReply whose channel delivers each !re sentence as it arrives.
+// Callers must call reply.CancelContext when done to release the router-side listener.
+func (d *Dispatcher) RunListen(ctx context.Context, routerID string, sentence []string) (*routeros.ListenReply, error) {
+	if d.pool == nil {
+		return nil, fmt.Errorf("dispatcher: no pool")
+	}
+	conn, err := d.pool.Borrow(ctx, routerID)
+	if err != nil {
+		return nil, fmt.Errorf("dispatcher: %w", err)
+	}
+	defer d.pool.Return(routerID, conn)
+	return conn.Client().ListenArgsQueueContext(ctx, sentence, 64)
+}
+
 func (d *Dispatcher) PoolStatus() map[string]execution.ConnState {
 	if d.pool == nil {
 		return nil

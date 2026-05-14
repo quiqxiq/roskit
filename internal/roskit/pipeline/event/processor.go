@@ -12,9 +12,13 @@ import (
 
 var realtimeMeasurements = map[string]bool{
 	"hotspot_active":    true,
+	"hotspot_user":      true,
+	"ip_binding":        true,
 	"interface_traffic": true,
 	"system_resource":   true,
 	"dhcp_lease":        true,
+	"ppp_secret":        true,
+	"ppp_active":        true,
 }
 
 type Processor struct {

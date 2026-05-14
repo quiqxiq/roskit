@@ -1,0 +1,121 @@
+# Operations for /api/v1/status.
+#
+# Source: internal/api/handlers/status_handler.go +
+#         internal/services/status_service.go.
+
+getUserStatus:
+  get:
+    operationId: getUserStatus
+    summary: Hotspot user session status by MAC
+    tags: [status]
+    security: []
+    description: |
+      Public endpoint used by the hotspot login page to show whether a
+      device is currently connected. Resolves the router by name and
+      looks up the active session matching the MAC.
+
+      Returns `active: true` with session details when the MAC is in
+      `ip/hotspot/active`. Returns `active: false` (with only `mac`
+      populated) when no matching session exists.
+    parameters:
+      - in: query
+        name: router
+        required: true
+        description: Router name as registered in the system (matches `routers.name`).
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+        example: hotspot-1
+      - in: query
+        name: mac
+        required: true
+        description: MAC address of the device whose status is being queried.
+        schema:
+          type: string
+          minLength: 11
+          maxLength: 17
+          pattern: '^[0-9A-Fa-f:.-]+$'
+        example: '00:11:22:33:44:55'
+    responses:
+      '200':
+        description: User status (active session details, or inactive shell).
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  $ref: '#/UserStatus'
+                error:
+                  type: 'null'
+            examples:
+              active:
+                summary: Currently logged in
+                value:
+                  data:
+                    active: true
+                    username: voucher-7g3pq
+                    profile: 1d-1mbps
+                    ip_address: 10.5.50.23
+                    mac: '00:11:22:33:44:55'
+                    uptime: 1h12m
+                    bytes_in: '15823234'
+                    bytes_out: '982341'
+                    time_left: 22h47m
+                    comment: ''
+                  error: null
+              inactive:
+                summary: Not logged in
+                value:
+                  data:
+                    active: false
+                    username: ''
+                    profile: ''
+                    ip_address: ''
+                    mac: '00:11:22:33:44:55'
+                    uptime: ''
+                    bytes_in: ''
+                    bytes_out: ''
+                    time_left: ''
+                    comment: ''
+                  error: null
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/InternalError'
+
+UserStatus:
+  type: object
+  required: [active, mac]
+  description: |
+    Hotspot user session snapshot. `active=false` means the MAC is not in
+    `ip/hotspot/active`; in that case all string fields are empty and
+    only `mac` carries the requested value.
+  properties:
+    active:
+      type: boolean
+    username:
+      type: string
+    profile:
+      type: string
+    ip_address:
+      type: string
+    mac:
+      type: string
+    uptime:
+      type: string
+      description: RouterOS-formatted duration (e.g. `1h12m`).
+    bytes_in:
+      type: string
+      description: Decimal byte count as returned by RouterOS (string, not integer).
+    bytes_out:
+      type: string
+    time_left:
+      type: string
+      description: RouterOS-formatted duration; empty when no time limit.
+    comment:
+      type: string

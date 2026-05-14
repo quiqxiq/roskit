@@ -1,0 +1,87 @@
+# Reusable error responses. All error envelopes are `data: null` plus a
+# typed APIError. Each response below pins the most common `code` value
+# emitted by handlers, but clients should treat `code` as a soft contract.
+
+BadRequest:
+  description: Invalid input — body validation failed or path/query parameter rejected.
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: invalid_input
+          message: 'invalid request body: Key: ''createUserRequest.Username'' Error:Field validation for ''Username'' failed on the ''min'' tag'
+
+Unauthorized:
+  description: Missing, malformed, expired, or revoked authentication.
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: unauthorized
+          message: invalid or expired access token
+
+Forbidden:
+  description: Authentication succeeded but the principal lacks the required role.
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: forbidden
+          message: access denied
+
+NotFound:
+  description: Resource does not exist.
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: not_found
+          message: router not found
+
+Conflict:
+  description: Resource already exists or version conflict (e.g. duplicate username).
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: conflict
+          message: user already exists
+
+RateLimited:
+  description: Rate limit exceeded.
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: rate_limited
+          message: too many requests
+
+InternalError:
+  description: Internal server error. Message is sanitised — does not leak stack or DB internals.
+  content:
+    application/json:
+      schema:
+        $ref: 'schemas/common.yaml#/ErrorEnvelope'
+      example:
+        data: null
+        error:
+          code: internal
+          message: internal server error

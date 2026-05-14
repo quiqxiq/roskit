@@ -1,0 +1,147 @@
+# /routers/{routerId}/quick-print/* operations.
+# Source: internal/api/handlers/quick_print_handler.go.
+#
+# Quick-print packages are reusable voucher-generation presets stored
+# server-side per router. Once created, the SPA can fire a one-click
+# "print N vouchers" using just the package name.
+
+QuickPrintPackage:
+  type: object
+  required: [name]
+  description: Voucher-generation preset.
+  properties:
+    name:          { type: string, minLength: 1, maxLength: 100, example: '1d-1mbps-25k' }
+    server:        { type: string, maxLength: 64 }
+    user_mode:     { type: string, maxLength: 32, example: 'vc' }
+    user_length:   { type: string, maxLength: 8, example: '6' }
+    prefix:        { type: string, maxLength: 16 }
+    char_mode:     { type: string, maxLength: 32 }
+    profile:       { type: string, maxLength: 64 }
+    time_limit:    { type: string, maxLength: 64 }
+    data_limit:    { type: string, maxLength: 64 }
+    comment:       { type: string, maxLength: 200 }
+    validity:      { type: string, maxLength: 64 }
+    price:         { type: string, maxLength: 64 }
+    selling_price: { type: string, maxLength: 64 }
+    lock_user:     { type: string, maxLength: 32 }
+
+CreatePackageRequest:
+  $ref: '#/QuickPrintPackage'
+
+# --- operations ---------------------------------------------------------------
+
+listPackages:
+  get:
+    operationId: listQuickPrintPackages
+    summary: List quick-print presets for a router
+    tags: [quick-print]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Packages.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/QuickPrintPackage' }
+                error: { type: 'null' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+createPackage:
+  post:
+    operationId: createQuickPrintPackage
+    summary: Create or replace a quick-print preset
+    tags: [quick-print]
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/QuickPrintPackage' }
+    responses:
+      '201':
+        description: Saved.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'quick print package created' }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+getPackage:
+  get:
+    operationId: getQuickPrintPackage
+    summary: Fetch a quick-print preset by name
+    tags: [quick-print]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: name
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 100 }
+    responses:
+      '200':
+        description: Package.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '#/QuickPrintPackage' }
+                error: { type: 'null' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+updatePackage:
+  put:
+    operationId: updateQuickPrintPackage
+    summary: Update a quick-print preset (full replace)
+    tags: [quick-print]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: name
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 100 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/QuickPrintPackage' }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'quick print package updated' }
+              error: null
+
+removePackage:
+  delete:
+    operationId: removeQuickPrintPackage
+    summary: Delete a quick-print preset
+    tags: [quick-print]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: path
+        name: name
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 100 }
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'quick print package removed' }
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }

@@ -9,17 +9,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
 
 const sseKeepAliveInterval = 30 * time.Second
 
 type TelemetrySSEHandler struct {
-	sub pubsub.Subscriber
+	sub    pubsub.Subscriber
+	bridge *service.Bridge
 }
 
-func NewTelemetrySSEHandler(sub pubsub.Subscriber) *TelemetrySSEHandler {
-	return &TelemetrySSEHandler{sub: sub}
+func NewTelemetrySSEHandler(sub pubsub.Subscriber, bridge *service.Bridge) *TelemetrySSEHandler {
+	return &TelemetrySSEHandler{sub: sub, bridge: bridge}
 }
 
 func (h *TelemetrySSEHandler) Stream(measurement string) gin.HandlerFunc {
@@ -92,6 +94,74 @@ func (h *TelemetrySSEHandler) Stream(measurement string) gin.HandlerFunc {
 				}
 				c.Writer.Flush()
 			}
+		}
+	}
+}
+
+func (h *TelemetrySSEHandler) StreamInterface(c *gin.Context) {
+	routerIDStr := c.Param("routerId")
+	if _, err := strconv.ParseUint(routerIDStr, 10, 64); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "invalid router id"})
+		return
+	}
+
+	iface := c.Param("iface")
+	if iface == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"data": nil, "error": "iface is required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	ch, err := h.bridge.InterfaceTrafficStream(ctx, routerIDStr, iface)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	c.Header("Access-Control-Allow-Origin", "*")
+
+	fmt.Fprintf(c.Writer, ": connected to interface traffic stream for %s\n\n", iface)
+	c.Writer.Flush()
+
+	keepAlive := time.NewTicker(sseKeepAliveInterval)
+	defer keepAlive.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-keepAlive.C:
+			if _, err := fmt.Fprintf(c.Writer, ": keep-alive\n\n"); err != nil {
+				return
+			}
+			c.Writer.Flush()
+
+		case fields, ok := <-ch:
+			if !ok {
+				return
+			}
+
+			event := map[string]any{
+				"router_id":   routerIDStr,
+				"measurement": "interface_traffic",
+				"type":        "update",
+				"fields":      fields,
+				"timestamp":   time.Now().Format(time.RFC3339),
+			}
+			payload, err := json.Marshal(event)
+			if err != nil {
+				continue
+			}
+			if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", payload); err != nil {
+				return
+			}
+			c.Writer.Flush()
 		}
 	}
 }

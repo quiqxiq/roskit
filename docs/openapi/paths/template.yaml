@@ -1,0 +1,153 @@
+# /templates/* operations.
+# Source: internal/api/handlers/template_handler.go.
+
+list:
+  get:
+    operationId: listTemplates
+    summary: List print templates
+    tags: [templates]
+    responses:
+      '200':
+        description: Templates.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '../components/schemas/template.yaml#/PrintTemplate' }
+                error: { type: 'null' }
+
+create:
+  post:
+    operationId: createTemplate
+    summary: Create a template
+    tags: [templates]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/template.yaml#/CreateTemplateRequest' }
+          example:
+            name: Custom thermal header
+            type: thermal
+            part: header
+            content: '<h1>{{.HotspotName}}</h1>'
+    responses:
+      '201':
+        description: Created.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/template.yaml#/PrintTemplate' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+
+get:
+  get:
+    operationId: getTemplate
+    summary: Get a template by ID
+    tags: [templates]
+    parameters:
+      - $ref: '../components/parameters.yaml#/TemplateId'
+    responses:
+      '200':
+        description: Template.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/template.yaml#/PrintTemplate' }
+                error: { type: 'null' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+update:
+  put:
+    operationId: updateTemplate
+    summary: Update a template (partial)
+    tags: [templates]
+    parameters:
+      - $ref: '../components/parameters.yaml#/TemplateId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/template.yaml#/UpdateTemplateRequest' }
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/template.yaml#/PrintTemplate' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+delete:
+  delete:
+    operationId: deleteTemplate
+    summary: Delete a template
+    tags: [templates]
+    parameters:
+      - $ref: '../components/parameters.yaml#/TemplateId'
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: template deleted }
+              error: null
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+render:
+  post:
+    operationId: renderTemplate
+    summary: Render a template against cached vouchers
+    tags: [templates]
+    description: Returns rendered HTML, not JSON.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/template.yaml#/RenderRequest' }
+    responses:
+      '200':
+        description: Rendered HTML.
+        content:
+          text/html:
+            schema: { type: string }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+seedDefaults:
+  post:
+    operationId: seedDefaultTemplates
+    summary: Seed default templates
+    tags: [templates]
+    description: |
+      Idempotent — re-creates the default `(type, part)` rows. Run
+      after editing default content in source.
+    responses:
+      '200':
+        description: Seeded.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: 'default templates seeded' }
+              error: null
+      '500': { $ref: '../components/responses.yaml#/InternalError' }

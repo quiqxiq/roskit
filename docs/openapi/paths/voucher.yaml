@@ -1,0 +1,189 @@
+# /routers/{routerId}/vouchers/* operations.
+# Source: internal/api/handlers/voucher_handler.go.
+
+generate:
+  post:
+    operationId: generateVouchers
+    summary: Bulk-create hotspot voucher users on the router
+    tags: [vouchers]
+    description: |
+      Generates `qty` hotspot users with random usernames/passwords from
+      the requested character set, attaches them to `profile`, and caches
+      the batch in Redis under a `gencode` so the printer endpoint can
+      pull the same list later.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/voucher.yaml#/VoucherGenerateParams' }
+          example:
+            qty: 50
+            profile: 1d-1mbps
+            user_type: vc
+            name_length: 6
+            prefix: 'WIFI-'
+            time_limit: 1d
+            comment: '2026-04-30 batch'
+    responses:
+      '201':
+        description: Batch generated. `data.gencode` is the print key.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/voucher.yaml#/VoucherGenerateResult' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+cacheVoucher:
+  post:
+    operationId: getCachedVoucherBatch
+    summary: Retrieve a cached voucher batch by gencode
+    tags: [vouchers]
+    description: |
+      Looks up the cached generation result for `gencode`. Used when the
+      printer page reloads after generation. Cache TTL is enforced
+      server-side (Redis); expired batches return 404.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [gencode]
+            properties:
+              gencode: { type: string, minLength: 4, maxLength: 64 }
+    responses:
+      '200':
+        description: Cached batch.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/voucher.yaml#/VoucherGenerateResult' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+
+printData:
+  get:
+    operationId: getVoucherPrintData
+    summary: Voucher print payload (vouchers + router info)
+    tags: [vouchers]
+    parameters:
+      - $ref: '../components/parameters.yaml#/RouterId'
+      - in: query
+        name: gencode
+        required: true
+        schema: { type: string, minLength: 4, maxLength: 64 }
+    responses:
+      '200':
+        description: Print payload.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/voucher.yaml#/PrintData' }
+                error: { type: 'null' }
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+recordSale:
+  post:
+    operationId: recordVoucherSale
+    summary: Record a voucher as sold (idempotent by user+sold_at)
+    tags: [vouchers]
+    description: |
+      Persists a `voucher_sales` row. Idempotency is enforced by a
+      composite key derived from router + username + sold_at, so the
+      same on-login event delivered twice cannot double-count revenue.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/voucher.yaml#/RecordSaleParams' }
+          example:
+            username: voucher-7g3pq
+            profile_name: 1d-1mbps
+            price: 7500
+            sold_at: '2026-04-30T10:11:12Z'
+    responses:
+      '200':
+        description: Sale recorded.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/EmptyOK' }
+            example:
+              data: { message: sale recorded }
+              error: null
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+importSales:
+  post:
+    operationId: importVoucherSales
+    summary: Import voucher sales from RouterOS
+    tags: [vouchers]
+    description: |
+      Reconciliation pass — scans the router for hotspot users that
+      already logged in (have `bytes-in > 0`) and were created from
+      voucher batches, then materialises matching `voucher_sales` rows
+      idempotently.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    responses:
+      '200':
+        description: Import summary.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, error]
+              properties:
+                data:  { $ref: '../components/schemas/voucher.yaml#/ImportResult' }
+                error: { type: 'null' }
+            example:
+              data: { total: 42, imported: 5, skipped: 37, errors: 0 }
+              error: null
+      '500': { $ref: '../components/responses.yaml#/InternalError' }
+
+printVouchers:
+  post:
+    operationId: printVouchers
+    summary: Render the voucher batch as printable HTML
+    tags: [vouchers]
+    description: |
+      Resolves the requested vouchers (by username list or by RouterOS
+      comment), looks up the active settings (logo, currency,
+      hotspot name), and renders the chosen template. Returns raw HTML
+      that the SPA opens in a print window.
+    parameters: [{ $ref: '../components/parameters.yaml#/RouterId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/voucher.yaml#/PrintVouchersRequest' }
+          example:
+            usernames: [voucher-7g3pq, voucher-92xz1]
+            template_type: thermal
+    responses:
+      '200':
+        description: Rendered HTML (UTF-8). Not JSON — `Content-Type` is `text/html`.
+        content:
+          text/html:
+            schema:
+              type: string
+              example: '<!doctype html><html>...'
+      '400': { $ref: '../components/responses.yaml#/BadRequest' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '500': { $ref: '../components/responses.yaml#/InternalError' }

@@ -1,0 +1,69 @@
+# User schemas. Source: internal/models/user.go +
+# internal/api/handlers/user_handler.go.
+#
+# `password_hash` is `json:"-"` and never appears in API responses.
+# `deleted_at` is hidden too (soft-delete column).
+
+User:
+  type: object
+  required: [id, username, role, active, created_at, updated_at]
+  properties:
+    id:
+      type: integer
+      format: int64
+      example: 12
+    username:
+      type: string
+      maxLength: 100
+      example: alice
+    role:
+      $ref: 'auth.yaml#/UserRole'
+    active:
+      type: boolean
+      example: true
+    last_login_at:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+CreateUserRequest:
+  type: object
+  required: [username, password, role]
+  properties:
+    username:
+      type: string
+      minLength: 3
+      maxLength: 64
+      example: alice
+    password:
+      type: string
+      minLength: 6
+      maxLength: 128
+      format: password
+    role:
+      $ref: 'auth.yaml#/UserRole'
+
+UpdateUserRequest:
+  type: object
+  description: Partial update; omitted fields are unchanged.
+  properties:
+    username:
+      type: string
+      minLength: 3
+      maxLength: 64
+    password:
+      type: string
+      minLength: 6
+      maxLength: 128
+      format: password
+    role:
+      $ref: 'auth.yaml#/UserRole'
+    active:
+      type: boolean

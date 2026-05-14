@@ -1,0 +1,103 @@
+# SSE event schemas. Source:
+#   internal/api/handlers/sse/telemetry_sse_handler.go
+#   internal/api/handlers/sse/log_sse_handler.go
+#
+# All SSE endpoints set `Content-Type: text/event-stream`. The body is a
+# stream of `data: <json>\n\n` lines plus periodic `: keep-alive\n\n`
+# comments. The schemas below describe ONE event payload (one `data:`
+# line), not the full stream.
+#
+# OpenAPI 3.x has no native streaming primitive — we mark these
+# operations with `x-sse: true` and document the per-event JSON shape.
+
+TelemetryEvent:
+  type: object
+  required: [measurement, tags]
+  description: |
+    A single telemetry event multiplexed via Redis pub-sub. Clients
+    filter by `measurement`; the SPA also filters by `tags.interface`
+    or `tags.name` for per-interface streams.
+  properties:
+    measurement:
+      type: string
+      description: 'One of the telemetry topics — see the per-endpoint description.'
+      example: hotspot_user
+    tags:
+      type: object
+      additionalProperties: { type: string }
+      description: 'RouterOS-style tags propagated by the pipeline (`router_id`, `name`, `profile`, `interface`, …).'
+    fields:
+      type: object
+      additionalProperties: true
+      description: 'Numeric/boolean payload (e.g. `bytes_in`, `cpu_load`). Shape varies per measurement.'
+    timestamp:
+      type: string
+      format: date-time
+
+LogEvent:
+  type: object
+  description: One row from the RouterOS log stream.
+  properties:
+    time:    { type: string, example: 'apr/30 10:11:12' }
+    topics:  { type: string, example: 'hotspot,info' }
+    message: { type: string }
+    router_id: { type: string }
+
+PingEvent:
+  type: object
+  required: [router_id, measurement, fields, timestamp]
+  description: |
+    A single ICMP ping result streamed directly from the RouterOS `/ping`
+    command. Unlike `TelemetryEvent` (which is multiplexed via Redis
+    pub-sub), ping events are live data from the router — one event per
+    reply sentence.
+  properties:
+    router_id:
+      type: string
+      description: Router that executed the ping.
+      example: '7'
+    measurement:
+      type: string
+      description: Always `ping`.
+      enum: [ping]
+    fields:
+      type: object
+      description: Ping result fields as returned by RouterOS.
+      properties:
+        address:
+          type: string
+          description: The IP address being pinged.
+          example: 8.8.8.8
+        seq:
+          type: string
+          description: Sequence number of this ping reply.
+          example: '1'
+        host:
+          type: string
+          description: IP address that responded (may differ from `address` for DNS).
+          example: 8.8.8.8
+        size:
+          type: string
+          description: Reply packet size in bytes.
+          example: '64'
+        time:
+          type: string
+          description: Round-trip time in milliseconds (RouterOS string-encoded).
+          example: '42ms'
+        status:
+          type: string
+          description: 'Non-empty on failure (e.g. `timeout`). Empty means success.'
+        sent:
+          type: string
+          description: Packets sent (only set in summary sentence).
+        received:
+          type: string
+          description: Packets received (only set in summary sentence).
+        packet_loss:
+          type: string
+          description: Packet-loss percentage (only set in summary sentence).
+      required: [address, seq, host, size, time]
+    timestamp:
+      type: string
+      format: date-time
+      description: When the ping result was received on the server side.
