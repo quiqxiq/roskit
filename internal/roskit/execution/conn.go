@@ -159,22 +159,11 @@ func (pc *PersistentConn) State() ConnState {
 	return pc.state
 }
 
-func (pc *PersistentConn) IsAlive(ctx context.Context) bool {
-	conn, err := pc.getConn()
-	if err != nil {
-		return false
-	}
-	_, err = conn.RunContext(ctx, "/system/identity/print")
-	return err == nil
-}
-
 func (pc *PersistentConn) watchAsync(errCh <-chan error) {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			pc.logger.Warn("async loop ended",
-				"err", err,
-			)
+			pc.logger.Warn("async loop ended", "err", err)
 		}
 	case <-pc.asyncCtx.Done():
 		return

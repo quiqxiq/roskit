@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
+	"github.com/quiqxiq/roskit/internal/roskit/core"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 )
@@ -31,7 +32,13 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 		"interval", interval,
 	)
 
-	w.doPoll(ctx, routerID, meta)
+	if w.doPoll(ctx, routerID, meta) {
+		w.logger.Info("poll worker stopped: permanent error",
+			"router_id", routerID,
+			"measurement", meta.Measurement,
+		)
+		return nil
+	}
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -45,12 +52,18 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 			)
 			return nil
 		case <-ticker.C:
-			w.doPoll(ctx, routerID, meta)
+			if w.doPoll(ctx, routerID, meta) {
+				w.logger.Info("poll worker stopped: permanent error",
+					"router_id", routerID,
+					"measurement", meta.Measurement,
+				)
+				return nil
+			}
 		}
 	}
 }
 
-func (w *Worker) doPoll(ctx context.Context, routerID string, meta *command.CommandMeta) {
+func (w *Worker) doPoll(ctx context.Context, routerID string, meta *command.CommandMeta) (shouldStop bool) {
 	conn, err := w.pool.Borrow(ctx, routerID)
 	if err != nil {
 		w.logger.Warn("poll: borrow failed",
@@ -64,13 +77,22 @@ func (w *Worker) doPoll(ctx context.Context, routerID string, meta *command.Comm
 			Err:      err,
 			PollTime: time.Now(),
 		})
-		return
+		return false
 	}
 	defer w.pool.Return(routerID, conn)
 
 	sentence := command.BuildPollSentence(meta)
 	reply, err := conn.RunContext(ctx, sentence...)
 	if err != nil {
+		if core.IsRouterOSPermanentError(err) {
+			w.logger.Info("poll worker stopping: RouterOS feature unavailable",
+				"router_id", routerID,
+				"measurement", meta.Measurement,
+				"error", err,
+			)
+			return true
+		}
+
 		w.logger.Warn("poll: command failed",
 			"router_id", routerID,
 			"measurement", meta.Measurement,
@@ -82,7 +104,7 @@ func (w *Worker) doPoll(ctx context.Context, routerID string, meta *command.Comm
 			Err:      err,
 			PollTime: time.Now(),
 		})
-		return
+		return false
 	}
 
 	var rows []map[string]string
@@ -100,6 +122,7 @@ func (w *Worker) doPoll(ctx context.Context, routerID string, meta *command.Comm
 		Rows:     rows,
 		PollTime: time.Now(),
 	})
+	return false
 }
 
 var _ behavior.PollHandler = (*Worker)(nil)

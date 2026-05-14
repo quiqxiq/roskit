@@ -24,7 +24,6 @@ type ConnConfig struct {
 	DialTimeout    time.Duration // default 10s
 	ReadTimeout    time.Duration // default 15s
 	WriteTimeout   time.Duration // default 15s
-	HealthInterval time.Duration // default 30s
 }
 
 func (c ConnConfig) withDefaults() ConnConfig {
@@ -36,9 +35,6 @@ func (c ConnConfig) withDefaults() ConnConfig {
 	}
 	if c.WriteTimeout == 0 {
 		c.WriteTimeout = 15 * time.Second
-	}
-	if c.HealthInterval == 0 {
-		c.HealthInterval = 30 * time.Second
 	}
 	return c
 }
@@ -126,11 +122,6 @@ func (rc *RouterConn) Stream() *PersistentConn {
 	return rc.stream
 }
 
-// IsAlive checks health of the client connection.
-func (rc *RouterConn) IsAlive(ctx context.Context) bool {
-	return rc.client.IsAlive(ctx)
-}
-
 // State returns the worst state between client and stream connections.
 func (rc *RouterConn) State() ConnState {
 	cs := rc.client.State()
@@ -160,9 +151,7 @@ type Pool struct {
 	conns   map[string]*RouterConn
 	logger  *slog.Logger
 
-	appCtx       context.Context
-	healthCtx    context.Context
-	healthCancel context.CancelFunc
+	appCtx context.Context
 }
 
 // NewPool creates an empty connection pool.
@@ -205,33 +194,25 @@ func (p *Pool) Start(ctx context.Context) {
 	}
 	p.mu.RUnlock()
 
-	healthCtx, cancel := context.WithCancel(ctx)
 	p.mu.Lock()
 	p.appCtx = ctx
-	p.healthCtx = healthCtx
-	p.healthCancel = cancel
 	p.mu.Unlock()
 
 	for _, conn := range conns {
 		go conn.client.ConnectWithBackoff(ctx) //nolint:errcheck
 		go conn.stream.ConnectWithBackoff(ctx) //nolint:errcheck
-		go p.healthLoop(healthCtx, conn)
 	}
 }
 
 // Stop closes all connections and stops health monitoring.
 func (p *Pool) Stop() {
 	p.mu.Lock()
-	cancel := p.healthCancel
 	conns := make([]*RouterConn, 0, len(p.conns))
 	for _, c := range p.conns {
 		conns = append(conns, c)
 	}
 	p.mu.Unlock()
 
-	if cancel != nil {
-		cancel()
-	}
 	for _, c := range conns {
 		c.Close()
 	}
@@ -304,7 +285,6 @@ func (p *Pool) BorrowAsync(ctx context.Context, routerID string) (*PersistentCon
 func (p *Pool) LaunchOne(routerID string) {
 	p.mu.RLock()
 	appCtx := p.appCtx
-	healthCtx := p.healthCtx
 	conn := p.conns[routerID]
 	p.mu.RUnlock()
 
@@ -313,7 +293,6 @@ func (p *Pool) LaunchOne(routerID string) {
 	}
 	go conn.client.ConnectWithBackoff(appCtx) //nolint:errcheck
 	go conn.stream.ConnectWithBackoff(appCtx) //nolint:errcheck
-	go p.healthLoop(healthCtx, conn)
 }
 
 // WaitConnected blocks until routerID reaches ConnStateConnected, or returns
@@ -340,29 +319,4 @@ func (p *Pool) WaitConnected(ctx context.Context, routerID string) error {
 	}
 }
 
-// healthLoop periodically checks a connection and reconnects if needed.
-// This is a secondary safety net — PersistentConn already handles reconnect
-// via its watchAsync goroutine. The health loop catches edge cases where
-// the watchAsync goroutine might not have detected a problem.
-func (p *Pool) healthLoop(ctx context.Context, conn *RouterConn) {
-	ticker := time.NewTicker(conn.cfg.HealthInterval)
-	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if conn.State() == ConnStateAuthFailed {
-				continue
-			}
-			if conn.client.State() == ConnStateConnected && !conn.client.IsAlive(ctx) {
-				p.logger.Warn("health check failed on client conn, triggering reconnect",
-					"router_id", conn.cfg.RouterID,
-				)
-				conn.client.Close()
-				go conn.client.ConnectWithBackoff(ctx) //nolint:errcheck
-			}
-		}
-	}
-}

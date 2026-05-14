@@ -38,8 +38,7 @@ func LoadRouterConfig() execution.ConnConfig {
 		Address:         host,
 		Username:        user,
 		Password:        pass,
-		DialTimeout:     10 * time.Second,
-		HealthInterval:  60 * time.Second,
+		DialTimeout: 10 * time.Second,
 	}
 }
 

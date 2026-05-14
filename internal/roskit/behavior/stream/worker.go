@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
+	"github.com/quiqxiq/roskit/internal/roskit/core"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/core/parser"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
@@ -91,6 +92,15 @@ func (w *Worker) Start(ctx context.Context, routerID string, meta *command.Comma
 		}
 
 		if err := w.acquireAndStream(ctx, routerID, meta); err != nil {
+			if core.IsRouterOSPermanentError(err) {
+				w.logger.Info("stream worker stopping: RouterOS feature unavailable",
+					"router_id", routerID,
+					"measurement", meta.Measurement,
+					"error", err,
+				)
+				return nil
+			}
+
 			w.logger.Warn("stream session ended",
 				"router_id", routerID,
 				"measurement", meta.Measurement,
