@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/quiqxiq/roskit/internal/roskit/adapter/service"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
 
@@ -44,7 +43,7 @@ func (h *LogSSEHandler) stream(c *gin.Context, filter string) {
 		return
 	}
 
-	channel := cache.FormatLogChannel(fmt.Sprintf("%d", routerID), filter)
+	channel := pubsub.FormatLogChannel(fmt.Sprintf("%d", routerID), filter)
 
 	ctx := c.Request.Context()
 

@@ -17,7 +17,6 @@ import (
 	"github.com/quiqxiq/roskit/internal/repository"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
-	roskitcache "github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	roskitpubsub "github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 	roskittimeseries "github.com/quiqxiq/roskit/internal/roskit/pipeline/timeseries"
 	"github.com/quiqxiq/roskit/internal/services"
@@ -76,27 +75,16 @@ func main() {
 		}
 	}
 
-	var roskitCache roskitcache.Repository = roskitcache.NoopRepository{}
 	var roskitPubSub roskitpubsub.Publisher = roskitpubsub.NoopPublisher{}
 	var roskitSubscriber roskitpubsub.Subscriber = roskitpubsub.NoopSubscriber{}
 
-	redisRepo, redisErr := roskitcache.NewRedisRepository(roskitcache.RedisConfig{
+	redisCfg := roskitpubsub.RedisConfig{
 		Addr:     fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort),
 		Password: cfg.RedisPassword,
 		DB:       cfg.RedisDB,
-	}, logger)
-	if redisErr != nil {
-		logger.Warn("Redis repository init failed, telemetry cache/pubsub disabled", "error", redisErr)
-	} else {
-		defer redisRepo.Close()
-		roskitCache = redisRepo
 	}
 
-	redisPub, redisPubErr := roskitpubsub.NewRedisPublisher(roskitcache.RedisConfig{
-		Addr:     fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort),
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
-	}, logger)
+	redisPub, redisPubErr := roskitpubsub.NewRedisPublisher(redisCfg, logger)
 	if redisPubErr != nil {
 		logger.Warn("Redis publisher init failed, pubsub disabled", "error", redisPubErr)
 	} else {
@@ -104,11 +92,7 @@ func main() {
 		roskitPubSub = redisPub
 	}
 
-	subscriber, subErr := roskitpubsub.NewRedisSubscriber(roskitcache.RedisConfig{
-		Addr:     fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort),
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
-	}, logger)
+	subscriber, subErr := roskitpubsub.NewRedisSubscriber(redisCfg, logger)
 	if subErr != nil {
 		logger.Warn("Redis subscriber init failed, SSE disabled", "error", subErr)
 	} else {
@@ -136,7 +120,6 @@ func main() {
 
 	engine := orchestrator.New(orchestrator.Config{
 		Logger:     logger,
-		Cache:      roskitCache,
 		TimeSeries: tsWriter,
 		PubSub:     roskitPubSub,
 		OnRouterConnect: func(ctx context.Context, routerID string) {
@@ -149,7 +132,7 @@ func main() {
 		},
 	})
 
-	bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitCache)
+	bridge := roskitservice.NewBridge(engine.Dispatcher())
 
 	setupLoggingFn = func(ctx context.Context, routerID string) {
 		if err := bridge.SetupLogging(ctx, routerID); err != nil {

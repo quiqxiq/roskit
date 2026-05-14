@@ -41,10 +41,19 @@ func (h *NetworkHandler) GetInterfaceTraffic(c *gin.Context) {
 		return
 	}
 	iface := c.Param("iface")
-	data, err := h.bridge.GetCachedSnapshot(c.Request.Context(), fmt.Sprintf("roskit:%d:interface_traffic:%s", routerID, iface))
+	reply, err := h.bridge.Run(c.Request.Context(), fmt.Sprintf("%d", routerID),
+		"/interface/monitor-traffic", "=interface="+iface, "=once=")
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"data": nil, "error": "failed to get traffic data"})
+		return
+	}
+	if len(reply.Re) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"data": nil, "error": "traffic data not found for interface"})
 		return
+	}
+	data := make(map[string]string, len(reply.Re[0].Map))
+	for k, v := range reply.Re[0].Map {
+		data[k] = v
 	}
 	c.JSON(http.StatusOK, gin.H{"data": data, "error": nil})
 }

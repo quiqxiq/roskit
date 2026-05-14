@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
+}
+
 // Message is the payload broadcast to frontend subscribers.
 // Replaces the ad-hoc string encoding used in the old repository.
 type Message struct {
@@ -40,3 +46,11 @@ func (NoopPublisher) Publish(_ context.Context, _ string, _ Message) error { ret
 func (NoopPublisher) Close() error                                           { return nil }
 
 var _ Publisher = NoopPublisher{}
+
+func FormatPubSubChannel(routerID string) string {
+	return "roskit:telemetry:" + routerID
+}
+
+func FormatLogChannel(routerID, filter string) string {
+	return "roskit:logs:" + routerID + ":" + filter
+}

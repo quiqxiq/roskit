@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 )
 
 func (b *Bridge) ListHotspotUsers(ctx context.Context, routerID, profile string) ([]map[string]string, error) {
@@ -270,17 +269,6 @@ func (b *Bridge) ListInactiveHotspotUsers(ctx context.Context, routerID string) 
 }
 
 func (b *Bridge) GetInactiveHotspotUserCount(ctx context.Context, routerID string) (int, error) {
-	if b.cache != nil {
-		key := fmt.Sprintf("roskit:%s:hotspot_inactive", routerID)
-		data, err := b.cache.GetSnapshot(ctx, key)
-		if err == nil && data != nil && data["count"] != "" {
-			var count int
-			if _, err := fmt.Sscanf(data["count"], "%d", &count); err == nil {
-				return count, nil
-			}
-		}
-	}
-
 	users, err := b.ListInactiveHotspotUsers(ctx, routerID)
 	if err != nil {
 		return 0, err

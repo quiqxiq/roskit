@@ -4,19 +4,12 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
-	"time"
 
 	"github.com/quiqxiq/roskit/internal/roskit/behavior"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/timeseries"
 )
 
-const defaultCacheTTL = 5 * time.Minute
-
-// realtimeMeasurements is the allowlist for pub-sub broadcast.
-// Only these measurements are pushed to frontend subscribers in real time.
-// Config/state data (hotspot_user, dhcp_lease, etc.) stays in Redis only.
 var realtimeMeasurements = map[string]bool{
 	"hotspot_active":    true,
 	"interface_traffic": true,
@@ -25,14 +18,12 @@ var realtimeMeasurements = map[string]bool{
 }
 
 type Processor struct {
-	cache      cache.Repository
 	timeseries timeseries.Writer
 	pubsub     pubsub.Publisher
 	logger     *slog.Logger
 }
 
 func NewProcessor(
-	c cache.Repository,
 	ts timeseries.Writer,
 	ps pubsub.Publisher,
 	logger *slog.Logger,
@@ -41,7 +32,6 @@ func NewProcessor(
 		logger = slog.Default()
 	}
 	return &Processor{
-		cache:      c,
 		timeseries: ts,
 		pubsub:     ps,
 		logger:     logger,
@@ -66,12 +56,6 @@ func (p *Processor) OnPoll(ctx context.Context, event behavior.PollEvent) error 
 			id = "singleton"
 		}
 
-		cacheKey := cache.FormatCacheKey(event.RouterID, event.Meta.Measurement, id)
-		ttl := event.Meta.CacheTTL
-		if ttl == 0 {
-			ttl = defaultCacheTTL
-		}
-
 		if event.Meta.WriteTimeSeries {
 			p.timeseries.WritePoint(ctx, timeseries.Point{
 				Measurement: event.Meta.Measurement,
@@ -83,15 +67,10 @@ func (p *Processor) OnPoll(ctx context.Context, event behavior.PollEvent) error 
 				Timestamp: event.PollTime,
 			})
 		}
-
-		if err := p.cache.SetSnapshot(ctx, cacheKey, row, ttl); err != nil {
-			p.logger.Warn("processor: poll cache write failed",
-				"key", cacheKey, "err", err)
-		}
 	}
 
 	if realtimeMeasurements[event.Meta.Measurement] {
-		channel := cache.FormatPubSubChannel(event.RouterID)
+		channel := pubsub.FormatPubSubChannel(event.RouterID)
 		p.pubsub.Publish(ctx, channel, pubsub.Message{
 			Type:        "poll",
 			RouterID:    event.RouterID,
@@ -112,12 +91,6 @@ func (p *Processor) handleUpdate(ctx context.Context, event behavior.StreamEvent
 		id = "singleton"
 	}
 
-	cacheKey := cache.FormatCacheKey(event.RouterID, meta.Measurement, id)
-	ttl := meta.CacheTTL
-	if ttl == 0 {
-		ttl = defaultCacheTTL
-	}
-
 	if meta.WriteTimeSeries {
 		p.timeseries.WritePoint(ctx, timeseries.Point{
 			Measurement: meta.Measurement,
@@ -131,22 +104,8 @@ func (p *Processor) handleUpdate(ctx context.Context, event behavior.StreamEvent
 		})
 	}
 
-	if err := p.cache.SetSnapshot(ctx, cacheKey, fields, ttl); err != nil {
-		p.logger.Warn("processor: snapshot write failed", "key", cacheKey, "err", err)
-	}
-
-	if meta.IndexField != "" {
-		if nameVal, ok := fields[meta.IndexField]; ok && nameVal != "" {
-			indexKey := cache.FormatIndexKey(event.RouterID, meta.Measurement)
-			if err := p.cache.SetIndex(ctx, indexKey, nameVal, cacheKey); err != nil {
-				p.logger.Warn("processor: index write failed",
-					"index_key", indexKey, "name", nameVal, "err", err)
-			}
-		}
-	}
-
 	if realtimeMeasurements[meta.Measurement] {
-		channel := cache.FormatPubSubChannel(event.RouterID)
+		channel := pubsub.FormatPubSubChannel(event.RouterID)
 		p.pubsub.Publish(ctx, channel, pubsub.Message{
 			Type:        "update",
 			RouterID:    event.RouterID,
@@ -167,23 +126,8 @@ func (p *Processor) handleDead(ctx context.Context, event behavior.StreamEvent) 
 		return nil
 	}
 
-	cacheKey := cache.FormatCacheKey(event.RouterID, meta.Measurement, id)
-
-	if meta.IndexField != "" {
-		if nameVal, ok := event.Fields[meta.IndexField]; ok && nameVal != "" {
-			indexKey := cache.FormatIndexKey(event.RouterID, meta.Measurement)
-			if err := p.cache.DeleteIndex(ctx, indexKey, nameVal); err != nil {
-				p.logger.Warn("processor: index delete failed", "err", err)
-			}
-		}
-	}
-
-	if err := p.cache.DeleteSnapshot(ctx, cacheKey); err != nil {
-		p.logger.Warn("processor: snapshot delete failed", "key", cacheKey, "err", err)
-	}
-
 	if realtimeMeasurements[meta.Measurement] {
-		channel := cache.FormatPubSubChannel(event.RouterID)
+		channel := pubsub.FormatPubSubChannel(event.RouterID)
 		p.pubsub.Publish(ctx, channel, pubsub.Message{
 			Type:        "dead",
 			RouterID:    event.RouterID,

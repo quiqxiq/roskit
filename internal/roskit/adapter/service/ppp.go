@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 )
 
 func (b *Bridge) ListPPPSecrets(ctx context.Context, routerID string) ([]map[string]string, error) {
@@ -129,17 +128,6 @@ func (b *Bridge) ListInactivePPPSecrets(ctx context.Context, routerID string) ([
 }
 
 func (b *Bridge) GetInactivePPPSecretCount(ctx context.Context, routerID string) (int, error) {
-	if b.cache != nil {
-		key := fmt.Sprintf("roskit:%s:ppp_inactive", routerID)
-		data, err := b.cache.GetSnapshot(ctx, key)
-		if err == nil && data != nil && data["count"] != "" {
-			var count int
-			if _, err := fmt.Sscanf(data["count"], "%d", &count); err == nil {
-				return count, nil
-			}
-		}
-	}
-
 	list, err := b.ListInactivePPPSecrets(ctx, routerID)
 	if err != nil {
 		return 0, err

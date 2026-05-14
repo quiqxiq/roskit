@@ -13,7 +13,6 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 )
 
 func LoadRouterConfig() execution.ConnConfig {
@@ -111,7 +110,7 @@ func NewTestBridge(t *testing.T) (*service.Bridge, func()) {
 
 	time.Sleep(3 * time.Second)
 
-	bridge := service.NewBridge(engine.Dispatcher(), cache.NoopRepository{})
+	bridge := service.NewBridge(engine.Dispatcher())
 
 	cleanup := func() {
 		engine.Stop()

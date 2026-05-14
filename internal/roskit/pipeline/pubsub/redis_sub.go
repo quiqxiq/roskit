@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 )
 
 type RedisSubscriber struct {
@@ -14,7 +13,7 @@ type RedisSubscriber struct {
 	logger *slog.Logger
 }
 
-func NewRedisSubscriber(cfg cache.RedisConfig, logger *slog.Logger) (*RedisSubscriber, error) {
+func NewRedisSubscriber(cfg RedisConfig, logger *slog.Logger) (*RedisSubscriber, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}

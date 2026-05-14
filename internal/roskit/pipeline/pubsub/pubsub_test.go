@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,12 +20,12 @@ func skipWithoutRedis(t *testing.T) {
 	}
 }
 
-func redisConfig() cache.RedisConfig {
+func redisConfig() pubsub.RedisConfig {
 	addr := os.Getenv("REDIS_ADDR")
 	if addr == "" {
 		addr = "localhost:6379"
 	}
-	return cache.RedisConfig{Addr: addr}
+	return pubsub.RedisConfig{Addr: addr}
 }
 
 func newTestPublisher(t *testing.T) *pubsub.RedisPublisher {

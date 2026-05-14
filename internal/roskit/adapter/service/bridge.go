@@ -8,17 +8,15 @@ import (
 	"github.com/go-routeros/routeros/v3"
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 )
 
 type Bridge struct {
 	dispatcher *orchestrator.Dispatcher
-	cache      cache.Repository
 	logger     *slog.Logger
 }
 
-func NewBridge(dispatcher *orchestrator.Dispatcher, c cache.Repository) *Bridge {
-	return &Bridge{dispatcher: dispatcher, cache: c, logger: slog.Default()}
+func NewBridge(dispatcher *orchestrator.Dispatcher) *Bridge {
+	return &Bridge{dispatcher: dispatcher, logger: slog.Default()}
 }
 
 // logCleanupErr is a helper for best-effort cleanup mutations whose failures

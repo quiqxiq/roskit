@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
 
@@ -34,7 +33,7 @@ func (h *TelemetrySSEHandler) Stream(measurement string) gin.HandlerFunc {
 
 		iface := c.Param("iface")
 
-		channel := cache.FormatPubSubChannel(fmt.Sprintf("%d", routerID))
+		channel := pubsub.FormatPubSubChannel(fmt.Sprintf("%d", routerID))
 		ctx := c.Request.Context()
 
 		msgCh, err := h.sub.Subscribe(ctx, channel)

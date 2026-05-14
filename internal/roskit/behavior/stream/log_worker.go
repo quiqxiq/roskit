@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 )
 
@@ -85,7 +84,7 @@ func (w *LogWorker) runStream(ctx context.Context, routerID, filter string) erro
 	}
 
 	ch := reply.Chan()
-	channel := cache.FormatLogChannel(routerID, filter)
+	channel := pubsub.FormatLogChannel(routerID, filter)
 
 	for {
 		select {

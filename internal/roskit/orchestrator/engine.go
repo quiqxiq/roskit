@@ -14,7 +14,6 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/core/command"
 	_ "github.com/quiqxiq/roskit/internal/roskit/core/definition"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/event"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/pubsub"
 	"github.com/quiqxiq/roskit/internal/roskit/pipeline/timeseries"
@@ -40,7 +39,6 @@ type Engine struct {
 
 type Config struct {
 	Logger          *slog.Logger
-	Cache           cache.Repository
 	TimeSeries      timeseries.Writer
 	PubSub          pubsub.Publisher
 	OnRouterConnect func(ctx context.Context, routerID string)
@@ -50,9 +48,6 @@ func New(cfg Config) *Engine {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	if cfg.Cache == nil {
-		cfg.Cache = cache.NoopRepository{}
-	}
 	if cfg.TimeSeries == nil {
 		cfg.TimeSeries = timeseries.NoopWriter{}
 	}
@@ -61,13 +56,13 @@ func New(cfg Config) *Engine {
 	}
 
 	pool := execution.NewPool(cfg.Logger)
-	processor := event.NewProcessor(cfg.Cache, cfg.TimeSeries, cfg.PubSub, cfg.Logger)
+	processor := event.NewProcessor(cfg.TimeSeries, cfg.PubSub, cfg.Logger)
 	streamMgr := bstream.NewManager(pool, processor, cfg.Logger)
 	ifaceMon := bstream.NewInterfaceMonitorManager(pool, processor, cfg.Logger)
 	logMgr := bstream.NewLogManager(pool, cfg.PubSub, cfg.Logger)
 	pollSched := poll.NewScheduler(pool, processor, cfg.Logger)
-	queryH := query.NewHandler(pool, cfg.Cache, cfg.Logger)
-	mutateH := mutation.NewHandler(pool, queryH, cfg.Cache, cfg.Logger)
+	queryH := query.NewHandler(pool, cfg.Logger)
+	mutateH := mutation.NewHandler(pool, queryH, cfg.Logger)
 
 	dispatcher := NewDispatcher(
 		bstream.NewWorker(pool, processor, cfg.Logger),

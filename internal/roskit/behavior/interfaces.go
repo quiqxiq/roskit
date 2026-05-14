@@ -43,8 +43,6 @@ type PollHandler interface {
 type QueryHandler interface {
 	Query(ctx context.Context, routerID string, meta *command.CommandMeta, filters ...string) ([]map[string]string, error)
 	QueryOne(ctx context.Context, routerID string, meta *command.CommandMeta, filters ...string) (map[string]string, error)
-	GetByIndex(ctx context.Context, routerID string, meta *command.CommandMeta, name string) (map[string]string, error)
-	Count(ctx context.Context, routerID string, meta *command.CommandMeta) (int, error)
 }
 
 type MutationHandler interface {

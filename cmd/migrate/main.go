@@ -22,7 +22,6 @@ import (
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 	roskitservice "github.com/quiqxiq/roskit/internal/roskit/adapter/service"
-	roskitcache "github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 	"github.com/quiqxiq/roskit/pkg/database"
 	"github.com/quiqxiq/roskit/pkg/encrypt"
 	"gorm.io/gorm"
@@ -73,7 +72,7 @@ func main() {
 		logger := slog.Default()
 		pool := execution.NewPool(logger)
 		engine := orchestrator.New(orchestrator.Config{Logger: logger})
-		bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitcache.NoopRepository{})
+		bridge := roskitservice.NewBridge(engine.Dispatcher())
 
 		var db *gorm.DB
 		if !args.DryRun {
@@ -93,7 +92,7 @@ func main() {
 		logger := slog.Default()
 		pool := execution.NewPool(logger)
 		engine := orchestrator.New(orchestrator.Config{Logger: logger})
-		bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitcache.NoopRepository{})
+		bridge := roskitservice.NewBridge(engine.Dispatcher())
 
 		db, err := database.Connect(cfg.PostgresDSN())
 		if err != nil {
@@ -111,7 +110,7 @@ func main() {
 		logger := slog.Default()
 		pool := execution.NewPool(logger)
 		engine := orchestrator.New(orchestrator.Config{Logger: logger})
-		bridge := roskitservice.NewBridge(engine.Dispatcher(), roskitcache.NoopRepository{})
+		bridge := roskitservice.NewBridge(engine.Dispatcher())
 
 		db, err := database.Connect(cfg.PostgresDSN())
 		if err != nil {

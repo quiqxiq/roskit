@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 )
 
 func (b *Bridge) ListInterfaces(ctx context.Context, routerID string) ([]map[string]string, error) {
@@ -49,9 +48,3 @@ func (b *Bridge) ListDHCPLeases(ctx context.Context, routerID string) ([]map[str
 	return b.Query(ctx, routerID, "ip/dhcp-server/lease/print")
 }
 
-func (b *Bridge) GetCachedSnapshot(ctx context.Context, key string) (map[string]string, error) {
-	if b.cache == nil {
-		return nil, fmt.Errorf("cache not available")
-	}
-	return b.cache.GetSnapshot(ctx, key)
-}

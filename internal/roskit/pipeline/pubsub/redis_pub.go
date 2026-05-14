@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/quiqxiq/roskit/internal/roskit/pipeline/cache"
 )
 
 type RedisPublisher struct {
@@ -14,7 +13,7 @@ type RedisPublisher struct {
 	logger *slog.Logger
 }
 
-func NewRedisPublisher(cfg cache.RedisConfig, logger *slog.Logger) (*RedisPublisher, error) {
+func NewRedisPublisher(cfg RedisConfig, logger *slog.Logger) (*RedisPublisher, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
