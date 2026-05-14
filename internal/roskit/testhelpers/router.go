@@ -10,12 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/quiqxiq/roskit/internal/roskit/adapter/service"
 	"github.com/quiqxiq/roskit/internal/roskit/execution"
 	"github.com/quiqxiq/roskit/internal/roskit/orchestrator"
 )
 
 func LoadRouterConfig() execution.ConnConfig {
+	_ = godotenv.Load()
 	host := os.Getenv("MIKROTIK_HOST")
 	user := os.Getenv("MIKROTIK_USER")
 	pass := os.Getenv("MIKROTIK_PASS")
@@ -43,6 +45,7 @@ func LoadRouterConfig() execution.ConnConfig {
 
 func SkipWithoutMikroTik(t *testing.T) {
 	t.Helper()
+	_ = godotenv.Load()
 	if os.Getenv("MIKROTIK_HOST") == "" {
 		t.Skip("skipping: MIKROTIK_HOST not set")
 	}

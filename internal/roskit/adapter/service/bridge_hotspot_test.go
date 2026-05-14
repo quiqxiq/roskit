@@ -386,3 +386,96 @@ func TestBridge_PPPSecretCRUD(t *testing.T) {
 	err = bridge.RemovePPPSecret(ctx, rid, id)
 	require.NoError(t, err)
 }
+
+func TestBridge_ListHotspotActive(t *testing.T) {
+	testhelpers.SkipWithoutMikroTik(t)
+
+	bridge, cleanup := testhelpers.NewTestBridge(t)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	rid := testhelpers.RouterID()
+
+	sessions, err := bridge.ListHotspotActive(ctx, rid)
+	require.NoError(t, err)
+	assert.NotNil(t, sessions)
+}
+
+func TestBridge_GetActiveSessionCount(t *testing.T) {
+	testhelpers.SkipWithoutMikroTik(t)
+
+	bridge, cleanup := testhelpers.NewTestBridge(t)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	rid := testhelpers.RouterID()
+
+	count, err := bridge.GetActiveSessionCount(ctx, rid)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, count, 0)
+}
+
+func TestBridge_ListInactiveHotspotUsers(t *testing.T) {
+	testhelpers.SkipWithoutMikroTik(t)
+
+	bridge, cleanup := testhelpers.NewTestBridge(t)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	rid := testhelpers.RouterID()
+	prefix := testhelpers.UniqueName("t")
+	t.Cleanup(func() { testhelpers.CleanupAll(ctx, bridge, rid, prefix) })
+
+	name := testhelpers.UniqueName("t")
+	_, err := bridge.AddHotspotUser(ctx, rid, map[string]string{
+		"name":     name,
+		"password": "pass123",
+		"profile":  "default",
+	})
+	require.NoError(t, err)
+
+	allUsers, err := bridge.ListHotspotUsers(ctx, rid, "")
+	require.NoError(t, err)
+
+	activeSessions, err := bridge.ListHotspotActive(ctx, rid)
+	require.NoError(t, err)
+
+	activeMap := make(map[string]struct{})
+	for _, s := range activeSessions {
+		if u := s["user"]; u != "" {
+			activeMap[u] = struct{}{}
+		}
+	}
+
+	inactiveCount := 0
+	for _, u := range allUsers {
+		if _, active := activeMap[u["name"]]; !active {
+			inactiveCount++
+		}
+	}
+	assert.Greater(t, inactiveCount, 0, "should have at least 1 inactive user")
+}
+
+func TestBridge_GetInactiveHotspotUserCount(t *testing.T) {
+	testhelpers.SkipWithoutMikroTik(t)
+
+	bridge, cleanup := testhelpers.NewTestBridge(t)
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	rid := testhelpers.RouterID()
+	prefix := testhelpers.UniqueName("t")
+	t.Cleanup(func() { testhelpers.CleanupAll(ctx, bridge, rid, prefix) })
+
+	_, err := bridge.AddHotspotUser(ctx, rid, map[string]string{
+		"name":     testhelpers.UniqueName("t"),
+		"password": "pass123",
+		"profile":  "default",
+	})
+	require.NoError(t, err)
+
+	count, err := bridge.GetInactiveHotspotUserCount(ctx, rid)
+	require.NoError(t, err)
+	assert.Greater(t, count, 0)
+}
+
