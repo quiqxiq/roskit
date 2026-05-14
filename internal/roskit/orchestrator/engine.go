@@ -28,6 +28,7 @@ type Engine struct {
 	appCtx      context.Context // set by Start; used by AddRouter to launch workers
 	pool        *execution.Pool
 	streams     *bstream.Manager
+	ifaceMon    *bstream.InterfaceMonitorManager
 	logMgr      *bstream.LogManager
 	polls       *poll.Scheduler
 	pollCancels map[string]context.CancelFunc
@@ -62,6 +63,7 @@ func New(cfg Config) *Engine {
 	pool := execution.NewPool(cfg.Logger)
 	processor := event.NewProcessor(cfg.Cache, cfg.TimeSeries, cfg.PubSub, cfg.Logger)
 	streamMgr := bstream.NewManager(pool, processor, cfg.Logger)
+	ifaceMon := bstream.NewInterfaceMonitorManager(pool, processor, cfg.Logger)
 	logMgr := bstream.NewLogManager(pool, cfg.PubSub, cfg.Logger)
 	pollSched := poll.NewScheduler(pool, processor, cfg.Logger)
 	queryH := query.NewHandler(pool, cfg.Cache, cfg.Logger)
@@ -79,6 +81,7 @@ func New(cfg Config) *Engine {
 		cfg:         cfg,
 		pool:        pool,
 		streams:     streamMgr,
+		ifaceMon:    ifaceMon,
 		logMgr:      logMgr,
 		polls:       pollSched,
 		pollCancels: make(map[string]context.CancelFunc),
@@ -117,6 +120,7 @@ func (e *Engine) AddRouter(_ context.Context, cfg execution.ConnConfig) error {
 
 func (e *Engine) RemoveRouter(routerID string) {
 	e.streams.StopAll(routerID)
+	e.ifaceMon.StopAll(routerID)
 	e.logMgr.StopAll(routerID)
 	e.polls.StopAll(routerID)
 	e.mu.Lock()
@@ -154,6 +158,7 @@ func (e *Engine) Start(ctx context.Context) {
 
 func (e *Engine) Stop() {
 	e.streams.Shutdown()
+	e.ifaceMon.Shutdown()
 	e.logMgr.Shutdown()
 	e.polls.Shutdown()
 	e.pool.Stop()
@@ -188,6 +193,7 @@ func (e *Engine) startRouterWorkers(ctx context.Context, routerID string) {
 	for _, meta := range command.ByType(command.CommandTypeStream) {
 		e.streams.Start(ctx, routerID, meta)
 	}
+	go e.runInterfaceSync(ctx, routerID)
 	e.logMgr.StartAll(ctx, routerID)
 
 	pollCtx, pollCancel := context.WithCancel(ctx)
@@ -223,5 +229,48 @@ func (e *Engine) runPollLoop(ctx context.Context, routerID string) {
 		case <-ticker.C:
 			runner.RunAll(ctx, routerID, metas)
 		}
+	}
+}
+
+func (e *Engine) runInterfaceSync(ctx context.Context, routerID string) {
+	e.logger.Info("interface sync: starting", "router_id", routerID)
+	e.syncInterfacesOnce(ctx, routerID)
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			e.syncInterfacesOnce(ctx, routerID)
+		}
+	}
+}
+
+func (e *Engine) syncInterfacesOnce(ctx context.Context, routerID string) {
+	conn, err := e.pool.Borrow(ctx, routerID)
+	if err != nil {
+		e.logger.Info("interface sync: borrow failed", "router_id", routerID, "err", err)
+		return
+	}
+	defer e.pool.Return(routerID, conn)
+
+	reply, err := conn.RunContext(ctx, "/interface/print")
+	if err != nil {
+		e.logger.Info("interface sync: query failed", "router_id", routerID, "err", err)
+		return
+	}
+
+	names := make([]string, 0, len(reply.Re))
+	for _, s := range reply.Re {
+		if name, ok := s.Map["name"]; ok && name != "" {
+			names = append(names, name)
+		}
+	}
+
+	if len(names) > 0 {
+		e.ifaceMon.SyncInterfaces(ctx, routerID, names)
+		e.logger.Info("interface sync: done", "router_id", routerID, "count", len(names))
 	}
 }

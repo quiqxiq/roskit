@@ -18,11 +18,9 @@ func registerNetwork() {
 
 	// -------------------------------------------------------------------------
 	// STREAM — /interface/monitor-traffic
-	// JSON: follow=false, interval=true — monitor-type (continuous push)
+	// Handled by InterfaceMonitorManager per-interface (not auto-registered).
 	// -------------------------------------------------------------------------
-	ifTraffic := command.MonitorDef("interface/monitor-traffic", "interface_traffic")
-	ifTraffic.WriteTimeSeries = true
-	command.Register(ifTraffic)
+	_ = command.MonitorDef("interface/monitor-traffic", "interface_traffic")
 
 	// -------------------------------------------------------------------------
 	// STREAM — /ip/address (follow=true in JSON)

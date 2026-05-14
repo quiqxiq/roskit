@@ -57,9 +57,11 @@ func (m *InterfaceMonitorManager) SyncInterfaces(ctx context.Context, routerID s
 		}
 	}
 
-	meta := command.Lookup("interface/monitor-traffic")
-	if meta == nil {
-		return
+	meta := &command.CommandMeta{
+		Type:            command.CommandTypeStream,
+		Path:            "interface/monitor-traffic",
+		Measurement:     "interface_traffic",
+		WriteTimeSeries: true,
 	}
 
 	for _, name := range interfaceNames {
