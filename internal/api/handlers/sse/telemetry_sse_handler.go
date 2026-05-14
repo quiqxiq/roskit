@@ -71,22 +71,22 @@ func (h *TelemetrySSEHandler) Stream(measurement string) gin.HandlerFunc {
 					return
 				}
 
-				var event struct {
-					Measurement string            `json:"measurement"`
-					Tags        map[string]string `json:"tags"`
-				}
+			var event struct {
+				Measurement string            `json:"measurement"`
+				Fields      map[string]string `json:"fields"`
+			}
 
-				if err := json.Unmarshal(msg.Payload, &event); err != nil {
-					continue
-				}
+			if err := json.Unmarshal(msg.Payload, &event); err != nil {
+				continue
+			}
 
-				if event.Measurement != measurement {
-					continue
-				}
+			if event.Measurement != measurement {
+				continue
+			}
 
-				if iface != "" && event.Tags["interface"] != iface && event.Tags["name"] != iface {
-					continue
-				}
+			if iface != "" && event.Fields["interface"] != iface && event.Fields["name"] != iface {
+				continue
+			}
 
 				if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(msg.Payload)); err != nil {
 					return
