@@ -29,7 +29,6 @@ type Engine struct {
 	streams     *bstream.Manager
 	ifaceMon    *bstream.InterfaceMonitorManager
 	logMgr      *bstream.LogManager
-	polls       *poll.Scheduler
 	pollCancels map[string]context.CancelFunc
 	processor   *event.Processor
 	dispatch    *Dispatcher
@@ -60,7 +59,6 @@ func New(cfg Config) *Engine {
 	streamMgr := bstream.NewManager(pool, processor, cfg.Logger)
 	ifaceMon := bstream.NewInterfaceMonitorManager(pool, processor, cfg.Logger)
 	logMgr := bstream.NewLogManager(pool, cfg.PubSub, cfg.Logger)
-	pollSched := poll.NewScheduler(pool, processor, cfg.Logger)
 	queryH := query.NewHandler(pool, cfg.Logger)
 	mutateH := mutation.NewHandler(pool, queryH, cfg.Logger)
 
@@ -78,7 +76,6 @@ func New(cfg Config) *Engine {
 		streams:     streamMgr,
 		ifaceMon:    ifaceMon,
 		logMgr:      logMgr,
-		polls:       pollSched,
 		pollCancels: make(map[string]context.CancelFunc),
 		processor:   processor,
 		dispatch:    dispatcher,
@@ -117,7 +114,6 @@ func (e *Engine) RemoveRouter(routerID string) {
 	e.streams.StopAll(routerID)
 	e.ifaceMon.StopAll(routerID)
 	e.logMgr.StopAll(routerID)
-	e.polls.StopAll(routerID)
 	e.mu.Lock()
 	if cancel, ok := e.pollCancels[routerID]; ok {
 		cancel()
@@ -155,7 +151,6 @@ func (e *Engine) Stop() {
 	e.streams.Shutdown()
 	e.ifaceMon.Shutdown()
 	e.logMgr.Shutdown()
-	e.polls.Shutdown()
 	e.pool.Stop()
 	e.processor = nil
 }
